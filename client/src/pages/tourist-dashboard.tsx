@@ -34,8 +34,18 @@ export default function TouristDashboard() {
     }
   }, [isAuthenticated, authLoading, toast]);
 
+  const queryParams = new URLSearchParams();
+  if (searchTerm) queryParams.append('search', searchTerm);
+  if (category) queryParams.append('category', category);
+  if (priceFilter === 'low') queryParams.append('maxPrice', '50');
+  if (priceFilter === 'medium') {
+    queryParams.append('minPrice', '50');
+    queryParams.append('maxPrice', '100');
+  }
+  if (priceFilter === 'high') queryParams.append('minPrice', '100');
+
   const { data: tours, isLoading: toursLoading } = useQuery<TourWithGuide[]>({
-    queryKey: ['/api/tours'],
+    queryKey: ['/api/tours', queryParams.toString()],
     enabled: isAuthenticated,
   });
 
@@ -113,19 +123,70 @@ export default function TouristDashboard() {
           
           {/* Search Bar */}
           <Card className="p-4 bg-white/95 backdrop-blur-md">
-            <div className="flex flex-col md:flex-row gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  placeholder="Search tours, places, or activities..."
-                  className="pl-10"
-                  data-testid="input-search"
-                />
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tours, places, or activities..."
+                    className="pl-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    data-testid="input-search"
+                  />
+                </div>
+                <Button onClick={() => {}} data-testid="button-search-submit">
+                  <Search className="w-4 h-4 mr-2" />
+                  Search
+                </Button>
               </div>
-              <Button data-testid="button-search-submit">
-                <Search className="w-4 h-4 mr-2" />
-                Search
-              </Button>
+              
+              {/* Filters */}
+              <div className="flex flex-wrap gap-2">
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="w-40" data-testid="select-category">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="walking">Walking</SelectItem>
+                    <SelectItem value="food">Food</SelectItem>
+                    <SelectItem value="adventure">Adventure</SelectItem>
+                    <SelectItem value="cultural">Cultural</SelectItem>
+                    <SelectItem value="historical">Historical</SelectItem>
+                    <SelectItem value="nature">Nature</SelectItem>
+                    <SelectItem value="art">Art</SelectItem>
+                    <SelectItem value="nightlife">Nightlife</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={priceFilter} onValueChange={setPriceFilter}>
+                  <SelectTrigger className="w-40" data-testid="select-price">
+                    <SelectValue placeholder="Price Range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Prices</SelectItem>
+                    <SelectItem value="low">Under $50</SelectItem>
+                    <SelectItem value="medium">$50 - $100</SelectItem>
+                    <SelectItem value="high">Over $100</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {(searchTerm || category || priceFilter) && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setCategory('');
+                      setPriceFilter('');
+                    }}
+                    data-testid="button-clear-filters"
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
             </div>
           </Card>
         </div>
