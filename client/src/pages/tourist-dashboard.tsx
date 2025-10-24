@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, MapPin, Star, Clock, Users, Heart, Calendar, Map as MapIcon } from 'lucide-react';
 import type { TourWithGuide } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +17,9 @@ export default function TouristDashboard() {
   const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [category, setCategory] = useState<string>('');
+  const [priceFilter, setPriceFilter] = useState<string>('');
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

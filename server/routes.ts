@@ -47,7 +47,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Tour routes
   app.get('/api/tours', async (req, res) => {
     try {
-      const tours = await storage.getTours();
+      const { category, search, minPrice, maxPrice } = req.query;
+      let tours = await storage.getTours();
+      
+      // Apply filters
+      if (category) {
+        tours = tours.filter(t => t.category === category);
+      }
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        tours = tours.filter(t => 
+          t.title.toLowerCase().includes(searchLower) ||
+          t.description.toLowerCase().includes(searchLower)
+        );
+      }
+      if (minPrice) {
+        tours = tours.filter(t => parseFloat(t.price.toString()) >= parseFloat(minPrice as string));
+      }
+      if (maxPrice) {
+        tours = tours.filter(t => parseFloat(t.price.toString()) <= parseFloat(maxPrice as string));
+      }
+      
       res.json(tours);
     } catch (error) {
       console.error("Error fetching tours:", error);
@@ -132,7 +152,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Service routes
   app.get('/api/services', async (req, res) => {
     try {
-      const services = await storage.getServices();
+      const { type, search, priceRange } = req.query;
+      let services = await storage.getServices();
+      
+      // Apply filters
+      if (type) {
+        services = services.filter(s => s.type === type);
+      }
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        services = services.filter(s => 
+          s.name.toLowerCase().includes(searchLower) ||
+          s.description.toLowerCase().includes(searchLower)
+        );
+      }
+      if (priceRange) {
+        services = services.filter(s => s.priceRange === priceRange);
+      }
+      
       res.json(services);
     } catch (error) {
       console.error("Error fetching services:", error);
