@@ -55,7 +55,7 @@ function Router() {
   }
 
   // Show role selection if user hasn't selected a role
-  if (!user?.role || user.role === 'tourist' && !user.role) {
+  if (!user?.role) {
     return <RoleSelection />;
   }
 

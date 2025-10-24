@@ -49,8 +49,8 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role", { length: 20 }).notNull().default("tourist"), // tourist, guide, provider, supervisor
-  approvalStatus: varchar("approval_status", { length: 20 }).notNull().default("approved"), // pending, approved, rejected - tourists auto-approved
+  role: varchar("role", { length: 20 }), // tourist, guide, provider, supervisor - null until user selects
+  approvalStatus: varchar("approval_status", { length: 20 }), // pending, approved, rejected - null until role selected
   approvedBy: varchar("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
