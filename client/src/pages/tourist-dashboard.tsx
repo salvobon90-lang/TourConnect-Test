@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, MapPin, Star, Clock, Users, Heart, Calendar, Map as MapIcon } from 'lucide-react';
+import { Search, MapPin, Star, Clock, Users, Heart, Calendar, Map as MapIcon, Navigation } from 'lucide-react';
 import type { TourWithGuide } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
+import { useUserLocation } from '@/hooks/use-location';
+import { calculateDistance, formatDistance } from '@/lib/geolocation';
 
 export default function TouristDashboard() {
   const { t } = useTranslation();
@@ -20,6 +22,8 @@ export default function TouristDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState<string>('');
   const [priceFilter, setPriceFilter] = useState<string>('');
+  const [proximityFilter, setProximityFilter] = useState<string>('');
+  const { location, loading: locationLoading, error: locationError, requestLocation, hasLocation } = useUserLocation();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -53,6 +57,46 @@ export default function TouristDashboard() {
     queryKey: ['/api/bookings/count'],
     enabled: isAuthenticated,
   });
+
+  // Calculate distances and filter by proximity
+  const toursWithDistance = useMemo(() => {
+    if (!tours || !location) return tours;
+    
+    return tours.map(tour => ({
+      ...tour,
+      distance: calculateDistance(
+        location.latitude,
+        location.longitude,
+        tour.latitude,
+        tour.longitude
+      ),
+    }));
+  }, [tours, location]);
+
+  const filteredTours = useMemo(() => {
+    if (!toursWithDistance) return [];
+    
+    let filtered = [...toursWithDistance];
+    
+    // Apply proximity filter
+    if (proximityFilter && location) {
+      const maxDistance = parseInt(proximityFilter);
+      filtered = filtered.filter(tour => tour.distance && tour.distance <= maxDistance);
+    }
+    
+    // Sort by distance if location is available
+    if (location) {
+      filtered.sort((a, b) => (a.distance || 999) - (b.distance || 999));
+    }
+    
+    return filtered;
+  }, [toursWithDistance, proximityFilter, location]);
+
+  // Get nearby tours (within 20km)
+  const nearbyTours = useMemo(() => {
+    if (!toursWithDistance || !location) return [];
+    return toursWithDistance.filter(tour => tour.distance && tour.distance <= 20).slice(0, 6);
+  }, [toursWithDistance, location]);
 
   if (authLoading || !isAuthenticated) {
     return (
@@ -172,7 +216,33 @@ export default function TouristDashboard() {
                   </SelectContent>
                 </Select>
                 
-                {(searchTerm || category || priceFilter) && (
+                <Select value={proximityFilter} onValueChange={setProximityFilter}>
+                  <SelectTrigger className="w-40" data-testid="select-proximity">
+                    <SelectValue placeholder="Distance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Any Distance</SelectItem>
+                    <SelectItem value="5">Within 5 km</SelectItem>
+                    <SelectItem value="10">Within 10 km</SelectItem>
+                    <SelectItem value="20">Within 20 km</SelectItem>
+                    <SelectItem value="50">Within 50 km</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {!hasLocation && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={requestLocation}
+                    disabled={locationLoading}
+                    data-testid="button-enable-location"
+                  >
+                    <Navigation className="w-4 h-4 mr-2" />
+                    {locationLoading ? 'Getting location...' : 'Enable Location'}
+                  </Button>
+                )}
+                
+                {(searchTerm || category || priceFilter || proximityFilter) && (
                   <Button 
                     variant="outline" 
                     size="sm"
@@ -180,6 +250,7 @@ export default function TouristDashboard() {
                       setSearchTerm('');
                       setCategory('');
                       setPriceFilter('');
+                      setProximityFilter('');
                     }}
                     data-testid="button-clear-filters"
                   >
@@ -242,6 +313,75 @@ export default function TouristDashboard() {
         </div>
       </section>
 
+      {/* Near You Section */}
+      {nearbyTours.length > 0 && (
+        <section className="py-12 px-4 bg-muted/30">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-3xl font-serif font-semibold">Near You</h2>
+                <p className="text-muted-foreground mt-2">Discover experiences close to your location</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {nearbyTours.map((tour) => (
+                <Link key={tour.id} href={`/tours/${tour.id}`}>
+                  <Card className="overflow-hidden hover-elevate cursor-pointer" data-testid={`nearby-tour-card-${tour.id}`}>
+                    <div className="relative h-48 overflow-hidden">
+                      <img
+                        src={tour.images[0] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021'}
+                        alt={tour.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-3 right-3">
+                        <Badge className="bg-white/90 text-foreground">
+                          ${tour.price}
+                        </Badge>
+                      </div>
+                      {tour.distance && (
+                        <div className="absolute top-3 left-3">
+                          <Badge variant="secondary" className="bg-primary/90 text-primary-foreground">
+                            <Navigation className="w-3 h-3 mr-1" />
+                            {formatDistance(tour.distance)}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="secondary">{tour.category}</Badge>
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2 line-clamp-1">{tour.title}</h3>
+                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                        {tour.description}
+                      </p>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {Math.floor(Number(tour.duration) / 60)}h {Number(tour.duration) % 60}m
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
+                          Max {tour.maxGroupSize}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                          5.0
+                        </div>
+                      </div>
+                      <Button className="w-full" data-testid={`button-book-nearby-${tour.id}`}>
+                        {t('book')}
+                      </Button>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Tours Section */}
       <section className="py-12 px-4">
         <div className="max-w-7xl mx-auto">
@@ -263,9 +403,9 @@ export default function TouristDashboard() {
                 </Card>
               ))}
             </div>
-          ) : tours && tours.length > 0 ? (
+          ) : filteredTours && filteredTours.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {tours.slice(0, 6).map((tour) => (
+              {filteredTours.slice(0, 6).map((tour) => (
                 <Link key={tour.id} href={`/tours/${tour.id}`}>
                   <Card className="overflow-hidden hover-elevate cursor-pointer" data-testid={`tour-card-${tour.id}`}>
                     <div className="relative h-48 overflow-hidden">
@@ -279,6 +419,14 @@ export default function TouristDashboard() {
                           ${tour.price}
                         </Badge>
                       </div>
+                      {tour.distance && (
+                        <div className="absolute top-3 left-3">
+                          <Badge variant="secondary" className="bg-primary/90 text-primary-foreground">
+                            <Navigation className="w-3 h-3 mr-1" />
+                            {formatDistance(tour.distance)}
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                     <div className="p-4">
                       <div className="flex items-center gap-2 mb-2">
