@@ -2,7 +2,7 @@
 
 ## Overview
 
-TourConnect is a comprehensive tourism platform that connects three distinct user groups: tourists seeking authentic experiences, tour guides offering local expertise, and service providers (restaurants, shops, transport). The application features role-based dashboards, interactive mapping with geolocation, booking management with Stripe payment integration, and multi-language support (English, Italian, German, French, Spanish).
+TourConnect is a comprehensive tourism platform that connects four distinct user groups: tourists seeking authentic experiences, tour guides offering local expertise, service providers (restaurants, shops, transport), and supervisors who manage platform access. The application features role-based dashboards, supervisor approval workflow for guides/providers, interactive mapping with geolocation, booking management with Stripe payment integration, and multi-language support (English, Italian, German, French, Spanish).
 
 ## User Preferences
 
@@ -48,24 +48,28 @@ Preferred communication style: Simple, everyday language.
 - Stripe SDK for payment processing
 
 **API Design:**
-- RESTful API endpoints organized by resource type (tours, services, bookings, reviews)
+- RESTful API endpoints organized by resource type (tours, services, bookings, reviews, supervisor)
 - Role-based access control enforced at route level using `isAuthenticated` middleware
+- Approval status checks preventing unapproved guides/providers from creating content
+- Supervisor-only endpoints for user approval management
 - Request/response logging middleware for API calls
 - JSON-based communication with credential-based authentication
 
 **Authentication Flow:**
 - OpenID Connect integration with Replit's identity provider
 - Session-based authentication with PostgreSQL session storage
-- User role assignment after initial login (tourist/guide/provider)
-- Protected routes requiring authentication middleware
+- Multi-step onboarding: language selection → role selection → dashboard access
+- Role-based approval workflow: tourists auto-approved, guides/providers require supervisor approval
+- Supervisor approval system with approve/reject functionality
+- Protected routes requiring authentication and approval status checks
 - Token refresh handled automatically by OpenID client
 
 ### Database Schema Design
 
 **Core Tables:**
-- `users` - User accounts with role discrimination (tourist/guide/provider)
-- `tours` - Tour offerings created by guides with geolocation data
-- `services` - Services offered by providers (restaurants, shops, transport)
+- `users` - User accounts with role discrimination (tourist/guide/provider/supervisor) and approval status tracking
+- `tours` - Tour offerings created by approved guides with geolocation data
+- `services` - Services offered by approved providers (restaurants, shops, transport)
 - `bookings` - Tour bookings with Stripe payment tracking
 - `reviews` - User reviews for tours with ratings and images
 - `sessions` - PostgreSQL-backed session storage for authentication
@@ -79,6 +83,8 @@ Preferred communication style: Simple, everyday language.
 **Schema Features:**
 - UUID primary keys with PostgreSQL's `gen_random_uuid()`
 - Timestamp tracking with `created_at` and `updated_at` columns
+- Nullable role and approval status fields (null until role selection)
+- Approval tracking with `approval_status` ('pending', 'approved', 'rejected'), `approved_by`, and `approved_at` fields
 - JSONB columns for flexible array storage (images, languages, included items)
 - Decimal type for precise monetary values
 - Geolocation coordinates stored as real numbers (latitude/longitude)
