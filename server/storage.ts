@@ -253,6 +253,15 @@ export class DatabaseStorage implements IStorage {
     return Number(result?.count || 0);
   }
 
+  async getBookingById(id: string): Promise<Booking | undefined> {
+    const [booking] = await db
+      .select()
+      .from(bookings)
+      .where(eq(bookings.id, id));
+
+    return booking;
+  }
+
   async createBooking(booking: InsertBooking): Promise<Booking> {
     const [newBooking] = await db.insert(bookings).values(booking).returning();
     return newBooking;

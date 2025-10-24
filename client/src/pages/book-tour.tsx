@@ -78,26 +78,34 @@ export default function BookTour() {
 
   const processPaymentMutation = useMutation({
     mutationFn: async () => {
-      // In a real app, this would integrate with Stripe Elements
-      // For MVP, we'll simulate payment processing
       if (!bookingId) throw new Error('No booking ID');
       
-      const response = await apiRequest('PUT', `/api/bookings/${bookingId}`, {
-        status: 'confirmed',
-        paymentStatus: 'paid',
+      const response = await apiRequest('POST', '/api/create-checkout-session', {
+        bookingId,
       });
       return response.json();
     },
-    onSuccess: () => {
-      setCurrentStep('confirmation');
-      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+    onSuccess: (data: { url: string }) => {
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
     },
     onError: (error: any) => {
       toast({
         title: 'Payment Error',
-        description: error.message || 'Failed to process payment',
+        description: error.message || 'Stripe is not configured. Payment simulation mode.',
         variant: 'destructive',
       });
+      
+      // Fallback to simulation if Stripe is not configured
+      if (error.message?.includes('not configured')) {
+        apiRequest('PUT', `/api/bookings/${bookingId}`, {
+          status: 'confirmed',
+          paymentStatus: 'paid',
+        }).then(() => {
+          setCurrentStep('confirmation');
+          queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+        });
+      }
     },
   });
 

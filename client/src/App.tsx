@@ -18,6 +18,7 @@ import CreateTour from "@/pages/create-tour";
 import CreateService from "@/pages/create-service";
 import TourDetail from "@/pages/tour-detail";
 import BookTour from "@/pages/book-tour";
+import BookingSuccess from "@/pages/booking-success";
 import "./i18n";
 
 function Router() {
@@ -61,6 +62,7 @@ function Router() {
       {/* Shared routes for all authenticated users */}
       <Route path="/tours/:id" component={TourDetail} />
       <Route path="/book/:id" component={BookTour} />
+      <Route path="/booking-success" component={BookingSuccess} />
       
       {user.role === 'tourist' && (
         <>

@@ -278,6 +278,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Stripe payment routes
+  app.post('/api/create-checkout-session', isAuthenticated, async (req: any, res) => {
+    try {
+      if (!stripe) {
+        return res.status(503).json({ message: "Stripe is not configured" });
+      }
+
+      const { bookingId } = req.body;
+      const booking = await storage.getBookingById(bookingId);
+      
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      const tour = await storage.getTour(booking.tourId);
+      if (!tour) {
+        return res.status(404).json({ message: "Tour not found" });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: tour.title,
+                description: `${booking.participants} participant(s)`,
+              },
+              unit_amount: Math.round(Number(booking.totalAmount) * 100),
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/booking-success?session_id={CHECKOUT_SESSION_ID}&booking_id=${bookingId}`,
+        cancel_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/book/${booking.tourId}`,
+        metadata: {
+          bookingId: booking.id,
+        },
+      });
+
+      await storage.updateBooking(bookingId, { stripePaymentIntentId: session.id });
+
+      res.json({ sessionId: session.id, url: session.url });
+    } catch (error: any) {
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ message: error.message || "Failed to create checkout session" });
+    }
+  });
+
+  app.post('/api/stripe-webhook', async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    
+    if (!stripe || !sig) {
+      return res.status(400).send('Webhook signature missing');
+    }
+
+    let event;
+    try {
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+      if (webhookSecret) {
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } else {
+        event = req.body;
+      }
+    } catch (err: any) {
+      console.error('Webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as any;
+      const bookingId = session.metadata?.bookingId;
+
+      if (bookingId) {
+        await storage.updateBooking(bookingId, {
+          status: 'confirmed',
+          paymentStatus: 'paid',
+        });
+      }
+    }
+
+    res.json({ received: true });
+  });
+
   // Review routes
   app.get('/api/reviews', async (req, res) => {
     try {
