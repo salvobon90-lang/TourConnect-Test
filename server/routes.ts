@@ -7,8 +7,11 @@ import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
 import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema } from "@shared/schema";
 
-const stripe = process.env.STRIPE_SECRET_KEY 
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" })
+// Validate Stripe secret key - must start with 'sk_' not 'pk_'
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const isValidSecretKey = stripeSecretKey && stripeSecretKey.startsWith('sk_');
+const stripe = isValidSecretKey
+  ? new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" })
   : null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
