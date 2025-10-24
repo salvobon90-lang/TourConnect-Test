@@ -1,21 +1,69 @@
 import { useParams, useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Star, Clock, Users, MapPin, Calendar } from 'lucide-react';
-import type { TourWithGuide } from '@shared/schema';
+import type { TourWithGuide, Review, ReviewWithUser } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function TourDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
 
   const { data: tour, isLoading } = useQuery<TourWithGuide>({
     queryKey: ['/api/tours', id],
     enabled: !!id,
   });
+
+  const { data: reviews = [] } = useQuery<ReviewWithUser[]>({
+    queryKey: ['/api/reviews', { tourId: id }],
+    enabled: !!id,
+  });
+
+  const submitReviewMutation = useMutation({
+    mutationFn: async (data: { rating: number; comment: string }) => {
+      const response = await apiRequest('POST', '/api/reviews', {
+        tourId: id,
+        rating: data.rating,
+        comment: data.comment,
+        images: [],
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Review submitted successfully!' });
+      queryClient.invalidateQueries({ queryKey: ['/api/reviews'] });
+      setComment('');
+      setRating(5);
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to submit review', variant: 'destructive' });
+    },
+  });
+
+  const handleSubmitReview = () => {
+    if (!comment.trim()) {
+      toast({ title: 'Error', description: 'Please add a comment', variant: 'destructive' });
+      return;
+    }
+    submitReviewMutation.mutate({ rating, comment });
+  };
+
+  const averageRating = reviews.length > 0
+    ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
+    : 5.0;
 
   if (isLoading) {
     return (
@@ -81,8 +129,8 @@ export default function TourDetail() {
                   <Badge variant="secondary">{tour.category}</Badge>
                   <div className="flex items-center gap-1">
                     <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                    <span className="font-semibold">5.0</span>
-                    <span className="text-muted-foreground">(0 reviews)</span>
+                    <span className="font-semibold">{averageRating.toFixed(1)}</span>
+                    <span className="text-muted-foreground">({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})</span>
                   </div>
                 </div>
                 <h2 className="text-3xl font-serif font-bold mb-4">{tour.title}</h2>
@@ -135,6 +183,95 @@ export default function TourDetail() {
                     </p>
                     <p className="text-muted-foreground">Professional Tour Guide</p>
                   </div>
+                </div>
+              </Card>
+
+              {/* Reviews Section */}
+              <Card className="p-6">
+                <h3 className="text-xl font-semibold mb-6">Reviews ({reviews.length})</h3>
+                
+                {user && user.role === 'tourist' && (
+                  <div className="mb-8 p-4 bg-muted/30 rounded-lg">
+                    <h4 className="font-semibold mb-3">Write a Review</h4>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-sm font-medium">Your Rating:</span>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            onClick={() => setRating(star)}
+                            className="focus:outline-none"
+                            data-testid={`button-rating-${star}`}
+                          >
+                            <Star
+                              className={`w-6 h-6 ${
+                                star <= rating
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'text-muted-foreground'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-sm text-muted-foreground ml-2">{rating}/5</span>
+                    </div>
+                    <Textarea
+                      placeholder="Share your experience..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      className="mb-3"
+                      rows={4}
+                      data-testid="input-review-comment"
+                    />
+                    <Button 
+                      onClick={handleSubmitReview} 
+                      disabled={submitReviewMutation.isPending}
+                      data-testid="button-submit-review"
+                    >
+                      {submitReviewMutation.isPending ? 'Submitting...' : 'Submit Review'}
+                    </Button>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {reviews.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">
+                      No reviews yet. Be the first to review this tour!
+                    </p>
+                  )}
+                  {reviews.map((review) => (
+                    <div key={review.id} className="border-b pb-4 last:border-0" data-testid={`review-${review.id}`}>
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-semibold text-primary">
+                            {review.user.firstName?.[0] || 'U'}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold">
+                              {review.user.firstName} {review.user.lastName}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: review.rating }).map((_, i) => (
+                                <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </p>
+                          <p className="text-foreground">{review.comment}</p>
+                          {review.response && (
+                            <div className="mt-3 p-3 bg-muted/30 rounded-lg">
+                              <p className="text-sm font-semibold mb-1">Response from Guide:</p>
+                              <p className="text-sm text-foreground">{review.response}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </Card>
             </div>
