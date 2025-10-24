@@ -1,0 +1,84 @@
+Pasted-Crea-un-app-mobile-che-connetta-turisti-guide-turistiche-e-fornitori-di-servizi-come-ristoranti-n-1761294288160_1761294288161.txt
+Crea un'app mobile che connetta turisti, guide turistiche e fornitori di servizi (come ristoranti, negozi, o trasporti). Ogni tipo di utente avrà ruoli e permessi diversi all'interno dell'app.
+
+Schermata iniziale (selezione della lingua):
+
+All'avvio dell'app, mostra una schermata di selezione lingua con opzioni per italiano, inglese, tedesco, francese e spagnolo.
+
+Dopo la selezione della lingua, l'app dovrebbe mostrare un messaggio di benvenuto tradotto nella lingua scelta.
+
+Fase di registrazione e login:
+
+Gli utenti devono poter scegliere se registrarsi come turista, guida turistica o fornitore di servizi (ristorante, negozio, trasporti, ecc.).
+
+Ogni tipo di utente avrà accesso a funzionalità diverse:
+
+Turisti: Possono vedere i tour proposti dalle guide turistiche e i servizi offerti, visualizzare i monumenti e le attrazioni.
+
+Guide turistiche: Possono creare e proporre tour, descrivere l'itinerario, caricare immagini e prezzi.
+
+Fornitori di servizi: Possono offrire servizi come ristoranti, negozi o trasporti, aggiungere offerte speciali, orari di apertura, e dettagli dei servizi.
+
+Ogni tipo di utente avrà una dashboard personalizzata con funzionalità specifiche.
+
+Mappa interattiva con geolocalizzazione:
+
+Include una mappa interattiva che mostra i monumenti, le attrazioni turistiche e le proposte di tour delle guide turistiche.
+
+I turisti devono poter vedere la posizione dei tour disponibili sulla mappa, cliccare per maggiori dettagli e prenotare.
+
+I fornitori di servizi devono poter visualizzare i loro luoghi di offerta sulla mappa.
+
+Implementa la geolocalizzazione per visualizzare la posizione corrente degli utenti e consigliare i tour e i servizi nelle vicinanze.
+
+Gestione degli utenti e permessi:
+
+Implementa un sistema di login/registrazione con email e password per turisti, guide turistiche e fornitori di servizi.
+
+Dopo la registrazione, gli utenti dovranno essere indirizzati alla schermata principale corrispondente al loro ruolo.
+
+Ogni tipo di utente avrà un set di permessi:
+
+Turisti: Visualizzare tour e monumenti, prenotare tour, accedere alle recensioni.
+
+Guide turistiche: Creare e aggiornare tour, rispondere a recensioni, visualizzare statistiche.
+
+Fornitori di servizi: Aggiungere offerte, rispondere a prenotazioni, gestire disponibilità.
+
+Funzionalità aggiuntive:
+
+Notifiche push: Invia notifiche per nuovi tour disponibili, offerte speciali dai fornitori di servizi, e aggiornamenti sui tour prenotati.
+
+Recensioni e valutazioni: Permetti ai turisti di lasciare recensioni sui tour e sui fornitori di servizi. Le guide e i fornitori possono rispondere alle recensioni.
+
+Sistema di pagamento: Integra un sistema di pagamento (come Stripe o PayPal) per permettere ai turisti di prenotare e pagare per i tour direttamente dall'app.
+
+Filtri avanzati: Permetti ai turisti di cercare tour o servizi in base a categorie come tipo di tour, prezzo, orario, ecc.
+
+Gestione degli eventi: Aggiungi una funzionalità per che consenta alle guide di gestire eventi speciali come escursioni tematiche o tour privati.
+
+Social media integration: Permetti agli utenti di condividere i tour o i servizi sui social media per aumentare la visibilità dell'app.
+
+Suggerimenti personalizzati: Utilizza l'intelligenza artificiale per suggerire tour ai turisti in base alle loro preferenze e cronologia delle ricerche.
+
+Funzione di chat in-app: Permetti la comunicazione diretta tra turisti e guide, o tra turisti e fornitori di servizi.
+
+Sistemi di fidelizzazione: Aggiungi un sistema di premi per incentivare turisti a prenotare più tour o servizi (ad esempio, sconti per recensioni o prenotazioni frequenti).
+
+Design e tema:
+
+Il design dell'app dovrebbe utilizzare colori arancione scuro, marrone e grigio scuro come colori principali per una sensazione elegante e accogliente.
+
+Ogni tipo di utente avrà un'interfaccia diversa in base ai permessi e alle funzionalità, ma il tema generale deve rimanere consistente.
+
+Tecnologia e compatibilità:
+
+L'app deve essere costruita utilizzando una piattaforma no-code, senza necessità di scrivere codice. Deve essere compatibile con Android e iOS, con possibilità di pubblicarla sugli store (App Store e Google Play). Deve essere facile da usare per i turisti, le guide turistiche e i fornitori di servizi, con un'interfaccia utente intuitiva."_
+
+Suggerimenti aggiuntivi per personalizzare ulteriormente l'app:
+
+Miglioramenti UI/UX: Aggiungi animazioni e transizioni fluide per migliorare l'esperienza dell'utente.
+
+Integrazione con servizi esterni: Considera l'integrazione con piattaforme di prenotazione esterne o altre API per arricchire l'esperienza dell'utente.
+
+Accessibilità: Implementa funzionalità di accessibilità, come la compatibilità con screen reader e la personalizzazione dei font, per garantire che l'app sia utilizzabile da tutti.
