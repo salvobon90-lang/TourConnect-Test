@@ -277,16 +277,45 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Review operations
-  async getReviews(tourId?: string, serviceId?: string): Promise<Review[]> {
-    let query = db.select().from(reviews);
-
+  async getReviews(tourId?: string, serviceId?: string): Promise<any[]> {
+    const conditions = [];
+    
     if (tourId) {
-      query = query.where(eq(reviews.tourId, tourId)) as any;
-    } else if (serviceId) {
-      query = query.where(eq(reviews.serviceId, serviceId)) as any;
+      conditions.push(eq(reviews.tourId, tourId));
+    }
+    if (serviceId) {
+      conditions.push(eq(reviews.serviceId, serviceId));
     }
 
-    return await (query as any).orderBy(desc(reviews.createdAt));
+    const query = db
+      .select({
+        id: reviews.id,
+        userId: reviews.userId,
+        tourId: reviews.tourId,
+        serviceId: reviews.serviceId,
+        rating: reviews.rating,
+        comment: reviews.comment,
+        images: reviews.images,
+        response: reviews.response,
+        createdAt: reviews.createdAt,
+        updatedAt: reviews.updatedAt,
+        user: {
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+        },
+      })
+      .from(reviews)
+      .leftJoin(users, eq(reviews.userId, users.id))
+      .orderBy(desc(reviews.createdAt));
+
+    if (conditions.length > 0) {
+      return await query.where(conditions[0]);
+    }
+    
+    return await query;
   }
 
   async createReview(review: InsertReview): Promise<Review> {

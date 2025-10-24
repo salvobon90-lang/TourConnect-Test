@@ -28,7 +28,7 @@ export default function TourDetail() {
   });
 
   const { data: reviews = [] } = useQuery<ReviewWithUser[]>({
-    queryKey: ['/api/reviews', { tourId: id }],
+    queryKey: [`/api/reviews?tourId=${id}`],
     enabled: !!id,
   });
 
@@ -44,7 +44,7 @@ export default function TourDetail() {
     },
     onSuccess: () => {
       toast({ title: 'Success', description: 'Review submitted successfully!' });
-      queryClient.invalidateQueries({ queryKey: ['/api/reviews'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/reviews?tourId=${id}`] });
       setComment('');
       setRating(5);
     },
