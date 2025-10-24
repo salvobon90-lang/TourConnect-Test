@@ -48,8 +48,11 @@ export default function TouristDashboard() {
   }
   if (priceFilter === 'high') queryParams.append('minPrice', '100');
 
+  const queryString = queryParams.toString();
+  const queryUrl = queryString ? `/api/tours?${queryString}` : '/api/tours';
+  
   const { data: tours, isLoading: toursLoading } = useQuery<TourWithGuide[]>({
-    queryKey: ['/api/tours', queryParams.toString()],
+    queryKey: [queryUrl],
     enabled: isAuthenticated,
   });
 
