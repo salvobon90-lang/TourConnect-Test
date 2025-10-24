@@ -1,16 +1,91 @@
+import { useState, useEffect } from 'react';
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
+import LanguageSelection from "@/pages/language-selection";
+import Landing from "@/pages/landing";
+import RoleSelection from "@/pages/role-selection";
+import TouristDashboard from "@/pages/tourist-dashboard";
+import GuideDashboard from "@/pages/guide-dashboard";
+import ProviderDashboard from "@/pages/provider-dashboard";
+import Bookings from "@/pages/bookings";
+import MapView from "@/pages/interactive-map";
+import CreateTour from "@/pages/create-tour";
+import CreateService from "@/pages/create-service";
+import TourDetail from "@/pages/tour-detail";
+import BookTour from "@/pages/book-tour";
+import "./i18n";
 
 function Router() {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const [languageSelected, setLanguageSelected] = useState(
+    !!localStorage.getItem('language')
+  );
+
+  // Show language selection first if not selected
+  if (!languageSelected) {
+    return <LanguageSelection onLanguageSelected={() => setLanguageSelected(true)} />;
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // Show landing page for non-authenticated users
+  if (!isAuthenticated) {
+    return (
+      <Switch>
+        <Route path="/" component={Landing} />
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
+
+  // Show role selection if user hasn't selected a role
+  if (!user?.role || user.role === 'tourist' && !user.role) {
+    return <RoleSelection />;
+  }
+
+  // Route based on user role
   return (
     <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
+      {/* Shared routes for all authenticated users */}
+      <Route path="/tours/:id" component={TourDetail} />
+      <Route path="/book/:id" component={BookTour} />
+      
+      {user.role === 'tourist' && (
+        <>
+          <Route path="/" component={TouristDashboard} />
+          <Route path="/bookings" component={Bookings} />
+          <Route path="/saved" component={() => <div>Saved Page - Coming Soon</div>} />
+          <Route path="/map" component={MapView} />
+        </>
+      )}
+      {user.role === 'guide' && (
+        <>
+          <Route path="/" component={GuideDashboard} />
+          <Route path="/bookings" component={Bookings} />
+          <Route path="/analytics" component={() => <div>Analytics - Coming Soon</div>} />
+          <Route path="/create-tour" component={CreateTour} />
+        </>
+      )}
+      {user.role === 'provider' && (
+        <>
+          <Route path="/" component={ProviderDashboard} />
+          <Route path="/offers" component={() => <div>Offers - Coming Soon</div>} />
+          <Route path="/insights" component={() => <div>Insights - Coming Soon</div>} />
+          <Route path="/create-service" component={CreateService} />
+        </>
+      )}
       <Route component={NotFound} />
     </Switch>
   );
