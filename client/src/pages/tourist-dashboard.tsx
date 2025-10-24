@@ -187,12 +187,12 @@ export default function TouristDashboard() {
               
               {/* Filters */}
               <div className="flex flex-wrap gap-2">
-                <Select value={category} onValueChange={setCategory}>
+                <Select value={category || "all"} onValueChange={(value) => setCategory(value === "all" ? "" : value)}>
                   <SelectTrigger className="w-40" data-testid="select-category">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
                     <SelectItem value="walking">Walking</SelectItem>
                     <SelectItem value="food">Food</SelectItem>
                     <SelectItem value="adventure">Adventure</SelectItem>
@@ -204,24 +204,24 @@ export default function TouristDashboard() {
                   </SelectContent>
                 </Select>
                 
-                <Select value={priceFilter} onValueChange={setPriceFilter}>
+                <Select value={priceFilter || "all"} onValueChange={(value) => setPriceFilter(value === "all" ? "" : value)}>
                   <SelectTrigger className="w-40" data-testid="select-price">
                     <SelectValue placeholder="Price Range" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Prices</SelectItem>
+                    <SelectItem value="all">All Prices</SelectItem>
                     <SelectItem value="low">Under $50</SelectItem>
                     <SelectItem value="medium">$50 - $100</SelectItem>
                     <SelectItem value="high">Over $100</SelectItem>
                   </SelectContent>
                 </Select>
                 
-                <Select value={proximityFilter} onValueChange={setProximityFilter}>
+                <Select value={proximityFilter || "all"} onValueChange={(value) => setProximityFilter(value === "all" ? "" : value)}>
                   <SelectTrigger className="w-40" data-testid="select-proximity">
                     <SelectValue placeholder="Distance" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any Distance</SelectItem>
+                    <SelectItem value="all">Any Distance</SelectItem>
                     <SelectItem value="5">Within 5 km</SelectItem>
                     <SelectItem value="10">Within 10 km</SelectItem>
                     <SelectItem value="20">Within 20 km</SelectItem>

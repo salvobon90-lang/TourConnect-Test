@@ -1,0 +1,87 @@
+1. Test del flusso di modifica del tour:
+
+Chiedi a Replit di testare il flusso completo di modifica dei tour, inclusi:
+
+Aggiunta/aggiornamento delle coordinate di posizione (latitude/longitude).
+
+Attivazione e disattivazione dei tour tramite il toggle isActive.
+
+Modifica dei campi come descrizione, immagini e prezzi.
+
+Salvataggio delle modifiche senza perdita di dati.
+
+Verifica che solo il proprietario del tour possa modificare i dettagli del tour.
+
+2. Test del sistema di pagamento (Stripe):
+
+Chiedi a Replit di eseguire un test per verificare che il sistema di pagamento Stripe funzioni correttamente:
+
+Creare una sessione di checkout per simulare una prenotazione di un tour.
+
+Verificare che i pagamenti vengano elaborati correttamente tramite Stripe e che i webhooks restituiscano lo stato giusto per completare la prenotazione.
+
+Testa anche la gestione delle transazioni fallite e la corretta visualizzazione delle informazioni nel sistema.
+
+3. Test della geolocalizzazione e della mappa interattiva:
+
+Verifica che la mappa interattiva mostri correttamente i tour disponibili, i monumenti e i servizi nella posizione geografica dell'utente.
+
+Testa che la funzionalità di "Near you" mostri i tour nelle vicinanze in modo accurato.
+
+Verifica che il sistema di filtri per distanza e posizione funzioni correttamente su dispositivi mobili.
+
+4. Test delle recensioni e valutazioni:
+
+Testa che il sistema di recensioni funzioni correttamente:
+
+Un turista deve essere in grado di inserire una recensione e assegnare un punteggio con stelle.
+
+Le guide turistiche devono essere in grado di rispondere alle recensioni.
+
+Verifica che tutte le recensioni siano visualizzate correttamente nella pagina del tour e che le modifiche siano salvate.
+
+5. Test di ricerca e filtri avanzati:
+
+Chiedi di testare i filtri di ricerca per tour e servizi:
+
+Verifica che i turisti possano filtrare i tour per categoria, prezzo, orario e posizione.
+
+Testa che i filtri di ricerca restituiscano correttamente i risultati desiderati.
+
+6. Test dell'autenticazione e autorizzazione:
+
+Chiedi di verificare che il sistema di autenticazione funzioni correttamente:
+
+Verifica che i turisti possano registrarsi e accedere al proprio profilo.
+
+Testa che le guide turistiche possano accedere alla propria dashboard e gestire i tour.
+
+Assicurati che i fornitori di servizi possano gestire i propri servizi e visualizzare le informazioni.
+
+Testa che solo il proprietario del tour possa modificare i dettagli dei propri tour, garantendo la sicurezza dell'autenticazione.
+
+7. Test della compatibilità PWA:
+
+Chiedi di testare la funzionalità PWA (Progressive Web App) su dispositivi mobili:
+
+Verifica che gli utenti possano aggiungere l'app alla schermata home su Android e iOS.
+
+Testa che l'app funzioni correttamente come una web app mobile-like e che tutte le funzionalità siano accessibili tramite browser.
+
+8. Test delle funzionalità di sicurezza e protezione dei dati:
+
+Chiedi di testare tutte le misure di sicurezza implementate:
+
+Assicurati che i dati sensibili (come le informazioni di pagamento) siano protetti.
+
+Verifica che non ci sia perdita di dati e che i dati degli utenti siano trattati correttamente, in linea con le normative sulla privacy.
+
+Richiesta di revisione finale:
+
+Una volta completati tutti i test, chiedi a Replit di eseguire una revisione finale dell'intero sistema per assicurarsi che:
+
+Tutte le funzionalità siano implementate correttamente.
+
+Non ci siano errori di sicurezza, bug o problemi di performance.
+
+L'app sia pronta per il lancio o per una fase di testing con utenti reali.

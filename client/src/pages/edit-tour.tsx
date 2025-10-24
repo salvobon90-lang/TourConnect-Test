@@ -34,7 +34,7 @@ export default function EditTour() {
       title: '',
       description: '',
       itinerary: '',
-      price: 0,
+      price: "0",
       duration: 0,
       maxGroupSize: 1,
       category: 'walking',
@@ -184,13 +184,9 @@ export default function EditTour() {
                       <FormControl>
                         <Input
                           type="number"
-                          {...field}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value !== '') {
-                              field.onChange(parseFloat(value));
-                            }
-                          }}
+                          step="0.01"
+                          value={field.value}
+                          onChange={(e) => field.onChange(e.target.value)}
                           data-testid="input-price"
                         />
                       </FormControl>
@@ -208,12 +204,10 @@ export default function EditTour() {
                       <FormControl>
                         <Input
                           type="number"
-                          {...field}
+                          value={field.value}
                           onChange={(e) => {
-                            const value = e.target.value;
-                            if (value !== '') {
-                              field.onChange(parseInt(value));
-                            }
+                            const val = e.target.value;
+                            field.onChange(val === '' ? '' : parseInt(val));
                           }}
                           data-testid="input-duration"
                         />
@@ -234,12 +228,10 @@ export default function EditTour() {
                       <FormControl>
                         <Input
                           type="number"
-                          {...field}
+                          value={field.value}
                           onChange={(e) => {
-                            const value = e.target.value;
-                            if (value !== '') {
-                              field.onChange(parseInt(value));
-                            }
+                            const val = e.target.value;
+                            field.onChange(val === '' ? '' : parseInt(val));
                           }}
                           data-testid="input-max-group"
                         />
@@ -303,12 +295,10 @@ export default function EditTour() {
                         <Input
                           type="number"
                           step="any"
-                          {...field}
+                          value={field.value}
                           onChange={(e) => {
-                            const value = e.target.value;
-                            if (value !== '') {
-                              field.onChange(parseFloat(value));
-                            }
+                            const val = e.target.value;
+                            field.onChange(val === '' ? '' : parseFloat(val));
                           }}
                           data-testid="input-latitude"
                         />
@@ -328,12 +318,10 @@ export default function EditTour() {
                         <Input
                           type="number"
                           step="any"
-                          {...field}
+                          value={field.value}
                           onChange={(e) => {
-                            const value = e.target.value;
-                            if (value !== '') {
-                              field.onChange(parseFloat(value));
-                            }
+                            const val = e.target.value;
+                            field.onChange(val === '' ? '' : parseFloat(val));
                           }}
                           data-testid="input-longitude"
                         />
