@@ -27,8 +27,12 @@ export const sessions = pgTable(
 );
 
 // User roles enum
-export const userRoles = ["tourist", "guide", "provider"] as const;
+export const userRoles = ["tourist", "guide", "provider", "supervisor"] as const;
 export type UserRole = typeof userRoles[number];
+
+// User approval status enum
+export const approvalStatuses = ["pending", "approved", "rejected"] as const;
+export type ApprovalStatus = typeof approvalStatuses[number];
 
 // Service provider types enum
 export const providerTypes = ["restaurant", "shop", "transport", "other"] as const;
@@ -45,7 +49,10 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role", { length: 20 }).notNull().default("tourist"), // tourist, guide, provider
+  role: varchar("role", { length: 20 }).notNull().default("tourist"), // tourist, guide, provider, supervisor
+  approvalStatus: varchar("approval_status", { length: 20 }).notNull().default("approved"), // pending, approved, rejected - tourists auto-approved
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -1,0 +1,45 @@
+Aggiungi la registrazione utente con selezione del tipo di utilizzatore e implementa la logica di approvazione da parte di un supervisor per le guide turistiche e i fornitori di servizi. Dettagli:
+
+Registrazione utente con selezione del tipo di utilizzatore:
+
+Durante la registrazione, gli utenti devono scegliere se sono:
+
+Turista (visualizza tour senza possibilità di aggiungere contenuti).
+
+Guida turistica (potrà aggiungere tour e impostare le date dei tour solo dopo approvazione di un supervisor).
+
+Fornitore di servizi (potrà aggiungere servizi aggiuntivi come noleggi o attrezzature solo dopo approvazione di un supervisor).
+
+Sistema di approvazione da parte del supervisor:
+
+Dopo la registrazione, le guide turistiche e i fornitori di servizi devono essere approvati dal supervisor prima di poter aggiungere contenuti:
+
+Le guide turistiche potranno creare tour e impostare le date dei tour solo dopo l'approvazione.
+
+I fornitori di servizi potranno proporre servizi aggiuntivi (es. noleggi) solo dopo l'approvazione.
+
+Dashboard del supervisor:
+
+Crea una dashboard per il supervisor, dove possa approvare o rifiutare le richieste di registrazione e autorizzare l'aggiunta di contenuti da parte delle guide turistiche e dei fornitori di servizi.
+
+I supervisor avranno la possibilità di gestire le richieste di registrazione e approvare le modifiche dei tour e dei servizi.
+
+Controlli di autorizzazione:
+
+Turisti: Possono solo visualizzare i tour senza la possibilità di aggiungere contenuti.
+
+Guide turistiche: Dopo l'approvazione, potranno creare e gestire tour.
+
+Fornitori di servizi: Dopo l'approvazione, potranno aggiungere e gestire servizi aggiuntivi come noleggi.
+
+Funzionalità già implementate:
+
+Testa il flusso di modifica dei tour, inclusi la gestione delle coordinate di geolocalizzazione, l'attivazione/disattivazione dei tour tramite il toggle isActive, e la validazione dei campi (immagini, durata, prezzo).
+
+Verifica che Stripe funzioni correttamente per i pagamenti, comprese le sessioni di checkout e gli aggiornamenti dello stato di pagamento.
+
+Testa la geolocalizzazione e il sistema di filtri di ricerca per tour e servizi, con opzioni di distanza e filtro per posizione.
+
+Assicurati che il sistema di recensioni e valutazioni funzioni correttamente, consentendo ai turisti di lasciare valutazioni per i tour e ai fornitori di rispondere.
+
+Verifica che l'app supporti il multilingue per le lingue italiano, inglese, tedesco, francese e spagnolo, con interfaccia utente tradotta correttamente in base alla lingua selezionata.

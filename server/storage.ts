@@ -27,6 +27,9 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   setUserRole(userId: string, role: UserRole): Promise<User>;
+  getPendingUsers(): Promise<User[]>;
+  approveUser(userId: string, supervisorId: string): Promise<User>;
+  rejectUser(userId: string, supervisorId: string): Promise<User>;
   
   // Tour operations
   getTours(): Promise<TourWithGuide[]>;
@@ -84,9 +87,51 @@ export class DatabaseStorage implements IStorage {
   }
 
   async setUserRole(userId: string, role: UserRole): Promise<User> {
+    const approvalStatus = (role === 'guide' || role === 'provider') ? 'pending' : 'approved';
+    
     const [user] = await db
       .update(users)
-      .set({ role, updatedAt: new Date() })
+      .set({ 
+        role, 
+        approvalStatus,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async getPendingUsers(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.approvalStatus, 'pending'))
+      .orderBy(desc(users.createdAt));
+  }
+
+  async approveUser(userId: string, supervisorId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        approvalStatus: 'approved',
+        approvedBy: supervisorId,
+        approvedAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async rejectUser(userId: string, supervisorId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        approvalStatus: 'rejected',
+        approvedBy: supervisorId,
+        approvedAt: new Date(),
+        updatedAt: new Date() 
+      })
       .where(eq(users.id, userId))
       .returning();
     return user;

@@ -12,6 +12,8 @@ import RoleSelection from "@/pages/role-selection";
 import TouristDashboard from "@/pages/tourist-dashboard";
 import GuideDashboard from "@/pages/guide-dashboard";
 import ProviderDashboard from "@/pages/provider-dashboard";
+import SupervisorDashboard from "@/pages/supervisor-dashboard";
+import PendingApproval from "@/pages/pending-approval";
 import Bookings from "@/pages/bookings";
 import MapView from "@/pages/interactive-map";
 import CreateTour from "@/pages/create-tour";
@@ -57,6 +59,11 @@ function Router() {
     return <RoleSelection />;
   }
 
+  // Show pending approval page if user is guide/provider and not approved
+  if ((user.role === 'guide' || user.role === 'provider') && user.approvalStatus !== 'approved') {
+    return <PendingApproval />;
+  }
+
   // Route based on user role
   return (
     <Switch>
@@ -88,6 +95,11 @@ function Router() {
           <Route path="/offers" component={() => <div>Offers - Coming Soon</div>} />
           <Route path="/insights" component={() => <div>Insights - Coming Soon</div>} />
           <Route path="/create-service" component={CreateService} />
+        </>
+      )}
+      {user.role === 'supervisor' && (
+        <>
+          <Route path="/" component={SupervisorDashboard} />
         </>
       )}
       <Route component={NotFound} />
