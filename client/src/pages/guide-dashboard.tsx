@@ -2,19 +2,21 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient, apiRequest } from '@/lib/queryClient';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, MapPin, DollarSign, Star, Users, Calendar } from 'lucide-react';
+import { Plus, MapPin, DollarSign, Star, Users, Calendar, Edit2, Trash2 } from 'lucide-react';
 import type { Tour } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 
 export default function GuideDashboard() {
   const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -37,6 +39,30 @@ export default function GuideDashboard() {
   const { data: stats } = useQuery<{ totalBookings: number; totalRevenue: number; avgRating: number }>({
     queryKey: ['/api/guide/stats'],
     enabled: isAuthenticated,
+  });
+
+  const deleteTourMutation = useMutation({
+    mutationFn: async (tourId: string) => {
+      const response = await apiRequest('DELETE', `/api/tours/${tourId}`);
+      return response.json();
+    },
+    onSuccess: (_, tourId) => {
+      toast({
+        title: 'Success',
+        description: 'Tour deleted successfully',
+      });
+      // Invalidate all tour-related queries
+      queryClient.invalidateQueries({ queryKey: ['/api/tours/my-tours'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tours'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tours', tourId] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete tour',
+        variant: 'destructive',
+      });
+    },
   });
 
   if (authLoading || !isAuthenticated) {
@@ -229,9 +255,29 @@ export default function GuideDashboard() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm">Edit</Button>
-                        <Button variant="outline" size="sm">View Stats</Button>
-                        <Button variant="outline" size="sm">Duplicate</Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/edit-tour/${tour.id}`)}
+                          data-testid={`button-edit-${tour.id}`}
+                        >
+                          <Edit2 className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to delete this tour?')) {
+                              deleteTourMutation.mutate(tour.id);
+                            }
+                          }}
+                          disabled={deleteTourMutation.isPending}
+                          data-testid={`button-delete-${tour.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
                       </div>
                     </div>
                   </div>

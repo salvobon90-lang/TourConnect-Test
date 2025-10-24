@@ -19,6 +19,7 @@ import CreateService from "@/pages/create-service";
 import TourDetail from "@/pages/tour-detail";
 import BookTour from "@/pages/book-tour";
 import BookingSuccess from "@/pages/booking-success";
+import EditTour from "@/pages/edit-tour";
 import "./i18n";
 
 function Router() {
@@ -63,6 +64,7 @@ function Router() {
       <Route path="/tours/:id" component={TourDetail} />
       <Route path="/book/:id" component={BookTour} />
       <Route path="/booking-success" component={BookingSuccess} />
+      <Route path="/edit-tour/:id" component={EditTour} />
       
       {user.role === 'tourist' && (
         <>

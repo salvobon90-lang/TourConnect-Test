@@ -233,6 +233,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/services/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const service = await storage.getService(req.params.id);
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      if (service.providerId !== userId) {
+        return res.status(403).json({ message: "You can only delete your own services" });
+      }
+      await storage.deleteService(req.params.id);
+      res.json({ message: "Service deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting service:", error);
+      res.status(400).json({ message: error.message || "Failed to delete service" });
+    }
+  });
+
   // Booking routes
   app.get('/api/bookings', isAuthenticated, async (req: any, res) => {
     try {
