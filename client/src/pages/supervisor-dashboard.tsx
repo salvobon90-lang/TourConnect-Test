@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { CheckCircle2, XCircle, Clock, Users, UserCheck, UserX } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CheckCircle2, XCircle, Clock, Users, UserCheck, UserX, Shield } from "lucide-react";
 import type { User } from "@shared/schema";
 
 export default function SupervisorDashboard() {
@@ -15,6 +16,11 @@ export default function SupervisorDashboard() {
 
   const { data: pendingUsers, isLoading } = useQuery<User[]>({
     queryKey: ['/api/supervisor/pending-users'],
+    enabled: isAuthenticated && user?.role === 'supervisor',
+  });
+
+  const { data: allUsers, isLoading: isLoadingAllUsers } = useQuery<User[]>({
+    queryKey: ['/api/supervisor/users'],
     enabled: isAuthenticated && user?.role === 'supervisor',
   });
 
@@ -53,6 +59,26 @@ export default function SupervisorDashboard() {
       toast({
         title: "Error",
         description: "Failed to reject user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const promoteToSupervisorMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest('POST', `/api/supervisor/promote-to-supervisor/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/supervisor/users'] });
+      toast({
+        title: "User Promoted",
+        description: "The user has been promoted to supervisor",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to promote user",
         variant: "destructive",
       });
     },
@@ -113,79 +139,181 @@ export default function SupervisorDashboard() {
           </Card>
         </div>
 
-        {/* Pending Users Table */}
-        <Card className="p-6">
-          <h2 className="text-2xl font-semibold mb-6">Pending Approvals</h2>
+        {/* Management Tabs */}
+        <Tabs defaultValue="pending" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="pending" data-testid="tab-pending">
+              <Clock className="w-4 h-4 mr-2" />
+              Pending Approvals
+            </TabsTrigger>
+            <TabsTrigger value="users" data-testid="tab-users">
+              <Users className="w-4 h-4 mr-2" />
+              User Management
+            </TabsTrigger>
+          </TabsList>
 
-          {isLoading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-              <p className="text-muted-foreground mt-4">Loading pending users...</p>
-            </div>
-          ) : pendingUsers && pendingUsers.length > 0 ? (
-            <div className="space-y-4">
-              {pendingUsers.map((pendingUser) => (
-                <Card key={pendingUser.id} className="p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-1">
-                      <Avatar className="w-12 h-12">
-                        <AvatarFallback>
-                          {pendingUser.firstName?.[0]}{pendingUser.lastName?.[0]}
-                        </AvatarFallback>
-                      </Avatar>
+          <TabsContent value="pending">
+            <Card className="p-6">
+              <h2 className="text-2xl font-semibold mb-6">Pending Approvals</h2>
 
-                      <div className="flex-1">
-                        <h3 className="font-semibold" data-testid={`text-user-name-${pendingUser.id}`}>
-                          {pendingUser.firstName} {pendingUser.lastName}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">{pendingUser.email}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" data-testid={`badge-role-${pendingUser.id}`}>
-                            {pendingUser.role}
-                          </Badge>
-                          <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Pending
-                          </Badge>
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+                  <p className="text-muted-foreground mt-4">Loading pending users...</p>
+                </div>
+              ) : pendingUsers && pendingUsers.length > 0 ? (
+                <div className="space-y-4">
+                  {pendingUsers.map((pendingUser) => (
+                    <Card key={pendingUser.id} className="p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-1">
+                          <Avatar className="w-12 h-12">
+                            <AvatarFallback>
+                              {pendingUser.firstName?.[0]}{pendingUser.lastName?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="flex-1">
+                            <h3 className="font-semibold" data-testid={`text-user-name-${pendingUser.id}`}>
+                              {pendingUser.firstName} {pendingUser.lastName}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">{pendingUser.email}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="secondary" data-testid={`badge-role-${pendingUser.id}`}>
+                                {pendingUser.role}
+                              </Badge>
+                              <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                                <Clock className="w-3 h-3 mr-1" />
+                                Pending
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Registered: {new Date(pendingUser.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Registered: {new Date(pendingUser.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => approveMutation.mutate(pendingUser.id)}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                        variant="default"
-                        data-testid={`button-approve-${pendingUser.id}`}
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Approve
-                      </Button>
-                      <Button
-                        onClick={() => rejectMutation.mutate(pendingUser.id)}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                        variant="destructive"
-                        data-testid={`button-reject-${pendingUser.id}`}
-                      >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Reject
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <UserCheck className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Pending Approvals</h3>
-              <p className="text-muted-foreground">All users have been reviewed</p>
-            </div>
-          )}
-        </Card>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => approveMutation.mutate(pendingUser.id)}
+                            disabled={approveMutation.isPending || rejectMutation.isPending}
+                            variant="default"
+                            data-testid={`button-approve-${pendingUser.id}`}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Approve
+                          </Button>
+                          <Button
+                            onClick={() => rejectMutation.mutate(pendingUser.id)}
+                            disabled={approveMutation.isPending || rejectMutation.isPending}
+                            variant="destructive"
+                            data-testid={`button-reject-${pendingUser.id}`}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <UserCheck className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Pending Approvals</h3>
+                  <p className="text-muted-foreground">All users have been reviewed</p>
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="users">
+            <Card className="p-6">
+              <h2 className="text-2xl font-semibold mb-6">User Management</h2>
+
+              {isLoadingAllUsers ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+                  <p className="text-muted-foreground mt-4">Loading users...</p>
+                </div>
+              ) : allUsers && allUsers.length > 0 ? (
+                <div className="space-y-4">
+                  {allUsers.map((u) => (
+                    <Card key={u.id} className="p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-1">
+                          <Avatar className="w-12 h-12">
+                            <AvatarFallback>
+                              {u.firstName?.[0]}{u.lastName?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="flex-1">
+                            <h3 className="font-semibold" data-testid={`text-user-name-${u.id}`}>
+                              {u.firstName} {u.lastName}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">{u.email}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge 
+                                variant={u.role === 'supervisor' ? 'default' : 'secondary'}
+                                data-testid={`badge-role-${u.id}`}
+                              >
+                                {u.role || 'No Role'}
+                              </Badge>
+                              {u.approvalStatus && (
+                                <Badge 
+                                  variant="outline" 
+                                  className={
+                                    u.approvalStatus === 'approved' 
+                                      ? 'bg-green-100 text-green-800 border-green-300'
+                                      : u.approvalStatus === 'pending'
+                                      ? 'bg-orange-100 text-orange-800 border-orange-300'
+                                      : 'bg-red-100 text-red-800 border-red-300'
+                                  }
+                                >
+                                  {u.approvalStatus}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Registered: {new Date(u.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          {u.role !== 'supervisor' && u.role !== null && (
+                            <Button
+                              onClick={() => promoteToSupervisorMutation.mutate(u.id)}
+                              disabled={promoteToSupervisorMutation.isPending}
+                              variant="outline"
+                              data-testid={`button-promote-${u.id}`}
+                            >
+                              <Shield className="w-4 h-4 mr-2" />
+                              Promote to Supervisor
+                            </Button>
+                          )}
+                          {u.role === 'supervisor' && (
+                            <Badge variant="default" className="px-4 py-2">
+                              <Shield className="w-4 h-4 mr-2" />
+                              Supervisor
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Users className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Users Found</h3>
+                  <p className="text-muted-foreground">No users in the system</p>
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
