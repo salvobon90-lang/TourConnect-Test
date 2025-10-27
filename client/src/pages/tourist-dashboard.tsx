@@ -8,13 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, MapPin, Star, Clock, Users, Heart, Calendar, Map as MapIcon, Navigation } from 'lucide-react';
+import { Search, MapPin, Star, Clock, Users, Heart, Calendar, Map as MapIcon, Navigation, Sparkles } from 'lucide-react';
 import type { TourWithGuide } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
 import { useUserLocation } from '@/hooks/use-location';
 import { calculateDistance, formatDistance } from '@/lib/geolocation';
 import { LanguageSwitcher } from '@/components/language-switcher';
+
+type TourWithDistance = TourWithGuide & { distance?: number };
 
 export default function TouristDashboard() {
   const { t } = useTranslation();
@@ -62,8 +64,23 @@ export default function TouristDashboard() {
     enabled: isAuthenticated,
   });
 
+  // Fetch active sponsored tour IDs
+  const { data: sponsoredTourIds, isLoading: sponsoredLoading } = useQuery<string[]>({
+    queryKey: ['/api/sponsorships/active-tours'],
+  });
+
+  // Create a Set of sponsored tour IDs for quick lookup
+  const sponsoredIdsSet = useMemo(() => {
+    return new Set(sponsoredTourIds || []);
+  }, [sponsoredTourIds]);
+
+  // Helper function to check if a tour is sponsored
+  const isSponsoredTour = (tourId: string) => {
+    return sponsoredIdsSet.has(tourId);
+  };
+
   // Calculate distances and filter by proximity
-  const toursWithDistance = useMemo(() => {
+  const toursWithDistance = useMemo<TourWithDistance[] | undefined>(() => {
     if (!tours || !location) return tours;
     
     return tours.map(tour => ({
@@ -77,7 +94,7 @@ export default function TouristDashboard() {
     }));
   }, [tours, location]);
 
-  const filteredTours = useMemo(() => {
+  const filteredTours = useMemo<TourWithDistance[]>(() => {
     if (!toursWithDistance) return [];
     
     let filtered = [...toursWithDistance];
@@ -97,10 +114,18 @@ export default function TouristDashboard() {
   }, [toursWithDistance, proximityFilter, location]);
 
   // Get nearby tours (within 20km)
-  const nearbyTours = useMemo(() => {
+  const nearbyTours = useMemo<TourWithDistance[]>(() => {
     if (!toursWithDistance || !location) return [];
     return toursWithDistance.filter(tour => tour.distance && tour.distance <= 20).slice(0, 6);
   }, [toursWithDistance, location]);
+
+  // Get featured tours (sponsored tours, limit to 6)
+  const featuredTours = useMemo<TourWithDistance[]>(() => {
+    if (!toursWithDistance || sponsoredIdsSet.size === 0) return [];
+    return toursWithDistance
+      .filter(tour => isSponsoredTour(tour.id))
+      .slice(0, 6);
+  }, [toursWithDistance, sponsoredIdsSet, isSponsoredTour]);
 
   if (authLoading || !isAuthenticated) {
     return (
@@ -318,6 +343,82 @@ export default function TouristDashboard() {
         </div>
       </section>
 
+      {/* Featured Tours Section */}
+      {featuredTours.length > 0 && (
+        <section className="py-12 px-4 bg-gradient-to-br from-amber-50/50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/20" data-testid="section-featured-tours">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  <h2 className="text-3xl font-serif font-semibold">Featured Tours</h2>
+                </div>
+                <p className="text-muted-foreground">Promoted by our top guides</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredTours.map((tour) => (
+                <Link key={tour.id} href={`/tours/${tour.id}`}>
+                  <Card className="overflow-hidden hover-elevate cursor-pointer border-amber-200 dark:border-amber-800 shadow-md shadow-amber-100/50 dark:shadow-amber-900/20" data-testid={`featured-tour-card-${tour.id}`}>
+                    <div className="relative h-48 overflow-hidden">
+                      <img
+                        src={tour.images[0] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021'}
+                        alt={tour.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-3 right-3 flex flex-col gap-2">
+                        <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid={`badge-featured-${tour.id}`}>
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          Featured
+                        </Badge>
+                        <Badge className="bg-white/90 text-foreground">
+                          ${tour.price}
+                        </Badge>
+                      </div>
+                      {tour.distance && (
+                        <div className="absolute top-3 left-3">
+                          <Badge variant="secondary" className="bg-primary/90 text-primary-foreground">
+                            <Navigation className="w-3 h-3 mr-1" />
+                            {formatDistance(tour.distance)}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="secondary">{tour.category}</Badge>
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2 line-clamp-1">{tour.title}</h3>
+                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                        {tour.description}
+                      </p>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {Math.floor(Number(tour.duration) / 60)}h {Number(tour.duration) % 60}m
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
+                          Max {tour.maxGroupSize}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                          5.0
+                        </div>
+                      </div>
+                      <Button className="w-full" data-testid={`button-book-featured-${tour.id}`}>
+                        {t('book')}
+                      </Button>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Near You Section */}
       {nearbyTours.length > 0 && (
         <section className="py-12 px-4 bg-muted/30">
@@ -332,14 +433,20 @@ export default function TouristDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {nearbyTours.map((tour) => (
                 <Link key={tour.id} href={`/tours/${tour.id}`}>
-                  <Card className="overflow-hidden hover-elevate cursor-pointer" data-testid={`nearby-tour-card-${tour.id}`}>
+                  <Card className={`overflow-hidden hover-elevate cursor-pointer ${isSponsoredTour(tour.id) ? 'border-amber-200 dark:border-amber-800 shadow-md shadow-amber-100/50 dark:shadow-amber-900/20' : ''}`} data-testid={`nearby-tour-card-${tour.id}`}>
                     <div className="relative h-48 overflow-hidden">
                       <img
                         src={tour.images[0] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021'}
                         alt={tour.title}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute top-3 right-3">
+                      <div className="absolute top-3 right-3 flex flex-col gap-2">
+                        {isSponsoredTour(tour.id) && (
+                          <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid={`badge-featured-nearby-${tour.id}`}>
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            Featured
+                          </Badge>
+                        )}
                         <Badge className="bg-white/90 text-foreground">
                           ${tour.price}
                         </Badge>
@@ -412,14 +519,20 @@ export default function TouristDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredTours.slice(0, 6).map((tour) => (
                 <Link key={tour.id} href={`/tours/${tour.id}`}>
-                  <Card className="overflow-hidden hover-elevate cursor-pointer" data-testid={`tour-card-${tour.id}`}>
+                  <Card className={`overflow-hidden hover-elevate cursor-pointer ${isSponsoredTour(tour.id) ? 'border-amber-200 dark:border-amber-800 shadow-md shadow-amber-100/50 dark:shadow-amber-900/20' : ''}`} data-testid={`tour-card-${tour.id}`}>
                     <div className="relative h-48 overflow-hidden">
                       <img
                         src={tour.images[0] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021'}
                         alt={tour.title}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute top-3 right-3">
+                      <div className="absolute top-3 right-3 flex flex-col gap-2">
+                        {isSponsoredTour(tour.id) && (
+                          <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid={`badge-featured-tour-${tour.id}`}>
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            Featured
+                          </Badge>
+                        )}
                         <Badge className="bg-white/90 text-foreground">
                           ${tour.price}
                         </Badge>
