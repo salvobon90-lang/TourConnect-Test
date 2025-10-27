@@ -190,6 +190,19 @@ export default function TourDetail() {
               <Card className="p-6">
                 <h3 className="text-xl font-semibold mb-6">Reviews ({reviews.length})</h3>
                 
+                {!user && (
+                  <div className="mb-8 p-6 bg-muted/30 rounded-lg text-center">
+                    <p className="text-muted-foreground mb-3">
+                      Log in to leave a review
+                    </p>
+                    <Link href="/role-selection">
+                      <Button variant="outline" data-testid="button-login-to-review">
+                        Log In
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+
                 {user && user.role === 'tourist' && (
                   <div className="mb-8 p-4 bg-muted/30 rounded-lg">
                     <h4 className="font-semibold mb-3">Write a Review</h4>
@@ -305,14 +318,27 @@ export default function TourDetail() {
                   </div>
                 </div>
 
-                <Button 
-                  className="w-full" 
-                  size="lg"
-                  onClick={() => setLocation(`/book/${tour.id}`)}
-                  data-testid="button-book-now"
-                >
-                  Book Now
-                </Button>
+                {user ? (
+                  <Button 
+                    className="w-full" 
+                    size="lg"
+                    onClick={() => setLocation(`/book/${tour.id}`)}
+                    data-testid="button-book-now"
+                  >
+                    Book Now
+                  </Button>
+                ) : (
+                  <Link href="/role-selection">
+                    <Button 
+                      className="w-full" 
+                      size="lg"
+                      variant="outline"
+                      data-testid="button-login-to-book"
+                    >
+                      Log In to Book
+                    </Button>
+                  </Link>
+                )}
 
                 <p className="text-sm text-center text-muted-foreground">
                   Free cancellation up to 24 hours before the tour

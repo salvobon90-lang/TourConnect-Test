@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import LanguageSelection from "@/pages/language-selection";
 import Landing from "@/pages/landing";
+import Tours from "@/pages/tours";
 import RoleSelection from "@/pages/role-selection";
 import TouristDashboard from "@/pages/tourist-dashboard";
 import GuideDashboard from "@/pages/guide-dashboard";
@@ -49,6 +50,8 @@ function Router() {
     return (
       <Switch>
         <Route path="/" component={Landing} />
+        <Route path="/tours" component={Tours} />
+        <Route path="/tours/:id" component={TourDetail} />
         <Route component={NotFound} />
       </Switch>
     );

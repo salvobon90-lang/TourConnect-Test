@@ -2,7 +2,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { MapPin, Search, Star, Users, Calendar, Globe2, Shield } from 'lucide-react';
+import { MapPin, Search, Star, Users, Calendar, Globe2, Shield, Compass } from 'lucide-react';
+import { Link } from 'wouter';
 
 export default function Landing() {
   const { t } = useTranslation();
@@ -53,12 +54,20 @@ export default function Landing() {
           </Card>
 
           <div className="mt-8 flex flex-col items-center gap-4">
-            <a href="/api/login">
-              <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20" data-testid="button-login">
-                <Globe2 className="w-5 h-5 mr-2" />
-                {t('login')}
-              </Button>
-            </a>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link href="/tours">
+                <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20" data-testid="button-browse-tours">
+                  <Compass className="w-5 h-5 mr-2" />
+                  Browse Tours
+                </Button>
+              </Link>
+              <a href="/api/login">
+                <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20" data-testid="button-login">
+                  <Globe2 className="w-5 h-5 mr-2" />
+                  {t('login')}
+                </Button>
+              </a>
+            </div>
             
             <a href="/api/login" className="text-white/70 hover:text-white text-sm flex items-center gap-2 transition-colors" data-testid="link-supervisor-login">
               <Shield className="w-4 h-4" />
