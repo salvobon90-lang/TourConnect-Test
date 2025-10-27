@@ -2,7 +2,7 @@
 
 ## Overview
 
-TourConnect is a comprehensive tourism platform that connects four distinct user groups: tourists seeking authentic experiences, tour guides offering local expertise, service providers (restaurants, shops, transport), and supervisors who manage platform access. The application features role-based dashboards, supervisor approval workflow for guides/providers, interactive mapping with geolocation, booking management with Stripe payment integration, and multi-language support (English, Italian, German, French, Spanish).
+TourConnect is a comprehensive tourism platform that connects four distinct user groups: tourists seeking authentic experiences, tour guides offering local expertise, service providers (restaurants, shops, transport), and supervisors who manage platform access. The application features role-based dashboards, supervisor approval workflow for guides/providers, interactive mapping with geolocation, booking management with Stripe payment integration, sponsorship system for promoting tours and services, and multi-language support (English, Italian, German, French, Spanish).
 
 ## User Preferences
 
@@ -72,6 +72,7 @@ Preferred communication style: Simple, everyday language.
 - `services` - Services offered by approved providers (restaurants, shops, transport)
 - `bookings` - Tour bookings with Stripe payment tracking
 - `reviews` - User reviews for tours with ratings and images
+- `sponsorships` - Paid promotions for tours/services with Stripe payment tracking and expiration management
 - `sessions` - PostgreSQL-backed session storage for authentication
 
 **Key Relationships:**
@@ -79,6 +80,7 @@ Preferred communication style: Simple, everyday language.
 - Services belong to providers (one-to-many via `providerId`)
 - Bookings reference both users and tours with payment metadata
 - Reviews reference users and tours with optional service reviews
+- Sponsorships reference either tours or services (mutually exclusive via `tourId` or `serviceId`) with user ownership tracking
 
 **Schema Features:**
 - UUID primary keys with PostgreSQL's `gen_random_uuid()`
@@ -93,10 +95,12 @@ Preferred communication style: Simple, everyday language.
 ### External Dependencies
 
 **Payment Processing:**
-- Stripe integration for secure payment handling
+- Stripe integration for secure payment handling (tour bookings and sponsorships)
 - Stripe Checkout Sessions for hosted payment pages
 - Webhook support for payment confirmation (prepared via `rawBody` middleware)
 - Client-side Stripe.js and React Stripe components
+- Payment verification with session ID validation and metadata checks
+- Test/production mode with automatic fallback to TESTING_STRIPE_SECRET_KEY
 
 **Object Storage:**
 - Google Cloud Storage for file uploads
