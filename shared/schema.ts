@@ -363,22 +363,22 @@ export const insertUserSchema = createInsertSchema(users).omit({
 });
 
 export const updateProfileSchema = z.object({
-  firstName: z.string().min(1).optional(),
-  lastName: z.string().min(1).optional(),
+  firstName: z.string().min(1).max(50).optional(),
+  lastName: z.string().min(1).max(50).optional(),
   profileImageUrl: z.string().url().optional().nullable(),
   bio: z.string().max(1000).optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
   country: z.string().max(100).optional().nullable(),
   city: z.string().max(100).optional().nullable(),
   // Guide fields
-  guideLanguages: z.array(z.string()).optional().nullable(),
-  guideSpecialties: z.array(z.string()).optional().nullable(),
-  guideExperience: z.number().int().min(0).optional().nullable(),
+  guideLanguages: z.array(z.string()).max(10).optional().nullable(),
+  guideSpecialties: z.array(z.string()).max(10).optional().nullable(),
+  guideExperience: z.number().int().min(0).max(50).optional().nullable(),
   guideLicenseNumber: z.string().max(100).optional().nullable(),
   // Provider fields
   businessName: z.string().max(200).optional().nullable(),
   businessType: z.string().max(50).optional().nullable(),
-  businessAddress: z.string().optional().nullable(),
+  businessAddress: z.string().max(500).optional().nullable(),
   website: z.string().url().optional().nullable(),
   // Social links
   socialLinks: z.object({
@@ -393,12 +393,29 @@ export const insertTourSchema = createInsertSchema(tours).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  title: z.string().min(3).max(100),
+  description: z.string().min(50).max(5000),
+  images: z.array(z.string().url()).max(10),
+  included: z.array(z.string()).max(20),
+  excluded: z.array(z.string()).max(20),
+  languages: z.array(z.string()).max(10),
+  price: z.string().refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 100000;
+  }, { message: "Price must be between 0 and 100000" }),
+  maxGroupSize: z.number().int().min(1).max(100),
 });
 
 export const insertServiceSchema = createInsertSchema(services).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  name: z.string().min(3).max(100),
+  description: z.string().min(20).max(2000),
+  images: z.array(z.string().url()).max(10),
+  amenities: z.array(z.string()).max(20),
 });
 
 export const insertBookingSchema = createInsertSchema(bookings).omit({

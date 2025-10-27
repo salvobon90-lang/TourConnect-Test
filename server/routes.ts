@@ -9,6 +9,15 @@ import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertRevie
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { chatWithAssistant, chatWithAssistantStream, getTourRecommendations } from "./openai";
+import { 
+  apiLimiter, 
+  authLimiter, 
+  aiLimiter, 
+  messageLimiter, 
+  reviewLimiter,
+  bookingLimiter 
+} from './middleware/rateLimiter';
+import { sanitizeBody, sanitizeHtml } from './middleware/sanitize';
 
 // Try production key first, then testing key
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || process.env.TESTING_STRIPE_SECRET_KEY;
@@ -89,6 +98,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // Apply global rate limiter to all API routes
+  app.use('/api', apiLimiter);
+  
+  // Apply sanitization middleware globally
+  app.use(sanitizeBody);
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
@@ -101,7 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/auth/set-role', isAuthenticated, async (req: any, res) => {
+  app.post('/api/auth/set-role', authLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { role } = req.body;
@@ -665,7 +680,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/bookings', isAuthenticated, async (req: any, res) => {
+  app.post('/api/bookings', bookingLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertBookingSchema.parse({ ...req.body, userId });
@@ -922,7 +937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/reviews', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reviews', reviewLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -930,8 +945,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tourId: z.string().optional(),
         serviceId: z.string().optional(),
         rating: z.number().int().min(1).max(5),
-        comment: z.string().min(10).max(2000),
-        images: z.array(z.string().url()).optional()
+        comment: z.string().min(10).max(2000).transform(sanitizeHtml),
+        images: z.array(z.string().url()).max(10).optional()
       }).refine((data) => data.tourId || data.serviceId, {
         message: "Either tourId or serviceId must be provided"
       });
@@ -987,8 +1002,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const schema = z.object({
         rating: z.number().int().min(1).max(5).optional(),
-        comment: z.string().min(10).max(2000).optional(),
-        images: z.array(z.string().url()).optional()
+        comment: z.string().min(10).max(2000).transform(sanitizeHtml).optional(),
+        images: z.array(z.string().url()).max(10).optional()
       });
       
       const data = schema.parse(req.body);
@@ -1049,7 +1064,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Response is required' });
       }
       
-      await storage.addResponse(req.params.id, response, userId);
+      const sanitizedResponse = sanitizeHtml(response);
+      await storage.addResponse(req.params.id, sanitizedResponse, userId);
       
       res.json({ success: true });
     } catch (error) {
@@ -1412,7 +1428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Messaging validation schemas
   const sendMessageSchema = z.object({
     conversationId: z.string(),
-    content: z.string().min(1).max(5000)
+    content: z.string().min(1).max(5000).transform(sanitizeHtml)
   });
 
   const createConversationSchema = z.object({
@@ -1540,7 +1556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/messages', isAuthenticated, async (req: any, res) => {
+  app.post('/api/messages', messageLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -1564,15 +1580,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not authorized to send messages in this conversation" });
       }
       
-      const sanitizedContent = content.trim();
-      if (sanitizedContent.length === 0) {
-        return res.status(400).json({ message: "Message content cannot be empty" });
-      }
-      
       const message = await storage.createMessage({
         conversationId,
         senderId: userId,
-        content: sanitizedContent,
+        content,
         isRead: false,
       });
       
@@ -1910,7 +1921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Assistant endpoints
-  app.post('/api/ai/chat', isAuthenticated, async (req: any, res) => {
+  app.post('/api/ai/chat', aiLimiter, isAuthenticated, async (req: any, res) => {
     const schema = z.object({
       messages: z.array(z.object({
         role: z.enum(['user', 'assistant']),
@@ -1941,7 +1952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/ai/chat/stream', isAuthenticated, async (req: any, res) => {
+  app.post('/api/ai/chat/stream', aiLimiter, isAuthenticated, async (req: any, res) => {
     const schema = z.object({
       messages: z.array(z.object({
         role: z.enum(['user', 'assistant']),
@@ -1977,7 +1988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/ai/tour-recommendations', isAuthenticated, async (req: any, res) => {
+  app.post('/api/ai/tour-recommendations', aiLimiter, isAuthenticated, async (req: any, res) => {
     const schema = z.object({
       query: z.string().min(5).max(500),
       location: z.string().optional(),
