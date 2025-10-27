@@ -27,6 +27,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   setUserRole(userId: string, role: UserRole): Promise<User>;
+  updateUserProfile(userId: string, profileData: Partial<User>): Promise<User>;
   getPendingUsers(): Promise<User[]>;
   getAllUsers(): Promise<User[]>;
   approveUser(userId: string, supervisorId: string): Promise<User>;
@@ -157,6 +158,18 @@ export class DatabaseStorage implements IStorage {
         approvalStatus: 'approved',
         approvedBy: promotedBy,
         approvedAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateUserProfile(userId: string, profileData: Partial<User>): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        ...profileData,
         updatedAt: new Date() 
       })
       .where(eq(users.id, userId))

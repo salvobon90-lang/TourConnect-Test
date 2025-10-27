@@ -2,16 +2,16 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema } from "@shared/schema";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema } from "@shared/schema";
 
 // Validate Stripe secret key - must start with 'sk_' not 'pk_'
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const isValidSecretKey = stripeSecretKey && stripeSecretKey.startsWith('sk_');
 const stripe = isValidSecretKey
-  ? new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" })
+  ? new Stripe(stripeSecretKey, { apiVersion: "2025-09-30.clover" })
   : null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -45,6 +45,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error setting role:", error);
       res.status(500).json({ message: "Failed to set role" });
     }
+  });
+
+  app.patch('/api/auth/update-profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const validation = updateProfileSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid profile data", 
+          errors: validation.error.errors 
+        });
+      }
+
+      const updatedUser = await storage.updateUserProfile(userId, validation.data);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.post('/api/auth/upload-profile-image', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { imageData, fileName } = req.body;
+
+      if (!imageData || !fileName) {
+        return res.status(400).json({ message: "Missing image data or file name" });
+      }
+
+      // Decode base64 image
+      const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      // Get public search paths from object storage service
+      const objectStorage = new ObjectStorageService();
+      const publicPaths = objectStorage.getPublicObjectSearchPaths();
+      
+      if (publicPaths.length === 0) {
+        return res.status(500).json({ message: "Object storage not configured" });
+      }
+
+      // Use the first public path
+      const basePath = publicPaths[0];
+      const objectPath = `profile-images/${userId}/${Date.now()}-${fileName}`;
+      const fullPath = `${basePath}/${objectPath}`;
+
+      // Parse bucket and object name
+      const pathParts = fullPath.split("/");
+      const bucketName = pathParts[1];
+      const objectName = pathParts.slice(2).join("/");
+
+      // Upload to Google Cloud Storage
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+      
+      const contentType = `image/${fileName.split('.').pop()}`;
+      await file.save(buffer, {
+        metadata: {
+          contentType,
+        },
+        public: true,
+      });
+
+      // Make the file publicly accessible
+      await file.makePublic();
+
+      // Get public URL
+      const imageUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
+
+      // Update user profile with new image URL
+      const updatedUser = await storage.updateUserProfile(userId, {
+        profileImageUrl: imageUrl,
+      });
+
+      res.json({ imageUrl, user: updatedUser });
+    } catch (error) {
+      console.error("Error uploading profile image:", error);
+      res.status(500).json({ message: "Failed to upload profile image" });
+    }
+  });
+
+  app.post('/api/auth/logout', isAuthenticated, async (req: any, res) => {
+    req.logout((err: any) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Failed to logout" });
+      }
+      req.session.destroy((err: any) => {
+        if (err) {
+          console.error("Session destroy error:", err);
+          return res.status(500).json({ message: "Failed to destroy session" });
+        }
+        res.clearCookie('connect.sid');
+        res.json({ message: "Logged out successfully" });
+      });
+    });
   });
 
   // Supervisor routes

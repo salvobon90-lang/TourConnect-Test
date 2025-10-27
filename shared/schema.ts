@@ -51,8 +51,27 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { length: 20 }), // tourist, guide, provider, supervisor - null until user selects
   approvalStatus: varchar("approval_status", { length: 20 }), // pending, approved, rejected - null until role selected
-  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedBy: varchar("approved_by"),
   approvedAt: timestamp("approved_at"),
+  
+  // Common profile fields (all roles)
+  bio: text("bio"),
+  phone: varchar("phone", { length: 50 }),
+  country: varchar("country", { length: 100 }),
+  city: varchar("city", { length: 100 }),
+  
+  // Guide-specific fields
+  guideLanguages: text("guide_languages").array().default(sql`ARRAY[]::text[]`),
+  guideSpecialties: text("guide_specialties").array().default(sql`ARRAY[]::text[]`),
+  guideExperience: integer("guide_experience"), // years
+  guideLicenseNumber: varchar("guide_license_number", { length: 100 }),
+  
+  // Provider-specific fields
+  businessName: varchar("business_name", { length: 200 }),
+  businessType: varchar("business_type", { length: 50 }), // restaurant, shop, transport, other
+  businessAddress: text("business_address"),
+  website: varchar("website", { length: 500 }),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -189,6 +208,26 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const updateProfileSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  profileImageUrl: z.string().url().optional().nullable(),
+  bio: z.string().max(1000).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  country: z.string().max(100).optional().nullable(),
+  city: z.string().max(100).optional().nullable(),
+  // Guide fields
+  guideLanguages: z.array(z.string()).optional().nullable(),
+  guideSpecialties: z.array(z.string()).optional().nullable(),
+  guideExperience: z.number().int().min(0).optional().nullable(),
+  guideLicenseNumber: z.string().max(100).optional().nullable(),
+  // Provider fields
+  businessName: z.string().max(200).optional().nullable(),
+  businessType: z.string().max(50).optional().nullable(),
+  businessAddress: z.string().optional().nullable(),
+  website: z.string().url().optional().nullable(),
 });
 
 export const insertTourSchema = createInsertSchema(tours).omit({
