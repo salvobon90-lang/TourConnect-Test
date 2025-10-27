@@ -36,6 +36,7 @@ export interface IStorage {
   approveUser(userId: string, supervisorId: string): Promise<User>;
   rejectUser(userId: string, supervisorId: string): Promise<User>;
   promoteToSupervisor(userId: string, promotedBy: string): Promise<User>;
+  verifyUser(userId: string, supervisorId: string): Promise<User>;
   
   // Tour operations
   getTours(): Promise<TourWithGuide[]>;
@@ -184,6 +185,18 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({ 
         ...profileData,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async verifyUser(userId: string, supervisorId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        verified: true,
         updatedAt: new Date() 
       })
       .where(eq(users.id, userId))

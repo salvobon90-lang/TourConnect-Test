@@ -80,6 +80,15 @@ export const users = pgTable("users", {
   businessAddress: text("business_address"),
   website: varchar("website", { length: 500 }),
   
+  // New profile fields for Task 5
+  socialLinks: jsonb("social_links").$type<{
+    facebook?: string;
+    instagram?: string;
+    twitter?: string;
+    website?: string;
+  }>(),
+  verified: boolean("verified").default(false), // Badge "Verificato" for guides/providers
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -268,6 +277,13 @@ export const updateProfileSchema = z.object({
   businessType: z.string().max(50).optional().nullable(),
   businessAddress: z.string().optional().nullable(),
   website: z.string().url().optional().nullable(),
+  // Social links
+  socialLinks: z.object({
+    facebook: z.string().url().optional().or(z.literal('')),
+    instagram: z.string().url().optional().or(z.literal('')),
+    twitter: z.string().url().optional().or(z.literal('')),
+    website: z.string().url().optional().or(z.literal(''))
+  }).optional().nullable(),
 });
 
 export const insertTourSchema = createInsertSchema(tours).omit({

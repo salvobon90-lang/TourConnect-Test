@@ -10,10 +10,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User, Camera, Save, Loader2, MapPin, Briefcase, Globe, Award } from 'lucide-react';
+import { User, Camera, Save, Loader2, MapPin, Briefcase, Globe, Award, BadgeCheck } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { SiFacebook, SiInstagram, SiX } from 'react-icons/si';
 
 export default function Profile() {
   const { t } = useTranslation();
@@ -42,6 +44,12 @@ export default function Profile() {
   const [businessType, setBusinessType] = useState('');
   const [businessAddress, setBusinessAddress] = useState('');
   const [website, setWebsite] = useState('');
+
+  // Social links
+  const [socialFacebook, setSocialFacebook] = useState('');
+  const [socialInstagram, setSocialInstagram] = useState('');
+  const [socialTwitter, setSocialTwitter] = useState('');
+  const [socialWebsite, setSocialWebsite] = useState('');
 
   // Multi-select state for arrays
   const [languageInput, setLanguageInput] = useState('');
@@ -82,6 +90,14 @@ export default function Profile() {
         setBusinessType(user.businessType || '');
         setBusinessAddress(user.businessAddress || '');
         setWebsite(user.website || '');
+      }
+
+      // Load social links
+      if (user.socialLinks) {
+        setSocialFacebook(user.socialLinks.facebook || '');
+        setSocialInstagram(user.socialLinks.instagram || '');
+        setSocialTwitter(user.socialLinks.twitter || '');
+        setSocialWebsite(user.socialLinks.website || '');
       }
     }
   }, [user]);
@@ -169,6 +185,12 @@ export default function Profile() {
       phone: phone || null,
       country: country || null,
       city: city || null,
+      socialLinks: {
+        facebook: socialFacebook || undefined,
+        instagram: socialInstagram || undefined,
+        twitter: socialTwitter || undefined,
+        website: socialWebsite || undefined,
+      },
     };
 
     if (user?.role === 'guide') {
@@ -261,7 +283,24 @@ export default function Profile() {
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-6">
-          <h2 className="text-3xl font-serif font-semibold mb-2">{t('profile.title')}</h2>
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-3xl font-serif font-semibold">{t('profile.title')}</h2>
+            {user?.verified && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="default" className="bg-primary text-primary-foreground gap-1" data-testid="badge-verified">
+                      <BadgeCheck className="w-3 h-3" />
+                      {t('profile.verified')}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{t('profile.verifiedTooltip')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
           <p className="text-muted-foreground">{t('profile.subtitle')}</p>
         </div>
 
@@ -410,6 +449,74 @@ export default function Profile() {
                   onChange={(e) => setCity(e.target.value)}
                   placeholder={t('profile.cityPlaceholder')}
                   data-testid="input-city"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Social Links Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                {t('profile.socialLinks')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="socialFacebook" className="flex items-center gap-2">
+                  <SiFacebook className="w-4 h-4" />
+                  {t('profile.facebook')}
+                </Label>
+                <Input
+                  id="socialFacebook"
+                  type="url"
+                  value={socialFacebook}
+                  onChange={(e) => setSocialFacebook(e.target.value)}
+                  placeholder="https://facebook.com/username"
+                  data-testid="input-social-facebook"
+                />
+              </div>
+              <div>
+                <Label htmlFor="socialInstagram" className="flex items-center gap-2">
+                  <SiInstagram className="w-4 h-4" />
+                  {t('profile.instagram')}
+                </Label>
+                <Input
+                  id="socialInstagram"
+                  type="url"
+                  value={socialInstagram}
+                  onChange={(e) => setSocialInstagram(e.target.value)}
+                  placeholder="https://instagram.com/username"
+                  data-testid="input-social-instagram"
+                />
+              </div>
+              <div>
+                <Label htmlFor="socialTwitter" className="flex items-center gap-2">
+                  <SiX className="w-4 h-4" />
+                  {t('profile.twitter')}
+                </Label>
+                <Input
+                  id="socialTwitter"
+                  type="url"
+                  value={socialTwitter}
+                  onChange={(e) => setSocialTwitter(e.target.value)}
+                  placeholder="https://x.com/username"
+                  data-testid="input-social-twitter"
+                />
+              </div>
+              <div>
+                <Label htmlFor="socialWebsite" className="flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  {t('profile.socialWebsite')}
+                </Label>
+                <Input
+                  id="socialWebsite"
+                  type="url"
+                  value={socialWebsite}
+                  onChange={(e) => setSocialWebsite(e.target.value)}
+                  placeholder={t('profile.websitePlaceholder')}
+                  data-testid="input-social-website"
                 />
               </div>
             </CardContent>

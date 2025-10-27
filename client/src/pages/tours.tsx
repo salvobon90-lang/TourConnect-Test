@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Clock, Users, Star, MapPin } from 'lucide-react';
+import { Search, Clock, Users, Star, MapPin, BadgeCheck } from 'lucide-react';
 import type { TourWithGuide } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
 import { Logo } from '@/components/logo';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function Tours() {
   const { t } = useTranslation();
@@ -217,8 +218,20 @@ export default function Tours() {
                     </p>
                     <div className="flex items-center gap-1 mb-3 text-sm text-muted-foreground">
                       <Users className="w-4 h-4" />
-                      <span data-testid={`text-guide-${tour.id}`}>
-                        by {tour.guide?.firstName || tour.guide?.email || 'Guide'}
+                      <span data-testid={`text-guide-${tour.id}`} className="flex items-center gap-1">
+                        <span>by {tour.guide?.firstName || tour.guide?.email || 'Guide'}</span>
+                        {tour.guide?.verified && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <BadgeCheck className="w-4 h-4 text-primary" data-testid={`badge-verified-guide-${tour.id}`} />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{t('profile.verifiedTooltip')}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">

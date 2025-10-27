@@ -331,6 +331,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/supervisor/verify-user/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const supervisorId = req.user.claims.sub;
+      const supervisor = await storage.getUser(supervisorId);
+      
+      if (supervisor?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Supervisor role required." });
+      }
+
+      const targetUser = await storage.getUser(req.params.userId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (!['guide', 'provider'].includes(targetUser.role || '')) {
+        return res.status(400).json({ message: "Only guides and providers can be verified" });
+      }
+
+      const verifiedUser = await storage.verifyUser(req.params.userId, supervisorId);
+      res.json(verifiedUser);
+    } catch (error) {
+      console.error("Error verifying user:", error);
+      res.status(500).json({ message: "Failed to verify user" });
+    }
+  });
+
   // Tour moderation routes (supervisor only)
   app.get('/api/supervisor/pending-tours', isAuthenticated, async (req: any, res) => {
     try {

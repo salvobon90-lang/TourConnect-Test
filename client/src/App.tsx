@@ -27,6 +27,7 @@ import BookingSuccess from "@/pages/booking-success";
 import EditTour from "@/pages/edit-tour";
 import Profile from "@/pages/profile";
 import SponsorshipSuccess from "@/pages/sponsorship-success";
+import Onboarding from "@/pages/onboarding";
 import "./i18n";
 
 function Router() {
@@ -56,6 +57,11 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
     );
+  }
+
+  // Show onboarding for new authenticated users (only once)
+  if (!localStorage.getItem('onboardingCompleted')) {
+    return <Onboarding />;
   }
 
   // Show role selection if user hasn't selected a role
