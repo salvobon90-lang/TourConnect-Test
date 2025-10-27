@@ -37,7 +37,7 @@ export interface IStorage {
   getTours(): Promise<TourWithGuide[]>;
   getTour(id: string): Promise<TourWithGuide | undefined>;
   getMyTours(guideId: string): Promise<Tour[]>;
-  getPendingTours(): Promise<Tour[]>;
+  getPendingTours(): Promise<TourWithGuide[]>;
   createTour(tour: InsertTour): Promise<Tour>;
   updateTour(id: string, tour: Partial<InsertTour>): Promise<Tour>;
   deleteTour(id: string): Promise<void>;
@@ -223,12 +223,18 @@ export class DatabaseStorage implements IStorage {
     await db.delete(tours).where(eq(tours.id, id));
   }
 
-  async getPendingTours(): Promise<Tour[]> {
-    return await db
+  async getPendingTours(): Promise<TourWithGuide[]> {
+    const results = await db
       .select()
       .from(tours)
+      .leftJoin(users, eq(tours.guideId, users.id))
       .where(eq(tours.approvalStatus, 'pending'))
       .orderBy(desc(tours.createdAt));
+
+    return results.map(r => ({
+      ...r.tours,
+      guide: r.users!,
+    }));
   }
 
   async approveTour(tourId: string, supervisorId: string): Promise<Tour> {

@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2, XCircle, Clock, Users, UserCheck, UserX, Shield } from "lucide-react";
-import type { User } from "@shared/schema";
+import { CheckCircle2, XCircle, Clock, Users, UserCheck, UserX, Shield, Map } from "lucide-react";
+import type { User, TourWithGuide } from "@shared/schema";
 
 export default function SupervisorDashboard() {
   const { user, isAuthenticated } = useAuth();
@@ -21,6 +21,11 @@ export default function SupervisorDashboard() {
 
   const { data: allUsers, isLoading: isLoadingAllUsers } = useQuery<User[]>({
     queryKey: ['/api/supervisor/users'],
+    enabled: isAuthenticated && user?.role === 'supervisor',
+  });
+
+  const { data: pendingTours, isLoading: isLoadingTours } = useQuery<TourWithGuide[]>({
+    queryKey: ['/api/supervisor/pending-tours'],
     enabled: isAuthenticated && user?.role === 'supervisor',
   });
 
@@ -84,6 +89,46 @@ export default function SupervisorDashboard() {
     },
   });
 
+  const approveTourMutation = useMutation({
+    mutationFn: async (tourId: string) => {
+      return await apiRequest('POST', `/api/supervisor/approve-tour/${tourId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/supervisor/pending-tours'] });
+      toast({
+        title: "Tour Approved",
+        description: "The tour has been approved successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to approve tour",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectTourMutation = useMutation({
+    mutationFn: async (tourId: string) => {
+      return await apiRequest('POST', `/api/supervisor/reject-tour/${tourId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/supervisor/pending-tours'] });
+      toast({
+        title: "Tour Rejected",
+        description: "The tour has been rejected",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reject tour",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (user?.role !== 'supervisor') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -141,7 +186,7 @@ export default function SupervisorDashboard() {
 
         {/* Management Tabs */}
         <Tabs defaultValue="pending" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-3xl grid-cols-3">
             <TabsTrigger value="pending" data-testid="tab-pending">
               <Clock className="w-4 h-4 mr-2" />
               Pending Approvals
@@ -149,6 +194,10 @@ export default function SupervisorDashboard() {
             <TabsTrigger value="users" data-testid="tab-users">
               <Users className="w-4 h-4 mr-2" />
               User Management
+            </TabsTrigger>
+            <TabsTrigger value="tours" data-testid="tab-tours">
+              <Map className="w-4 h-4 mr-2" />
+              Tour Moderation
             </TabsTrigger>
           </TabsList>
 
@@ -309,6 +358,82 @@ export default function SupervisorDashboard() {
                   <Users className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No Users Found</h3>
                   <p className="text-muted-foreground">No users in the system</p>
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="tours">
+            <Card className="p-6">
+              <h2 className="text-2xl font-semibold mb-6">Tour Moderation</h2>
+
+              {isLoadingTours ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+                  <p className="text-muted-foreground mt-4">Loading pending tours...</p>
+                </div>
+              ) : pendingTours && pendingTours.length > 0 ? (
+                <div className="space-y-4">
+                  {pendingTours.map((tour) => (
+                    <Card key={tour.id} className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg" data-testid={`text-tour-title-${tour.id}`}>
+                            {tour.title}
+                          </h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            by {tour.guide?.firstName} {tour.guide?.lastName}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <Badge variant="secondary" data-testid={`badge-category-${tour.id}`}>
+                              {tour.category}
+                            </Badge>
+                            <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Pending
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              ${tour.price}
+                            </span>
+                            <span className="text-sm text-muted-foreground">•</span>
+                            <span className="text-sm text-muted-foreground">
+                              {tour.duration} min
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Created: {new Date(tour.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => approveTourMutation.mutate(tour.id)}
+                            disabled={approveTourMutation.isPending || rejectTourMutation.isPending}
+                            variant="default"
+                            data-testid={`button-approve-tour-${tour.id}`}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Approve
+                          </Button>
+                          <Button
+                            onClick={() => rejectTourMutation.mutate(tour.id)}
+                            disabled={approveTourMutation.isPending || rejectTourMutation.isPending}
+                            variant="destructive"
+                            data-testid={`button-reject-tour-${tour.id}`}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Map className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Pending Tours</h3>
+                  <p className="text-muted-foreground">All tours have been reviewed</p>
                 </div>
               )}
             </Card>

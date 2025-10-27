@@ -13,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { apiRequest, queryClient as qc } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { insertTourSchema, type InsertTour } from '@shared/schema';
-import { ArrowLeft, Upload } from 'lucide-react';
+import { ArrowLeft, Upload, X, Calendar } from 'lucide-react';
 import { Link } from 'wouter';
+import { Badge } from '@/components/ui/badge';
 
 export default function CreateTour() {
   const { t } = useTranslation();
@@ -22,6 +23,7 @@ export default function CreateTour() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [imageFiles, setImageFiles] = useState<string[]>([]);
+  const [currentDate, setCurrentDate] = useState('');
 
   const form = useForm<InsertTour>({
     resolver: zodResolver(insertTourSchema),
@@ -40,6 +42,7 @@ export default function CreateTour() {
       languages: ['en'],
       included: [],
       excluded: [],
+      availableDates: [],
       isActive: true,
       guideId: '', // Will be set by backend
     },
@@ -53,9 +56,9 @@ export default function CreateTour() {
     onSuccess: () => {
       toast({
         title: 'Success',
-        description: 'Tour created successfully!',
+        description: 'Tour created successfully! Your tour is pending approval by a moderator.',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/tours/my-tours'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/my-tours'] });
       setLocation('/');
     },
     onError: (error: any) => {
@@ -72,6 +75,22 @@ export default function CreateTour() {
       ...data,
       images: imageFiles,
     });
+  };
+
+  const handleAddDate = () => {
+    if (currentDate) {
+      const currentDates = form.getValues('availableDates') || [];
+      const dateISO = new Date(currentDate).toISOString();
+      if (!currentDates.includes(dateISO)) {
+        form.setValue('availableDates', [...currentDates, dateISO]);
+        setCurrentDate('');
+      }
+    }
+  };
+
+  const handleRemoveDate = (dateToRemove: string) => {
+    const currentDates = form.getValues('availableDates') || [];
+    form.setValue('availableDates', currentDates.filter(d => d !== dateToRemove));
   };
 
   return (
@@ -285,6 +304,60 @@ export default function CreateTour() {
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="availableDates"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Available Dates</FormLabel>
+                      <div className="space-y-4">
+                        <div className="flex gap-2">
+                          <Input
+                            type="date"
+                            value={currentDate}
+                            onChange={(e) => setCurrentDate(e.target.value)}
+                            data-testid="input-available-date"
+                            min={new Date().toISOString().split('T')[0]}
+                          />
+                          <Button
+                            type="button"
+                            onClick={handleAddDate}
+                            disabled={!currentDate}
+                            data-testid="button-add-date"
+                          >
+                            <Calendar className="w-4 h-4 mr-2" />
+                            Add Date
+                          </Button>
+                        </div>
+                        
+                        {field.value && field.value.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {field.value.map((date: string, index: number) => (
+                              <Badge 
+                                key={index} 
+                                variant="secondary"
+                                className="flex items-center gap-1"
+                                data-testid={`badge-date-${index}`}
+                              >
+                                {new Date(date).toLocaleDateString()}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveDate(date)}
+                                  className="ml-1 hover:text-destructive"
+                                  data-testid={`button-remove-date-${index}`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </Card>
 
