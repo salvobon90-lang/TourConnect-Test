@@ -11,6 +11,7 @@ import { CheckCircle2, XCircle, Clock, Users, UserCheck, UserX, Shield, Map } fr
 import type { User, TourWithGuide } from "@shared/schema";
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { Link } from 'wouter';
 
 export default function SupervisorDashboard() {
   const { user, isAuthenticated } = useAuth();
@@ -146,13 +147,39 @@ export default function SupervisorDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-card sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <h1 className="text-2xl font-serif font-semibold">{t('common.appName')}</h1>
+            <nav className="hidden md:flex gap-6">
+              <Link href="/">
+                <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-dashboard">
+                  {t('navigation.dashboard')}
+                </a>
+              </Link>
+              <Link href="/profile">
+                <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-profile">
+                  {t('navigation.profile')}
+                </a>
+              </Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {user?.firstName || user?.email}
+            </span>
+            <LanguageSwitcher />
+          </div>
+        </div>
+      </header>
+
       <div className="bg-gradient-to-r from-primary/90 to-primary text-primary-foreground py-12 px-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto">
           <div>
-            <h1 className="text-4xl font-serif font-bold mb-2">{t('dashboards.supervisor.title')}</h1>
+            <h2 className="text-4xl font-serif font-bold mb-2">{t('dashboards.supervisor.title')}</h2>
             <p className="text-primary-foreground/90">{t('dashboards.supervisor.subtitle')}</p>
           </div>
-          <LanguageSwitcher />
         </div>
       </div>
 

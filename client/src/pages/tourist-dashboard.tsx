@@ -138,6 +138,11 @@ export default function TouristDashboard() {
                   {t('navigation.map')}
                 </a>
               </Link>
+              <Link href="/profile">
+                <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-profile">
+                  {t('navigation.profile')}
+                </a>
+              </Link>
             </nav>
           </div>
           <div className="flex items-center gap-2">
@@ -145,11 +150,6 @@ export default function TouristDashboard() {
               {user?.firstName || user?.email}
             </span>
             <LanguageSwitcher />
-            <a href="/api/logout">
-              <Button variant="outline" size="sm" data-testid="button-logout">
-                {t('navigation.logout')}
-              </Button>
-            </a>
           </div>
         </div>
       </header>
