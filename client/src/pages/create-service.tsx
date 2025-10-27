@@ -48,16 +48,16 @@ export default function CreateService() {
     },
     onSuccess: () => {
       toast({
-        title: 'Success',
-        description: 'Service created successfully!',
+        title: t('common.success'),
+        description: t('createService.success'),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/services/my-services'] });
       setLocation('/');
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to create service',
+        title: t('common.error'),
+        description: error.message || t('createService.error'),
         variant: 'destructive',
       });
     },
@@ -79,7 +79,7 @@ export default function CreateService() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <h1 className="text-2xl font-serif font-semibold">Add New Service</h1>
+          <h1 className="text-2xl font-serif font-semibold">{t('createService.title')}</h1>
         </div>
       </header>
 
@@ -95,9 +95,9 @@ export default function CreateService() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Service Name</FormLabel>
+                      <FormLabel>{t('forms.name')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Trattoria Roma" {...field} data-testid="input-name" />
+                        <Input placeholder={t('createService.exampleName')} {...field} data-testid="input-name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -109,10 +109,10 @@ export default function CreateService() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel>{t('forms.description')}</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Describe your service in detail..." 
+                          placeholder={t('forms.descriptionPlaceholder')} 
                           {...field} 
                           rows={4}
                           data-testid="input-description"
@@ -129,11 +129,11 @@ export default function CreateService() {
                     name="type"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Service Type</FormLabel>
+                        <FormLabel>{t('createService.serviceType')}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-type">
-                              <SelectValue placeholder="Select type" />
+                              <SelectValue placeholder={t('forms.selectType')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -153,11 +153,11 @@ export default function CreateService() {
                     name="priceRange"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Price Range</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormLabel>{t('createService.priceRange')}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
                           <FormControl>
                             <SelectTrigger data-testid="select-price-range">
-                              <SelectValue placeholder="Select range" />
+                              <SelectValue placeholder={t('forms.selectRange')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -177,9 +177,9 @@ export default function CreateService() {
                   name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address</FormLabel>
+                      <FormLabel>{t('forms.address')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Via del Corso, 123, Rome" {...field} data-testid="input-address" />
+                        <Input placeholder={t('forms.addressPlaceholder')} {...field} data-testid="input-address" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -192,7 +192,7 @@ export default function CreateService() {
                     name="latitude"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Latitude</FormLabel>
+                        <FormLabel>{t('forms.latitude')}</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -212,7 +212,7 @@ export default function CreateService() {
                     name="longitude"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Longitude</FormLabel>
+                        <FormLabel>{t('forms.longitude')}</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -233,9 +233,9 @@ export default function CreateService() {
                   name="operatingHours"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Operating Hours (Optional)</FormLabel>
+                      <FormLabel>{t('createService.operatingHours')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Mon-Fri: 9am-6pm, Sat: 10am-4pm" {...field} data-testid="input-hours" />
+                        <Input placeholder={t('forms.operatingHoursPlaceholder')} value={field.value ?? ''} onChange={field.onChange} data-testid="input-hours" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -247,9 +247,9 @@ export default function CreateService() {
                   name="specialOffer"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Special Offer (Optional)</FormLabel>
+                      <FormLabel>{t('createService.specialOffer')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., 10% off for tourists" {...field} data-testid="input-special-offer" />
+                        <Input placeholder={t('forms.specialOfferPlaceholder')} value={field.value ?? ''} onChange={field.onChange} data-testid="input-special-offer" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -261,11 +261,11 @@ export default function CreateService() {
             <div className="flex gap-4">
               <Link href="/">
                 <Button type="button" variant="outline" data-testid="button-cancel">
-                  Cancel
+                  {t('actions.cancel')}
                 </Button>
               </Link>
               <Button type="submit" disabled={mutation.isPending} data-testid="button-submit">
-                {mutation.isPending ? 'Creating...' : 'Add Service'}
+                {mutation.isPending ? t('actions.creating') : t('createService.create')}
               </Button>
             </div>
           </form>

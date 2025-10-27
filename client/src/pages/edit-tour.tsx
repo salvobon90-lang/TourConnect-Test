@@ -16,8 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Link } from 'wouter';
+import { useTranslation } from 'react-i18next';
 
 export default function EditTour() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [, navigate] = useLocation();
   const { user, isAuthenticated } = useAuth();
@@ -78,8 +80,8 @@ export default function EditTour() {
     },
     onSuccess: () => {
       toast({
-        title: 'Success',
-        description: 'Tour updated successfully',
+        title: t('common.success'),
+        description: t('editTour.success'),
       });
       // Invalidate both the list and the specific tour query
       queryClient.invalidateQueries({ queryKey: ['/api/tours'] });
@@ -88,8 +90,8 @@ export default function EditTour() {
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to update tour',
+        title: t('common.error'),
+        description: error.message || t('editTour.error'),
         variant: 'destructive',
       });
     },
@@ -107,10 +109,10 @@ export default function EditTour() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="p-8">
-          <h1 className="text-xl font-semibold mb-4">Unauthorized</h1>
-          <p className="text-muted-foreground mb-4">You don't have permission to edit this tour.</p>
+          <h1 className="text-xl font-semibold mb-4">{t('editTour.unauthorized')}</h1>
+          <p className="text-muted-foreground mb-4">{t('editTour.unauthorizedDesc')}</p>
           <Link href="/">
-            <Button>Go Back</Button>
+            <Button>{t('editTour.goBack')}</Button>
           </Link>
         </Card>
       </div>
@@ -123,12 +125,12 @@ export default function EditTour() {
         <Link href="/">
           <Button variant="outline" className="mb-6" data-testid="button-back">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
+            {t('common.back')}
           </Button>
         </Link>
 
         <Card className="p-8">
-          <h1 className="text-3xl font-serif font-semibold mb-6">Edit Tour</h1>
+          <h1 className="text-3xl font-serif font-semibold mb-6">{t('editTour.title')}</h1>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit((data) => updateMutation.mutate(data))} className="space-y-6">
@@ -137,9 +139,9 @@ export default function EditTour() {
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tour Title</FormLabel>
+                    <FormLabel>{t('forms.title')}</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Amazing City Walking Tour" data-testid="input-title" />
+                      <Input {...field} placeholder={t('createTour.titlePlaceholder')} data-testid="input-title" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -151,9 +153,9 @@ export default function EditTour() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>{t('forms.description')}</FormLabel>
                     <FormControl>
-                      <Textarea {...field} rows={5} placeholder="Describe your tour..." data-testid="textarea-description" />
+                      <Textarea {...field} rows={5} placeholder={t('createTour.descriptionPlaceholder')} data-testid="textarea-description" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -165,9 +167,9 @@ export default function EditTour() {
                 name="itinerary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Itinerary</FormLabel>
+                    <FormLabel>{t('createTour.itinerary')}</FormLabel>
                     <FormControl>
-                      <Textarea {...field} rows={5} placeholder="Tour itinerary and schedule..." data-testid="textarea-itinerary" />
+                      <Textarea {...field} rows={5} placeholder={t('createTour.itineraryPlaceholder')} data-testid="textarea-itinerary" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -180,7 +182,7 @@ export default function EditTour() {
                   name="price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price ($)</FormLabel>
+                      <FormLabel>{t('forms.price')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -200,7 +202,7 @@ export default function EditTour() {
                   name="duration"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Duration (minutes)</FormLabel>
+                      <FormLabel>{t('forms.duration')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -224,7 +226,7 @@ export default function EditTour() {
                   name="maxGroupSize"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Max Group Size</FormLabel>
+                      <FormLabel>{t('createTour.maxGroupSize')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -246,7 +248,7 @@ export default function EditTour() {
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel>{t('forms.category')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-category">
@@ -275,9 +277,9 @@ export default function EditTour() {
                 name="meetingPoint"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Meeting Point</FormLabel>
+                    <FormLabel>{t('createTour.meetingPoint')}</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Main Square, City Center" data-testid="input-meeting-point" />
+                      <Input {...field} placeholder={t('createTour.meetingPointPlaceholder')} data-testid="input-meeting-point" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -290,7 +292,7 @@ export default function EditTour() {
                   name="latitude"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Latitude</FormLabel>
+                      <FormLabel>{t('forms.latitude')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -313,7 +315,7 @@ export default function EditTour() {
                   name="longitude"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Longitude</FormLabel>
+                      <FormLabel>{t('forms.longitude')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -337,12 +339,12 @@ export default function EditTour() {
                 name="languages"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Languages (comma-separated)</FormLabel>
+                    <FormLabel>{t('forms.languages')}</FormLabel>
                     <FormControl>
                       <Input
                         value={field.value?.join(', ') || ''}
                         onChange={(e) => field.onChange(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                        placeholder="English, Spanish, French"
+                        placeholder={t('forms.languagesPlaceholder')}
                         data-testid="input-languages"
                       />
                     </FormControl>
@@ -356,13 +358,13 @@ export default function EditTour() {
                 name="included"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Included Items (one per line)</FormLabel>
+                    <FormLabel>{t('forms.included')}</FormLabel>
                     <FormControl>
                       <Textarea
                         value={field.value?.join('\n') || ''}
                         onChange={(e) => field.onChange(e.target.value.split('\n').filter(Boolean))}
                         rows={4}
-                        placeholder="Professional guide&#10;Museum entrance&#10;Transportation"
+                        placeholder={t('forms.includedPlaceholder')}
                         data-testid="textarea-included"
                       />
                     </FormControl>
@@ -376,13 +378,13 @@ export default function EditTour() {
                 name="excluded"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Excluded Items (one per line)</FormLabel>
+                    <FormLabel>{t('forms.excluded')}</FormLabel>
                     <FormControl>
                       <Textarea
                         value={field.value?.join('\n') || ''}
                         onChange={(e) => field.onChange(e.target.value.split('\n').filter(Boolean))}
                         rows={4}
-                        placeholder="Food and drinks&#10;Personal expenses&#10;Gratuities"
+                        placeholder={t('forms.excludedPlaceholder')}
                         data-testid="textarea-excluded"
                       />
                     </FormControl>
@@ -396,7 +398,7 @@ export default function EditTour() {
                 name="images"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Image URLs (one per line)</FormLabel>
+                    <FormLabel>{t('forms.imageUrls')}</FormLabel>
                     <FormControl>
                       <Textarea
                         value={field.value?.join('\n') || ''}
@@ -417,9 +419,9 @@ export default function EditTour() {
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Active Status</FormLabel>
+                      <FormLabel className="text-base">{t('forms.activeStatus')}</FormLabel>
                       <FormDescription>
-                        Make this tour visible to tourists
+                        {t('forms.makeVisible')}
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -436,11 +438,11 @@ export default function EditTour() {
               <div className="flex gap-3">
                 <Button type="submit" disabled={updateMutation.isPending} data-testid="button-save">
                   {updateMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Save Changes
+                  {updateMutation.isPending ? t('actions.saving') : t('editTour.saveChanges')}
                 </Button>
                 <Link href="/">
                   <Button type="button" variant="outline" data-testid="button-cancel">
-                    Cancel
+                    {t('actions.cancel')}
                   </Button>
                 </Link>
               </div>

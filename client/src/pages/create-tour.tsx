@@ -55,16 +55,16 @@ export default function CreateTour() {
     },
     onSuccess: () => {
       toast({
-        title: 'Success',
-        description: 'Tour created successfully! Your tour is pending approval by a moderator.',
+        title: t('common.success'),
+        description: t('createTour.success'),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/my-tours'] });
       setLocation('/');
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to create tour',
+        title: t('common.error'),
+        description: error.message || t('createTour.error'),
         variant: 'destructive',
       });
     },
@@ -102,7 +102,7 @@ export default function CreateTour() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <h1 className="text-2xl font-serif font-semibold">Create New Tour</h1>
+          <h1 className="text-2xl font-serif font-semibold">{t('createTour.title')}</h1>
         </div>
       </header>
 
@@ -118,9 +118,9 @@ export default function CreateTour() {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tour Title</FormLabel>
+                      <FormLabel>{t('forms.title')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Historic Rome Walking Tour" {...field} data-testid="input-title" />
+                        <Input placeholder={t('createTour.titlePlaceholder')} {...field} data-testid="input-title" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -132,10 +132,10 @@ export default function CreateTour() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel>{t('forms.description')}</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Describe your tour in detail..." 
+                          placeholder={t('createTour.descriptionPlaceholder')} 
                           {...field} 
                           rows={4}
                           data-testid="input-description"
@@ -151,10 +151,10 @@ export default function CreateTour() {
                   name="itinerary"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Itinerary</FormLabel>
+                      <FormLabel>{t('createTour.itinerary')}</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="List the stops and activities..." 
+                          placeholder={t('createTour.itineraryPlaceholder')} 
                           {...field} 
                           rows={4}
                           data-testid="input-itinerary"
@@ -171,11 +171,11 @@ export default function CreateTour() {
                     name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Category</FormLabel>
+                        <FormLabel>{t('forms.category')}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-category">
-                              <SelectValue placeholder="Select category" />
+                              <SelectValue placeholder={t('forms.selectCategory')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -199,7 +199,7 @@ export default function CreateTour() {
                     name="price"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Price (USD)</FormLabel>
+                        <FormLabel>{t('forms.price')}</FormLabel>
                         <FormControl>
                           <Input type="number" step="0.01" {...field} data-testid="input-price" />
                         </FormControl>
@@ -215,7 +215,7 @@ export default function CreateTour() {
                     name="duration"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Duration (minutes)</FormLabel>
+                        <FormLabel>{t('forms.duration')}</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -234,7 +234,7 @@ export default function CreateTour() {
                     name="maxGroupSize"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Max Group Size</FormLabel>
+                        <FormLabel>{t('createTour.maxGroupSize')}</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -254,9 +254,9 @@ export default function CreateTour() {
                   name="meetingPoint"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Meeting Point</FormLabel>
+                      <FormLabel>{t('createTour.meetingPoint')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Piazza Navona, near the fountain" {...field} data-testid="input-meeting-point" />
+                        <Input placeholder={t('createTour.meetingPointPlaceholder')} {...field} data-testid="input-meeting-point" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -269,7 +269,7 @@ export default function CreateTour() {
                     name="latitude"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Latitude</FormLabel>
+                        <FormLabel>{t('forms.latitude')}</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -289,7 +289,7 @@ export default function CreateTour() {
                     name="longitude"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Longitude</FormLabel>
+                        <FormLabel>{t('forms.longitude')}</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -310,7 +310,7 @@ export default function CreateTour() {
                   name="availableDates"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Available Dates</FormLabel>
+                      <FormLabel>{t('createTour.availableDates')}</FormLabel>
                       <div className="space-y-4">
                         <div className="flex gap-2">
                           <Input
@@ -327,7 +327,7 @@ export default function CreateTour() {
                             data-testid="button-add-date"
                           >
                             <Calendar className="w-4 h-4 mr-2" />
-                            Add Date
+                            {t('createTour.addDate')}
                           </Button>
                         </div>
                         
@@ -364,11 +364,11 @@ export default function CreateTour() {
             <div className="flex gap-4">
               <Link href="/">
                 <Button type="button" variant="outline" data-testid="button-cancel">
-                  Cancel
+                  {t('actions.cancel')}
                 </Button>
               </Link>
               <Button type="submit" disabled={mutation.isPending} data-testid="button-submit">
-                {mutation.isPending ? 'Creating...' : 'Create Tour'}
+                {mutation.isPending ? t('actions.creating') : t('createTour.create')}
               </Button>
             </div>
           </form>
