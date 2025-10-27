@@ -37,9 +37,12 @@ export interface IStorage {
   getTours(): Promise<TourWithGuide[]>;
   getTour(id: string): Promise<TourWithGuide | undefined>;
   getMyTours(guideId: string): Promise<Tour[]>;
+  getPendingTours(): Promise<Tour[]>;
   createTour(tour: InsertTour): Promise<Tour>;
   updateTour(id: string, tour: Partial<InsertTour>): Promise<Tour>;
   deleteTour(id: string): Promise<void>;
+  approveTour(tourId: string, supervisorId: string): Promise<Tour>;
+  rejectTour(tourId: string, supervisorId: string): Promise<Tour>;
   
   // Service operations
   getServices(): Promise<ServiceWithProvider[]>;
@@ -167,7 +170,10 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(tours)
       .leftJoin(users, eq(tours.guideId, users.id))
-      .where(eq(tours.isActive, true))
+      .where(and(
+        eq(tours.isActive, true),
+        eq(tours.approvalStatus, 'approved')
+      ))
       .orderBy(desc(tours.createdAt));
 
     return results.map(r => ({
@@ -215,6 +221,42 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTour(id: string): Promise<void> {
     await db.delete(tours).where(eq(tours.id, id));
+  }
+
+  async getPendingTours(): Promise<Tour[]> {
+    return await db
+      .select()
+      .from(tours)
+      .where(eq(tours.approvalStatus, 'pending'))
+      .orderBy(desc(tours.createdAt));
+  }
+
+  async approveTour(tourId: string, supervisorId: string): Promise<Tour> {
+    const [tour] = await db
+      .update(tours)
+      .set({ 
+        approvalStatus: 'approved',
+        approvedBy: supervisorId,
+        approvedAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(tours.id, tourId))
+      .returning();
+    return tour;
+  }
+
+  async rejectTour(tourId: string, supervisorId: string): Promise<Tour> {
+    const [tour] = await db
+      .update(tours)
+      .set({ 
+        approvalStatus: 'rejected',
+        approvedBy: supervisorId,
+        approvedAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(tours.id, tourId))
+      .returning();
+    return tour;
   }
 
   // Service operations
