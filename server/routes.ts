@@ -6,6 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
 import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema } from "@shared/schema";
+import { randomUUID } from "crypto";
 
 // Validate Stripe secret key - must start with 'sk_' not 'pk_'
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -13,6 +14,67 @@ const isValidSecretKey = stripeSecretKey && stripeSecretKey.startsWith('sk_');
 const stripe = isValidSecretKey
   ? new Stripe(stripeSecretKey, { apiVersion: "2025-09-30.clover" })
   : null;
+
+// Image validation constants and helpers
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+
+interface ImageTypeInfo {
+  extension: string;
+  mimeType: string;
+}
+
+/**
+ * Validates image type by checking magic bytes (file signature)
+ * Returns image info if valid, null otherwise
+ */
+function validateImageMagicBytes(buffer: Buffer): ImageTypeInfo | null {
+  // JPEG: FF D8 FF
+  if (buffer.length >= 3 && 
+      buffer[0] === 0xFF && 
+      buffer[1] === 0xD8 && 
+      buffer[2] === 0xFF) {
+    return { extension: 'jpg', mimeType: 'image/jpeg' };
+  }
+  
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (buffer.length >= 8 && 
+      buffer[0] === 0x89 && 
+      buffer[1] === 0x50 && 
+      buffer[2] === 0x4E && 
+      buffer[3] === 0x47 &&
+      buffer[4] === 0x0D &&
+      buffer[5] === 0x0A &&
+      buffer[6] === 0x1A &&
+      buffer[7] === 0x0A) {
+    return { extension: 'png', mimeType: 'image/png' };
+  }
+  
+  // WebP: RIFF (52 49 46 46) ... WEBP (57 45 42 50)
+  if (buffer.length >= 12 && 
+      buffer[0] === 0x52 && 
+      buffer[1] === 0x49 && 
+      buffer[2] === 0x46 && 
+      buffer[3] === 0x46 &&
+      buffer[8] === 0x57 &&
+      buffer[9] === 0x45 &&
+      buffer[10] === 0x42 &&
+      buffer[11] === 0x50) {
+    return { extension: 'webp', mimeType: 'image/webp' };
+  }
+  
+  return null;
+}
+
+/**
+ * Sanitizes filename to prevent path traversal attacks
+ */
+function sanitizeFilename(filename: string): string {
+  // Remove any directory traversal attempts and dangerous characters
+  return filename
+    .replace(/\.\./g, '')
+    .replace(/[\/\\]/g, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_');
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -70,15 +132,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/upload-profile-image', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { imageData, fileName } = req.body;
+      const { imageData } = req.body;
 
-      if (!imageData || !fileName) {
-        return res.status(400).json({ message: "Missing image data or file name" });
+      // Validate that image data is provided
+      if (!imageData || typeof imageData !== 'string') {
+        return res.status(400).json({ message: "Missing or invalid image data" });
       }
 
       // Decode base64 image
       const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
       const buffer = Buffer.from(base64Data, 'base64');
+
+      // SECURITY: Validate file size (5MB maximum)
+      if (buffer.length > MAX_IMAGE_SIZE) {
+        return res.status(400).json({ 
+          message: `File size exceeds maximum allowed size of ${MAX_IMAGE_SIZE / 1024 / 1024}MB` 
+        });
+      }
+
+      // SECURITY: Validate file size is not empty
+      if (buffer.length === 0) {
+        return res.status(400).json({ message: "Image data is empty" });
+      }
+
+      // SECURITY: Validate image type by checking magic bytes
+      const imageInfo = validateImageMagicBytes(buffer);
+      if (!imageInfo) {
+        return res.status(400).json({ 
+          message: "Invalid image type. Only JPEG, PNG, and WebP images are allowed" 
+        });
+      }
+
+      // SECURITY: Generate unique filename server-side (do NOT trust client)
+      const uniqueFilename = `${randomUUID()}.${imageInfo.extension}`;
 
       // Get public search paths from object storage service
       const objectStorage = new ObjectStorageService();
@@ -90,7 +176,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use the first public path
       const basePath = publicPaths[0];
-      const objectPath = `profile-images/${userId}/${Date.now()}-${fileName}`;
+      // SECURITY: Use server-generated filename, sanitize userId path component
+      const sanitizedUserId = sanitizeFilename(userId);
+      const objectPath = `profile-images/${sanitizedUserId}/${uniqueFilename}`;
       const fullPath = `${basePath}/${objectPath}`;
 
       // Parse bucket and object name
@@ -102,10 +190,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
       
-      const contentType = `image/${fileName.split('.').pop()}`;
+      // SECURITY: Use validated MIME type from magic bytes, not client-provided data
       await file.save(buffer, {
         metadata: {
-          contentType,
+          contentType: imageInfo.mimeType,
         },
         public: true,
       });
