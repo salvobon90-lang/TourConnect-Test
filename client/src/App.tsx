@@ -23,6 +23,7 @@ import TourDetail from "@/pages/tour-detail";
 import BookTour from "@/pages/book-tour";
 import BookingSuccess from "@/pages/booking-success";
 import EditTour from "@/pages/edit-tour";
+import Profile from "@/pages/profile";
 import "./i18n";
 
 function Router() {
@@ -71,6 +72,7 @@ function Router() {
   return (
     <Switch>
       {/* Shared routes for all authenticated users */}
+      <Route path="/profile" component={Profile} />
       <Route path="/tours/:id" component={TourDetail} />
       <Route path="/book/:id" component={BookTour} />
       <Route path="/booking-success" component={BookingSuccess} />
