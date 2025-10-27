@@ -5,8 +5,9 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema } from "@shared/schema";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { z } from "zod";
 
 // Try production key first, then testing key
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || process.env.TESTING_STRIPE_SECRET_KEY;
@@ -16,7 +17,7 @@ const stripe = isValidSecretKey
   : null;
 
 // Log which key is being used (helpful for debugging)
-if (stripe) {
+if (stripe && stripeSecretKey) {
   console.log('[Stripe] Initialized with key starting with:', stripeSecretKey.substring(0, 7));
 } else {
   console.warn('[Stripe] No valid secret key found. Stripe checkout will be unavailable.');
@@ -786,11 +787,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/reviews/tour/:tourId', async (req, res) => {
+    try {
+      const sortBy = (req.query.sort as 'recent' | 'rating') || 'recent';
+      const reviews = await storage.getReviewsByTour(req.params.tourId, sortBy);
+      
+      const populatedReviews = await Promise.all(
+        reviews.map(async (review) => {
+          const user = await storage.getUser(review.userId);
+          return {
+            ...review,
+            user: user ? {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              profileImageUrl: user.profileImageUrl
+            } : null
+          };
+        })
+      );
+      
+      res.json(populatedReviews);
+    } catch (error) {
+      console.error("Error fetching tour reviews:", error);
+      res.status(500).json({ message: "Failed to fetch tour reviews" });
+    }
+  });
+
+  app.get('/api/reviews/service/:serviceId', async (req, res) => {
+    try {
+      const sortBy = (req.query.sort as 'recent' | 'rating') || 'recent';
+      const reviews = await storage.getReviewsByService(req.params.serviceId, sortBy);
+      
+      const populatedReviews = await Promise.all(
+        reviews.map(async (review) => {
+          const user = await storage.getUser(review.userId);
+          return {
+            ...review,
+            user: user ? {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              profileImageUrl: user.profileImageUrl
+            } : null
+          };
+        })
+      );
+      
+      res.json(populatedReviews);
+    } catch (error) {
+      console.error("Error fetching service reviews:", error);
+      res.status(500).json({ message: "Failed to fetch service reviews" });
+    }
+  });
+
+  app.get('/api/tours/:tourId/rating', async (req, res) => {
+    try {
+      const [avgRating, reviewCount] = await Promise.all([
+        storage.getAverageRating(req.params.tourId),
+        storage.getReviewCount(req.params.tourId)
+      ]);
+      
+      res.json({
+        averageRating: Math.round(avgRating * 10) / 10,
+        reviewCount
+      });
+    } catch (error) {
+      console.error("Error fetching tour rating:", error);
+      res.status(500).json({ message: "Failed to fetch tour rating" });
+    }
+  });
+
+  app.get('/api/services/:serviceId/rating', async (req, res) => {
+    try {
+      const [avgRating, reviewCount] = await Promise.all([
+        storage.getAverageRatingForService(req.params.serviceId),
+        storage.getReviewCountForService(req.params.serviceId)
+      ]);
+      
+      res.json({
+        averageRating: Math.round(avgRating * 10) / 10,
+        reviewCount
+      });
+    } catch (error) {
+      console.error("Error fetching service rating:", error);
+      res.status(500).json({ message: "Failed to fetch service rating" });
+    }
+  });
+
+  app.get('/api/guides/:guideId/rating', async (req, res) => {
+    try {
+      const avgRating = await storage.getGuideAverageRating(req.params.guideId);
+      res.json({ averageRating: Math.round(avgRating * 10) / 10 });
+    } catch (error) {
+      console.error("Error fetching guide rating:", error);
+      res.status(500).json({ message: "Failed to fetch guide rating" });
+    }
+  });
+
+  app.get('/api/providers/:providerId/rating', async (req, res) => {
+    try {
+      const avgRating = await storage.getProviderAverageRating(req.params.providerId);
+      res.json({ averageRating: Math.round(avgRating * 10) / 10 });
+    } catch (error) {
+      console.error("Error fetching provider rating:", error);
+      res.status(500).json({ message: "Failed to fetch provider rating" });
+    }
+  });
+
+  app.get('/api/users/:userId/reviews', async (req, res) => {
+    try {
+      const reviews = await storage.getReviewsByUser(req.params.userId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ message: "Failed to fetch user reviews" });
+    }
+  });
+
   app.post('/api/reviews', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const validatedData = insertReviewSchema.parse({ ...req.body, userId });
-      const review = await storage.createReview(validatedData);
+      
+      const schema = z.object({
+        tourId: z.string().optional(),
+        serviceId: z.string().optional(),
+        rating: z.number().int().min(1).max(5),
+        comment: z.string().min(10).max(2000),
+        images: z.array(z.string().url()).optional()
+      }).refine((data) => data.tourId || data.serviceId, {
+        message: "Either tourId or serviceId must be provided"
+      });
+      
+      const data = schema.parse(req.body);
+      
+      if (data.tourId) {
+        const hasBooking = await storage.userHasBookingForTour(userId, data.tourId);
+        if (!hasBooking) {
+          return res.status(403).json({ 
+            message: 'You must book this tour to leave a review' 
+          });
+        }
+      }
+      
+      const review = await storage.createReview({
+        ...data,
+        userId,
+        images: data.images || []
+      });
+      
       res.json(review);
     } catch (error: any) {
       console.error("Error creating review:", error);
@@ -798,14 +943,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/reviews/:id/response', isAuthenticated, async (req, res) => {
+  app.patch('/api/reviews/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const { response } = req.body;
-      const review = await storage.updateReview(req.params.id, response);
-      res.json(review);
-    } catch (error) {
+      const userId = req.user.claims.sub;
+      const review = await storage.getReview(req.params.id);
+      
+      if (!review) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+      
+      if (review.userId !== userId) {
+        return res.status(403).json({ message: 'You can only update your own reviews' });
+      }
+      
+      const schema = z.object({
+        rating: z.number().int().min(1).max(5).optional(),
+        comment: z.string().min(10).max(2000).optional(),
+        images: z.array(z.string().url()).optional()
+      });
+      
+      const data = schema.parse(req.body);
+      const updated = await storage.updateReview(req.params.id, data);
+      
+      res.json(updated);
+    } catch (error: any) {
       console.error("Error updating review:", error);
-      res.status(500).json({ message: "Failed to update review" });
+      res.status(400).json({ message: error.message || "Failed to update review" });
+    }
+  });
+
+  app.delete('/api/reviews/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const review = await storage.getReview(req.params.id);
+      
+      if (!review) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+      
+      if (review.userId !== userId) {
+        return res.status(403).json({ message: 'You can only delete your own reviews' });
+      }
+      
+      await storage.deleteReview(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ message: "Failed to delete review" });
+    }
+  });
+
+  app.post('/api/reviews/:id/response', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const review = await storage.getReview(req.params.id);
+      
+      if (!review) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+      
+      let authorized = false;
+      if (review.tourId) {
+        const tour = await storage.getTour(review.tourId);
+        authorized = tour?.guideId === userId;
+      } else if (review.serviceId) {
+        const service = await storage.getService(review.serviceId);
+        authorized = service?.providerId === userId;
+      }
+      
+      if (!authorized) {
+        return res.status(403).json({ message: 'Only the tour guide or service provider can respond to reviews' });
+      }
+      
+      const { response } = req.body;
+      if (!response || typeof response !== 'string') {
+        return res.status(400).json({ message: 'Response is required' });
+      }
+      
+      await storage.addResponse(req.params.id, response, userId);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error adding review response:", error);
+      res.status(500).json({ message: "Failed to add review response" });
     }
   });
 
@@ -1157,6 +1377,211 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error setting ACL:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Messaging validation schemas
+  const sendMessageSchema = z.object({
+    conversationId: z.string(),
+    content: z.string().min(1).max(5000)
+  });
+
+  const createConversationSchema = z.object({
+    otherUserId: z.string()
+  });
+
+  // Messaging routes
+  app.get('/api/conversations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const conversations = await storage.getConversations(userId);
+      
+      const conversationsWithParticipants = await Promise.all(
+        conversations.map(async (conv) => {
+          const otherUserId = conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id;
+          const otherUser = await storage.getUser(otherUserId);
+          return {
+            ...conv,
+            otherUser,
+          };
+        })
+      );
+      
+      res.json(conversationsWithParticipants);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ message: "Failed to fetch conversations" });
+    }
+  });
+
+  app.get('/api/conversations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const conversationId = req.params.id;
+      
+      const conversation = await storage.getConversation(conversationId);
+      
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      
+      if (conversation.participant1Id !== userId && conversation.participant2Id !== userId) {
+        return res.status(403).json({ message: "Not authorized to access this conversation" });
+      }
+      
+      const otherUserId = conversation.participant1Id === userId ? conversation.participant2Id : conversation.participant1Id;
+      const otherUser = await storage.getUser(otherUserId);
+      
+      res.json({
+        ...conversation,
+        otherUser,
+      });
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+      res.status(500).json({ message: "Failed to fetch conversation" });
+    }
+  });
+
+  app.get('/api/conversations/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const conversationId = req.params.id;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const conversation = await storage.getConversation(conversationId);
+      
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      
+      if (conversation.participant1Id !== userId && conversation.participant2Id !== userId) {
+        return res.status(403).json({ message: "Not authorized to access this conversation" });
+      }
+      
+      const messages = await storage.getMessagesByConversation(conversationId, limit);
+      
+      await storage.markConversationMessagesAsRead(conversationId, userId);
+      
+      res.json(messages.reverse());
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post('/api/conversations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const validation = createConversationSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid request data", 
+          errors: validation.error.errors 
+        });
+      }
+      
+      const { otherUserId } = validation.data;
+      
+      if (otherUserId === userId) {
+        return res.status(400).json({ message: "Cannot create conversation with yourself" });
+      }
+      
+      const otherUser = await storage.getUser(otherUserId);
+      if (!otherUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      let conversation = await storage.findConversationBetweenUsers(userId, otherUserId);
+      
+      if (!conversation) {
+        conversation = await storage.createConversation({
+          participant1Id: userId,
+          participant2Id: otherUserId,
+        });
+      }
+      
+      res.json({
+        ...conversation,
+        otherUser,
+      });
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      res.status(500).json({ message: "Failed to create conversation" });
+    }
+  });
+
+  app.post('/api/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const validation = sendMessageSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid request data", 
+          errors: validation.error.errors 
+        });
+      }
+      
+      const { conversationId, content } = validation.data;
+      
+      const conversation = await storage.getConversation(conversationId);
+      
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      
+      if (conversation.participant1Id !== userId && conversation.participant2Id !== userId) {
+        return res.status(403).json({ message: "Not authorized to send messages in this conversation" });
+      }
+      
+      const sanitizedContent = content.trim();
+      if (sanitizedContent.length === 0) {
+        return res.status(400).json({ message: "Message content cannot be empty" });
+      }
+      
+      const message = await storage.createMessage({
+        conversationId,
+        senderId: userId,
+        content: sanitizedContent,
+        isRead: false,
+      });
+      
+      const { getWebSocketServer } = await import('./websocket');
+      const wsServer = getWebSocketServer();
+      
+      if (wsServer) {
+        await wsServer.broadcastToConversation(conversationId, {
+          type: 'new_message',
+          message,
+        });
+      }
+      
+      res.json(message);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  app.patch('/api/messages/:id/read', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.markMessageAsRead(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking message as read:", error);
+      res.status(500).json({ message: "Failed to mark message as read" });
+    }
+  });
+
+  app.get('/api/messages/unread-count', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const count = await storage.getUnreadMessageCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ message: "Failed to fetch unread count" });
     }
   });
 

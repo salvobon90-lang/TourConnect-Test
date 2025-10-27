@@ -50,6 +50,19 @@ export type SponsorshipDuration = typeof sponsorshipDurations[number];
 export const sponsorshipStatuses = ["pending", "active", "expired", "cancelled"] as const;
 export type SponsorshipStatus = typeof sponsorshipStatuses[number];
 
+// Badge types enum
+export const badgeTypes = ["explorer", "guide-pro", "ambassador", "premium-partner", "verified"] as const;
+export type BadgeType = typeof badgeTypes[number];
+
+// Subscription tiers enum
+export const subscriptionTiers = ["free", "tourist-premium", "guide-pro"] as const;
+export type SubscriptionTier = typeof subscriptionTiers[number];
+
+export const subscriptionPrices = {
+  "tourist-premium": 9.99,
+  "guide-pro": 19.99,
+} as const;
+
 // User storage table - Required for Replit Auth with role extension
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -89,15 +102,26 @@ export const users = pgTable("users", {
   }>(),
   verified: boolean("verified").default(false), // Badge "Verificato" for guides/providers
   
+  // Gamification fields
+  badges: text("badges").array().default(sql`ARRAY[]::text[]`), // ['explorer', 'guide-pro', 'ambassador', 'premium-partner']
+  trustLevel: integer("trust_level").default(0), // 0-100
+  completedToursCount: integer("completed_tours_count").default(0),
+  isOnline: boolean("is_online").default(false),
+  lastOnlineAt: timestamp("last_online_at"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   toursCreated: many(tours),
   services: many(services),
   bookings: many(bookings),
   reviews: many(reviews),
+  participant1Conversations: many(conversations, { relationName: "participant1Conversations" }),
+  participant2Conversations: many(conversations, { relationName: "participant2Conversations" }),
+  messagesSent: many(messages),
+  subscription: one(subscriptions),
 }));
 
 // Tours table - created by guides
@@ -252,6 +276,85 @@ export const sponsorshipsRelations = relations(sponsorships, ({ one }) => ({
   }),
 }));
 
+// Conversations table - for messaging system
+export const conversations = pgTable("conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  participant1Id: varchar("participant1_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  participant2Id: varchar("participant2_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  lastMessageAt: timestamp("last_message_at"),
+  lastMessagePreview: text("last_message_preview"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_conversations_participant1").on(table.participant1Id),
+  index("idx_conversations_participant2").on(table.participant2Id),
+]);
+
+export const conversationsRelations = relations(conversations, ({ one, many }) => ({
+  participant1: one(users, { 
+    fields: [conversations.participant1Id], 
+    references: [users.id],
+    relationName: "participant1Conversations",
+  }),
+  participant2: one(users, { 
+    fields: [conversations.participant2Id], 
+    references: [users.id],
+    relationName: "participant2Conversations",
+  }),
+  messages: many(messages),
+}));
+
+// Messages table - for messaging system
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").default(false),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_messages_conversation").on(table.conversationId),
+  index("idx_messages_sender").on(table.senderId),
+]);
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  conversation: one(conversations, { 
+    fields: [messages.conversationId], 
+    references: [conversations.id],
+  }),
+  sender: one(users, { 
+    fields: [messages.senderId], 
+    references: [users.id],
+  }),
+}));
+
+// Subscriptions table - for premium features
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  tier: varchar("tier", { length: 50 }).notNull(), // 'tourist-premium', 'guide-pro', 'free'
+  stripeCustomerId: varchar("stripe_customer_id"),
+  stripeSubscriptionId: varchar("stripe_subscription_id"),
+  stripePriceId: varchar("stripe_price_id"),
+  status: varchar("status", { length: 20 }).notNull().default("active"), // active, cancelled, expired, past_due
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_subscriptions_user").on(table.userId),
+  index("idx_subscriptions_stripe_customer").on(table.stripeCustomerId),
+]);
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  user: one(users, { 
+    fields: [subscriptions.userId], 
+    references: [users.id],
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -322,6 +425,26 @@ export const insertSponsorshipSchema = createInsertSchema(sponsorships).omit({
   message: "Either tourId or serviceId must be provided",
 });
 
+// Conversations
+export const insertConversationSchema = createInsertSchema(conversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Messages
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Subscriptions
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // TypeScript types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -335,6 +458,12 @@ export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type Review = typeof reviews.$inferSelect;
 export type InsertSponsorship = z.infer<typeof insertSponsorshipSchema>;
 export type Sponsorship = typeof sponsorships.$inferSelect;
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
+export type SelectConversation = typeof conversations.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type SelectMessage = typeof messages.$inferSelect;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type SelectSubscription = typeof subscriptions.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {

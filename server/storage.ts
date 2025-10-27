@@ -5,6 +5,8 @@ import {
   bookings,
   reviews,
   sponsorships,
+  conversations,
+  messages,
   type User,
   type UpsertUser,
   type Tour,
@@ -17,13 +19,17 @@ import {
   type InsertReview,
   type Sponsorship,
   type InsertSponsorship,
+  type SelectConversation,
+  type InsertConversation,
+  type SelectMessage,
+  type InsertMessage,
   type TourWithGuide,
   type ServiceWithProvider,
   type BookingWithDetails,
   type UserRole,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, gt, or, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, gt, or, inArray, ne } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -66,8 +72,22 @@ export interface IStorage {
   
   // Review operations
   getReviews(tourId?: string, serviceId?: string): Promise<Review[]>;
+  getReviewsByTour(tourId: string, sortBy?: 'recent' | 'rating'): Promise<Review[]>;
+  getReviewsByService(serviceId: string, sortBy?: 'recent' | 'rating'): Promise<Review[]>;
+  getReviewsByUser(userId: string): Promise<Review[]>;
+  getReview(id: string): Promise<Review | undefined>;
   createReview(review: InsertReview): Promise<Review>;
-  updateReview(id: string, response: string): Promise<Review>;
+  updateReview(id: string, data: Partial<InsertReview>): Promise<Review>;
+  updateReviewResponse(id: string, response: string): Promise<Review>;
+  deleteReview(id: string): Promise<void>;
+  addResponse(reviewId: string, response: string, responderId: string): Promise<void>;
+  getAverageRating(tourId: string): Promise<number>;
+  getAverageRatingForService(serviceId: string): Promise<number>;
+  getGuideAverageRating(guideId: string): Promise<number>;
+  getProviderAverageRating(providerId: string): Promise<number>;
+  getReviewCount(tourId: string): Promise<number>;
+  getReviewCountForService(serviceId: string): Promise<number>;
+  userHasBookingForTour(userId: string, tourId: string): Promise<boolean>;
   
   // Stats operations
   getGuideStats(guideId: string): Promise<{ totalBookings: number; totalRevenue: number; avgRating: number }>;
@@ -83,6 +103,20 @@ export interface IStorage {
   getActiveSponsoredTours(): Promise<string[]>;
   getActiveSponsoredServices(): Promise<string[]>;
   activateSponsorship(id: string): Promise<Sponsorship>;
+  
+  // Messaging operations
+  getConversations(userId: string): Promise<SelectConversation[]>;
+  getConversation(id: string): Promise<SelectConversation | undefined>;
+  findConversationBetweenUsers(user1Id: string, user2Id: string): Promise<SelectConversation | undefined>;
+  createConversation(data: InsertConversation): Promise<SelectConversation>;
+  updateConversationLastMessage(id: string, preview: string): Promise<void>;
+  getMessagesByConversation(conversationId: string, limit?: number): Promise<SelectMessage[]>;
+  createMessage(data: InsertMessage): Promise<SelectMessage>;
+  markMessageAsRead(id: string): Promise<void>;
+  markConversationMessagesAsRead(conversationId: string, userId: string): Promise<void>;
+  getUnreadMessageCount(userId: string): Promise<number>;
+  setUserOnlineStatus(userId: string, isOnline: boolean): Promise<void>;
+  updateLastOnline(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -475,18 +509,161 @@ export class DatabaseStorage implements IStorage {
     return await query;
   }
 
+  async getReviewsByTour(tourId: string, sortBy: 'recent' | 'rating' = 'recent'): Promise<Review[]> {
+    if (sortBy === 'rating') {
+      return await db.select()
+        .from(reviews)
+        .where(eq(reviews.tourId, tourId))
+        .orderBy(desc(reviews.rating), desc(reviews.createdAt));
+    }
+    
+    return await db.select()
+      .from(reviews)
+      .where(eq(reviews.tourId, tourId))
+      .orderBy(desc(reviews.createdAt));
+  }
+
+  async getReviewsByService(serviceId: string, sortBy: 'recent' | 'rating' = 'recent'): Promise<Review[]> {
+    if (sortBy === 'rating') {
+      return await db.select()
+        .from(reviews)
+        .where(eq(reviews.serviceId, serviceId))
+        .orderBy(desc(reviews.rating), desc(reviews.createdAt));
+    }
+    
+    return await db.select()
+      .from(reviews)
+      .where(eq(reviews.serviceId, serviceId))
+      .orderBy(desc(reviews.createdAt));
+  }
+
+  async getReviewsByUser(userId: string): Promise<Review[]> {
+    return await db.select()
+      .from(reviews)
+      .where(eq(reviews.userId, userId))
+      .orderBy(desc(reviews.createdAt));
+  }
+
+  async getReview(id: string): Promise<Review | undefined> {
+    const [review] = await db.select()
+      .from(reviews)
+      .where(eq(reviews.id, id))
+      .limit(1);
+    return review;
+  }
+
   async createReview(review: InsertReview): Promise<Review> {
     const [newReview] = await db.insert(reviews).values(review).returning();
     return newReview;
   }
 
-  async updateReview(id: string, response: string): Promise<Review> {
+  async updateReview(id: string, data: Partial<InsertReview>): Promise<Review> {
+    const [updated] = await db
+      .update(reviews)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(reviews.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateReviewResponse(id: string, response: string): Promise<Review> {
     const [updated] = await db
       .update(reviews)
       .set({ response, updatedAt: new Date() })
       .where(eq(reviews.id, id))
       .returning();
     return updated;
+  }
+
+  async deleteReview(id: string): Promise<void> {
+    await db.delete(reviews).where(eq(reviews.id, id));
+  }
+
+  async addResponse(reviewId: string, response: string, responderId: string): Promise<void> {
+    await db
+      .update(reviews)
+      .set({ response, updatedAt: new Date() })
+      .where(eq(reviews.id, reviewId));
+  }
+
+  async getAverageRating(tourId: string): Promise<number> {
+    const [result] = await db.select({
+      avg: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`
+    })
+    .from(reviews)
+    .where(eq(reviews.tourId, tourId));
+    
+    return Number(result?.avg || 0);
+  }
+
+  async getAverageRatingForService(serviceId: string): Promise<number> {
+    const [result] = await db.select({
+      avg: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`
+    })
+    .from(reviews)
+    .where(eq(reviews.serviceId, serviceId));
+    
+    return Number(result?.avg || 0);
+  }
+
+  async getGuideAverageRating(guideId: string): Promise<number> {
+    const [result] = await db.select({
+      avg: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`
+    })
+    .from(reviews)
+    .innerJoin(tours, eq(reviews.tourId, tours.id))
+    .where(eq(tours.guideId, guideId));
+    
+    return Number(result?.avg || 0);
+  }
+
+  async getProviderAverageRating(providerId: string): Promise<number> {
+    const [result] = await db.select({
+      avg: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`
+    })
+    .from(reviews)
+    .innerJoin(services, eq(reviews.serviceId, services.id))
+    .where(eq(services.providerId, providerId));
+    
+    return Number(result?.avg || 0);
+  }
+
+  async getReviewCount(tourId: string): Promise<number> {
+    const [result] = await db.select({
+      count: sql<number>`COUNT(*)`
+    })
+    .from(reviews)
+    .where(eq(reviews.tourId, tourId));
+    
+    return Number(result?.count || 0);
+  }
+
+  async getReviewCountForService(serviceId: string): Promise<number> {
+    const [result] = await db.select({
+      count: sql<number>`COUNT(*)`
+    })
+    .from(reviews)
+    .where(eq(reviews.serviceId, serviceId));
+    
+    return Number(result?.count || 0);
+  }
+
+  async userHasBookingForTour(userId: string, tourId: string): Promise<boolean> {
+    const [booking] = await db.select()
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.userId, userId),
+          eq(bookings.tourId, tourId),
+          or(
+            eq(bookings.status, 'confirmed'),
+            eq(bookings.status, 'completed')
+          )
+        )
+      )
+      .limit(1);
+    
+    return !!booking;
   }
 
   // Stats operations
@@ -692,6 +869,155 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return updated;
+  }
+
+  // Messaging operations
+  async getConversations(userId: string): Promise<SelectConversation[]> {
+    return await db
+      .select()
+      .from(conversations)
+      .where(
+        or(
+          eq(conversations.participant1Id, userId),
+          eq(conversations.participant2Id, userId)
+        )
+      )
+      .orderBy(desc(conversations.lastMessageAt));
+  }
+
+  async getConversation(id: string): Promise<SelectConversation | undefined> {
+    const [conversation] = await db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, id));
+    return conversation;
+  }
+
+  async findConversationBetweenUsers(user1Id: string, user2Id: string): Promise<SelectConversation | undefined> {
+    const [conversation] = await db
+      .select()
+      .from(conversations)
+      .where(
+        or(
+          and(
+            eq(conversations.participant1Id, user1Id),
+            eq(conversations.participant2Id, user2Id)
+          ),
+          and(
+            eq(conversations.participant1Id, user2Id),
+            eq(conversations.participant2Id, user1Id)
+          )
+        )
+      );
+    return conversation;
+  }
+
+  async createConversation(data: InsertConversation): Promise<SelectConversation> {
+    const [conversation] = await db
+      .insert(conversations)
+      .values(data)
+      .returning();
+    return conversation;
+  }
+
+  async updateConversationLastMessage(id: string, preview: string): Promise<void> {
+    await db
+      .update(conversations)
+      .set({
+        lastMessageAt: new Date(),
+        lastMessagePreview: preview,
+        updatedAt: new Date()
+      })
+      .where(eq(conversations.id, id));
+  }
+
+  async getMessagesByConversation(conversationId: string, limit: number = 50): Promise<SelectMessage[]> {
+    return await db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(desc(messages.createdAt))
+      .limit(limit);
+  }
+
+  async createMessage(data: InsertMessage): Promise<SelectMessage> {
+    const [message] = await db
+      .insert(messages)
+      .values(data)
+      .returning();
+
+    const preview = message.content.substring(0, 100);
+    await this.updateConversationLastMessage(message.conversationId, preview);
+
+    return message;
+  }
+
+  async markMessageAsRead(id: string): Promise<void> {
+    await db
+      .update(messages)
+      .set({
+        isRead: true,
+        readAt: new Date()
+      })
+      .where(eq(messages.id, id));
+  }
+
+  async markConversationMessagesAsRead(conversationId: string, userId: string): Promise<void> {
+    await db
+      .update(messages)
+      .set({
+        isRead: true,
+        readAt: new Date()
+      })
+      .where(
+        and(
+          eq(messages.conversationId, conversationId),
+          ne(messages.senderId, userId),
+          eq(messages.isRead, false)
+        )
+      );
+  }
+
+  async getUnreadMessageCount(userId: string): Promise<number> {
+    const userConversations = await this.getConversations(userId);
+    const conversationIds = userConversations.map(c => c.id);
+
+    if (conversationIds.length === 0) {
+      return 0;
+    }
+
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(
+        and(
+          inArray(messages.conversationId, conversationIds),
+          ne(messages.senderId, userId),
+          eq(messages.isRead, false)
+        )
+      );
+
+    return result[0]?.count || 0;
+  }
+
+  async setUserOnlineStatus(userId: string, isOnline: boolean): Promise<void> {
+    await db
+      .update(users)
+      .set({
+        isOnline,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async updateLastOnline(userId: string): Promise<void> {
+    await db
+      .update(users)
+      .set({
+        lastOnlineAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
   }
 }
 

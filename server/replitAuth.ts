@@ -22,15 +22,25 @@ const getOidcConfig = memoize(
   { maxAge: 3600 * 1000 }
 );
 
+let sessionStoreInstance: any = null;
+
+export function getSessionStore() {
+  if (!sessionStoreInstance) {
+    const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+    const pgStore = connectPg(session);
+    sessionStoreInstance = new pgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: false,
+      ttl: sessionTtl,
+      tableName: "sessions",
+    });
+  }
+  return sessionStoreInstance;
+}
+
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+  const sessionStore = getSessionStore();
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,

@@ -1,0 +1,114 @@
+🔧 Next Upgrade: TourConnect Social & Growth System (v3.0)
+
+Implementa le seguenti nuove funzionalità avanzate:
+
+1️⃣ Private Messaging System
+
+Crea un sistema di messaggistica diretta tra utenti (turisti ↔ guide ↔ provider).
+
+Architettura WebSocket per chat in tempo reale.
+
+UI in stile chat moderna:
+
+bolle colorate
+
+indicatori “online” e “sta scrivendo…”
+
+notifiche push in tempo reale
+
+Pannello laterale “Messaggi” con ultime conversazioni.
+
+2️⃣ Review & Rating System
+
+Aggiungi recensioni su tour, servizi e guide.
+
+Ogni recensione include:
+
+⭐ valutazione da 1 a 5
+
+commento testuale
+
+foto opzionale
+
+data + nome utente
+
+Calcola la media delle valutazioni per ogni guida/tour.
+
+Mostra le recensioni in una sezione dedicata con sorting (più recenti / migliori).
+
+3️⃣ Gamification & Trust System
+
+Introduci badge e livelli utente:
+
+🥇 Explorer (turista attivo)
+
+🧭 Guide Pro (guida con recensioni > 4.5)
+
+💎 Ambassador (guida con >50 tour completati)
+
+🏆 Premium Partner (provider sponsorizzato)
+
+Mostra i badge accanto al nome utente e nella scheda profilo.
+
+Implementa una barra “Trust Level” basata su:
+
+completamento profilo
+
+recensioni positive
+
+interazioni attive
+
+4️⃣ Premium Subscription System (Stripe)
+
+Aggiungi abbonamenti mensili ricorrenti:
+
+TourConnect Premium – $9.99/mese per turisti
+
+Guide PRO – $19.99/mese per guide/provider
+
+Vantaggi Premium:
+
+visibilità prioritaria nei risultati
+
+badge esclusivo
+
+chat illimitate
+
+accesso a tour esclusivi
+
+Stripe Billing con gestione automatica rinnovi e cancellazioni.
+
+Dashboard “Il mio abbonamento” nel profilo.
+
+5️⃣ AI Travel Assistant (beta)
+
+Integra un assistente AI (modello GPT-4 mini o simile) che:
+
+suggerisce tour personalizzati in base alle preferenze utente
+
+traduce automaticamente descrizioni e recensioni
+
+risponde a domande turistiche in chat
+
+Mostra un’icona 💬 “Ask TourConnect AI” nella home.
+
+6️⃣ UI/UX Improvements
+
+Aggiungi microanimazioni e effetti blur al tema dark grey/arancio.
+
+Navbar dinamica con indicatori di notifica e stato online.
+
+Migliora la sezione profilo con layout a schede e progress bar completamento profilo.
+
+7️⃣ Security & Optimization
+
+Sanitize tutti i campi input utente (anti-XSS).
+
+Rate limit per API pubbliche e chat.
+
+Compressione immagini lato client (jpg/png/webp).
+
+Ottimizza SEO delle nuove pagine (recensioni, chat, abbonamenti).
+
+✅ Al termine, esegui un checkpoint con messaggio:
+“✅ TourConnect Social & Growth System (v3.0) completato — Messaging, Reviews, Gamification, Premium AI Travel.”
