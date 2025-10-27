@@ -4,6 +4,14 @@
 
 TourConnect is a comprehensive tourism platform that connects four distinct user groups: tourists seeking authentic experiences, tour guides offering local expertise, service providers (restaurants, shops, transport), and supervisors who manage platform access. The application features role-based dashboards, supervisor approval workflow for guides/providers, interactive mapping with geolocation, booking management with Stripe payment integration, sponsorship system for promoting tours and services, and multi-language support (English, Italian, German, French, Spanish).
 
+**Recent Upgrades (October 2025):**
+- Professional brand refresh with dark grey + orange (#FF6600) color scheme
+- TourConnect logo integration across all touchpoints (header, favicon, loading screens)
+- 3-screen onboarding flow for new users (welcome, role selection, feature showcase)
+- Extended user profiles with photo upload, bio, social links, and verified badges
+- Progressive Web App (PWA) capabilities with installable experience
+- Advanced SEO optimization with dynamic meta tags and Schema.org structured data in 5 languages
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -63,7 +71,10 @@ Preferred communication style: Simple, everyday language.
 **Authentication Flow:**
 - OpenID Connect integration with Replit's identity provider
 - Session-based authentication with PostgreSQL session storage
-- Multi-step onboarding: language selection → role selection → dashboard access
+- Multi-step onboarding flow (October 2025 upgrade):
+  1. Language selection (5 languages: it, en, de, fr, es)
+  2. 3-screen onboarding (welcome, role selection with features, how it works)
+  3. Dashboard access based on selected role
 - Role-based approval workflow: tourists auto-approved, guides/providers require supervisor approval
 - Supervisor approval system with approve/reject functionality
 - Protected routes requiring authentication and approval status checks
@@ -73,6 +84,7 @@ Preferred communication style: Simple, everyday language.
 
 **Core Tables:**
 - `users` - User accounts with role discrimination (tourist/guide/provider/supervisor) and approval status tracking
+  - Extended profiles (October 2025): profileImageUrl, bio, socialLinks (jsonb: facebook, instagram, twitter, website), verified badge
 - `tours` - Tour offerings created by approved guides with geolocation data
 - `services` - Services offered by approved providers (restaurants, shops, transport)
 - `bookings` - Tour bookings with Stripe payment tracking
@@ -129,6 +141,24 @@ Preferred communication style: Simple, everyday language.
 - Replit-specific Vite plugins for cartographer and dev banner
 - Runtime error overlay for development debugging
 - Hot module replacement (HMR) via Vite
+
+**Progressive Web App (PWA) - October 2025:**
+- Web app manifest (manifest.json) for installability
+- Service worker with network-first cache strategy
+- Custom PWA icons (192x192, 512x512, maskable variants)
+- Standalone display mode (hides browser UI)
+- Theme colors matching brand (#FF6600 orange, dark grey)
+- Installable on desktop and mobile devices
+
+**SEO Optimization - October 2025:**
+- react-helmet-async for dynamic meta tag management
+- Unique titles and descriptions for all pages
+- Open Graph tags for social media sharing (Facebook, LinkedIn, Twitter)
+- Twitter Card support for enhanced sharing
+- Schema.org structured data (JSON-LD) for tour pages (TouristAttraction type)
+- Canonical URLs to prevent duplicate content
+- Multi-language SEO support (5 languages with localized meta tags)
+- Rich snippets potential in search results
 
 **Database Provider:**
 - Neon serverless PostgreSQL with connection pooling
