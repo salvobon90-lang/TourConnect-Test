@@ -8,6 +8,87 @@
 
 ---
 
+## Color Palette
+
+**Brand Identity**: TourConnect's visual identity is built on a vibrant orange primary color paired with sophisticated dark grey tones, creating a modern and professional tourism platform that stands out while maintaining excellent readability and accessibility.
+
+### Primary Color - Orange #FF6600
+
+**Orange** (HSL: 25 100% 50%) is the signature brand color, derived directly from the TourConnect logo. This vibrant, energetic orange conveys excitement, adventure, and warmth - perfect for a tourism platform.
+
+**Usage:**
+- Primary action buttons (Book Now, Create Tour, Confirm Booking)
+- Important CTAs and conversion points
+- Active/selected states in navigation
+- Focus rings and interactive highlights
+- Logo and brand elements
+- Links and clickable elements requiring emphasis
+
+**Accessibility**: The orange #FF6600 provides sufficient contrast against both light and dark backgrounds when used for buttons with white text, meeting WCAG AA standards.
+
+### Background Colors - Dark Grey Theme
+
+**Light Mode Palette:**
+- **Background**: HSL(220 15% 96%) - #F5F5F7 - Soft light grey for main application background
+- **Card**: HSL(220 12% 98%) - Almost white for elevated surfaces and content cards
+- **Sidebar**: HSL(220 15% 94%) - Slightly darker grey for navigation areas
+- **Border**: HSL(220 10% 88%) - Subtle grey for dividers and outlines
+
+**Dark Mode Palette:**
+- **Background**: HSL(220 15% 12%) - #1A1D23 - Deep charcoal grey for main background
+- **Card**: HSL(220 15% 16%) - Lighter charcoal for elevated cards
+- **Sidebar**: HSL(220 15% 10%) - Nearly black for navigation areas
+- **Foreground**: HSL(0 0% 98%) - Off-white for text, ensuring high contrast
+
+**Design Rationale**: The dark grey theme creates a sophisticated, modern appearance while:
+- Reducing eye strain compared to pure black or white
+- Providing subtle depth through layered grey tones
+- Creating visual hierarchy without relying solely on color
+- Maintaining consistency with the orange brand color across both modes
+
+### Text & Foreground Colors
+
+**Light Mode:**
+- **Primary Text**: HSL(220 8% 12%) - Dark grey-blue for main content
+- **Secondary Text**: HSL(220 8% 15%) - Slightly lighter for supporting text
+- **Tertiary Text**: HSL(220 5% 35%) - Muted grey for least important information
+
+**Dark Mode:**
+- **Primary Text**: HSL(0 0% 98%) - Near white for optimal readability
+- **Secondary Text**: HSL(0 0% 90%) - Slightly dimmed for hierarchy
+- **Tertiary Text**: HSL(220 4% 65%) - Muted for supporting information
+
+### Accent & Semantic Colors
+
+**Secondary**: Warm brown tones for subtle emphasis without competing with primary orange
+**Destructive/Error**: Red HSL(0 75% 42%) for warnings and delete actions
+**Success**: Derived from charts - use sparingly for confirmations
+**Muted**: Low-contrast backgrounds for disabled states and subtle UI elements
+
+### Color Usage Guidelines
+
+**Do:**
+- Use orange primary for all major CTAs and conversion points
+- Maintain dark grey backgrounds in both light and dark themes
+- Ensure text always has sufficient contrast (4.5:1 minimum for body text)
+- Use grey tones to create visual hierarchy and depth
+- Keep the orange vibrant and consistent across all touchpoints
+
+**Don't:**
+- Use orange for backgrounds (except buttons and small badges)
+- Mix warm and cool greys - stick to the 220° hue consistently
+- Use pure black (#000000) or pure white (#FFFFFF) for backgrounds
+- Apply orange to large text areas - use for accents only
+- Deviate from the HSL values specified in the design system
+
+**Accessibility Considerations:**
+- All text meets WCAG AA contrast requirements (4.5:1 for normal text, 3:1 for large text)
+- Orange buttons use white text for maximum readability
+- Focus indicators are clearly visible in both light and dark modes
+- Interactive elements maintain consistent hover and active states
+
+---
+
 ## Typography System
 
 **Font Families**:

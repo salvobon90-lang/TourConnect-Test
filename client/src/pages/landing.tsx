@@ -4,12 +4,34 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { MapPin, Search, Star, Users, Calendar, Globe2, Shield, Compass } from 'lucide-react';
 import { Link } from 'wouter';
+import { Logo } from '@/components/logo';
 
 export default function Landing() {
   const { t } = useTranslation();
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="absolute top-0 left-0 right-0 z-50 bg-transparent">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <Link href="/" data-testid="link-logo">
+            <Logo className="h-10" />
+          </Link>
+          <div className="flex items-center gap-4">
+            <Button asChild variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20">
+              <Link href="/tours" data-testid="button-tours">
+                {t('navigation.tours')}
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20">
+              <a href="/api/login" data-testid="button-login">
+                {t('navigation.login')}
+              </a>
+            </Button>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         <div 

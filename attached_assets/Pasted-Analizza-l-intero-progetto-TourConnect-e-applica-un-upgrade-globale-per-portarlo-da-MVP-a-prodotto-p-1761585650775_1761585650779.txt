@@ -1,0 +1,55 @@
+Analizza l’intero progetto TourConnect e applica un upgrade globale per portarlo da MVP a prodotto pronto per il mercato.
+
+Obiettivi principali:
+
+UI/UX modernizzata:
+
+Adotta un tema coerente in tutte le schermate (dark grey con arancione primario #FF6600).
+
+Migliora layout, pulsanti, tipografia (usa “PalanquinDark”), e aggiungi animazioni fluide tra schermate.
+
+Implementa un dark mode automatico e un loader personalizzato con l’icona/logo dell’app.
+
+Profili personalizzati e onboarding:
+
+Aggiungi un flusso di onboarding (3 schermate introduttive: benvenuto, scegli ruolo, come funziona).
+
+Crea pagine profilo distinte per turista, guida e provider con foto profilo, bio, social link e badge “Verificato”.
+
+Notifiche e comunicazione:
+
+Implementa un sistema di notifiche in tempo reale (es. Supabase Realtime o WebSocket) per informare utenti quando ricevono prenotazioni o scadono sponsorizzazioni.
+
+Aggiungi una sezione “Notifiche” nel profilo con badge di conteggio.
+
+Ricerca e mappe intelligenti:
+
+Migliora la schermata “Location” con ricerca avanzata (filtri per città, prezzo, categoria, lingua).
+
+Mostra risultati sulla mappa (con marker personalizzati) e in una lista scorrevole sottostante.
+
+SEO, performance e PWA:
+
+Ottimizza la versione web per SEO con meta tag dinamici e struttura semantica.
+
+Trasforma l’app in una Progressive Web App installabile su desktop e smartphone.
+
+Ottimizza il caricamento delle immagini e riduci i tempi di build.
+
+Analytics e sicurezza:
+
+Integra un sistema di analytics base (visite, click, prenotazioni).
+
+Migliora l’autenticazione: login con Google/Apple/Facebook + reset password + 2FA per guide/provider.
+
+Output richiesto:
+
+Aggiorna automaticamente i file main.dart, theme, language_screen.dart, location_screen.dart, dashboard.dart e altri coinvolti.
+
+Mostra in anteprima i file modificati e spiega brevemente ogni cambiamento.
+
+Mantieni la compatibilità con le funzionalità esistenti (Stripe, sponsorizzazioni, localizzazione multilingua).
+
+✅ L’obiettivo è ottenere una versione professionale di TourConnect: elegante, reattiva, sicura e pronta per la pubblicazione su App Store, Google Play e Web.
+
+Se possibile, suggerisci ulteriori miglioramenti opzionali per la crescita (come gamification o abbonamenti premium).

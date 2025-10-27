@@ -15,6 +15,7 @@ import { Link } from 'wouter';
 import { useUserLocation } from '@/hooks/use-location';
 import { calculateDistance, formatDistance } from '@/lib/geolocation';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { Logo } from '@/components/logo';
 
 type TourWithDistance = TourWithGuide & { distance?: number };
 
@@ -141,7 +142,7 @@ export default function TouristDashboard() {
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-serif font-semibold">{t('common.appName')}</h1>
+            <Logo className="h-8" />
             <nav className="hidden md:flex gap-6">
               <Link href="/">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-discover">

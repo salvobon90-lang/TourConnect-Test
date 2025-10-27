@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Link, useLocation } from 'wouter';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { SponsorshipModal } from '@/components/sponsorship-modal';
+import { Logo } from '@/components/logo';
 
 export default function GuideDashboard() {
   const { t } = useTranslation();
@@ -92,7 +93,7 @@ export default function GuideDashboard() {
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-serif font-semibold">{t('common.appName')}</h1>
+            <Logo className="h-8" />
             <nav className="hidden md:flex gap-6">
               <Link href="/">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-my-tours">

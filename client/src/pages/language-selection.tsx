@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Globe } from 'lucide-react';
+import { Logo } from '@/components/logo';
 
 const languages = [
   { code: 'en', name: 'English', flag: '🇬🇧' },
@@ -33,6 +34,9 @@ export default function LanguageSelection({ onLanguageSelected }: LanguageSelect
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-12">
+          <div className="mb-8">
+            <Logo className="h-16 mx-auto mb-6" />
+          </div>
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6">
             <Globe className="w-10 h-10 text-primary" />
           </div>

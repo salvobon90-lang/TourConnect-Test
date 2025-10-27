@@ -10,6 +10,7 @@ import { Search, Clock, Users, Star, MapPin } from 'lucide-react';
 import type { TourWithGuide } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
+import { Logo } from '@/components/logo';
 
 export default function Tours() {
   const { t } = useTranslation();
@@ -40,16 +41,14 @@ export default function Tours() {
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/">
-            <a className="text-2xl font-serif font-semibold" data-testid="link-logo">
-              {t('common.appName')}
-            </a>
+          <Link href="/" data-testid="link-logo">
+            <Logo className="h-8" />
           </Link>
-          <a href="/api/login">
-            <Button data-testid="button-login">
+          <Button asChild>
+            <a href="/api/login" data-testid="button-login">
               {t('navigation.login')}
-            </Button>
-          </a>
+            </a>
+          </Button>
         </div>
       </header>
 

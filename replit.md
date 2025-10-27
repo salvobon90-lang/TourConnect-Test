@@ -28,6 +28,11 @@ Preferred communication style: Simple, everyday language.
 - Theme system supporting light/dark modes via CSS custom properties
 - Component library based on Radix UI primitives with custom styling
 - Visual-first, discovery-driven UX inspired by Airbnb and Booking.com
+- **Brand Colors (October 2025)**: Primary orange #FF6600 (HSL 25 100% 50%) paired with dark grey backgrounds
+  - Light mode: Grey tones at 220° hue (background: 220 15% 96%)
+  - Dark mode: Darker greys at 220° hue (background: 220 15% 12%)
+  - Maintains WCAG AA accessibility standards for contrast
+  - See design_guidelines.md for complete color palette documentation
 
 **State Management Approach:**
 - Server state managed through React Query with optimistic updates

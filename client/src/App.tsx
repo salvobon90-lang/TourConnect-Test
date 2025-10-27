@@ -5,6 +5,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { useTranslation } from "react-i18next";
 import NotFound from "@/pages/not-found";
 import LanguageSelection from "@/pages/language-selection";
 import Landing from "@/pages/landing";
@@ -29,6 +31,7 @@ import "./i18n";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { t } = useTranslation();
   const [languageSelected, setLanguageSelected] = useState(
     !!localStorage.getItem('language')
   );
@@ -40,11 +43,7 @@ function Router() {
 
   // Show loading state
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
+    return <LoadingSpinner size="lg" text={t('common.loading')} fullscreen />;
   }
 
   // Show landing page for non-authenticated users
