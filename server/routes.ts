@@ -97,6 +97,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/supervisor/users', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (user?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Supervisor role required." });
+      }
+
+      const allUsers = await storage.getAllUsers();
+      res.json(allUsers);
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.post('/api/supervisor/promote-to-supervisor/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const supervisorId = req.user.claims.sub;
+      const supervisor = await storage.getUser(supervisorId);
+      
+      if (supervisor?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Supervisor role required." });
+      }
+
+      const targetUser = await storage.getUser(req.params.userId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (targetUser.role === 'supervisor') {
+        return res.status(400).json({ message: "User is already a supervisor" });
+      }
+
+      const promotedUser = await storage.promoteToSupervisor(req.params.userId, supervisorId);
+      res.json(promotedUser);
+    } catch (error) {
+      console.error("Error promoting user to supervisor:", error);
+      res.status(500).json({ message: "Failed to promote user" });
+    }
+  });
+
   // Tour routes
   app.get('/api/tours', async (req, res) => {
     try {
