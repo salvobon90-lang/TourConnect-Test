@@ -28,7 +28,7 @@ export default function Bookings() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <h1 className="text-2xl font-serif font-semibold">{t('myBookings')}</h1>
+          <h1 className="text-2xl font-serif font-semibold">{t('bookings.title')}</h1>
         </div>
       </header>
 
@@ -84,7 +84,7 @@ export default function Bookings() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
-                        {booking.participants} participant{booking.participants > 1 ? 's' : ''}
+                        {t('bookings.participants', { count: booking.participants })}
                       </div>
                       <div className="flex items-center gap-1">
                         <MapPin className="w-4 h-4" />
@@ -97,9 +97,9 @@ export default function Bookings() {
                       </p>
                     )}
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">View Details</Button>
+                      <Button variant="outline" size="sm">{t('actions.viewDetails')}</Button>
                       {booking.status === 'pending' && (
-                        <Button variant="outline" size="sm">Cancel Booking</Button>
+                        <Button variant="outline" size="sm">{t('bookings.cancelBooking')}</Button>
                       )}
                     </div>
                   </div>
@@ -110,12 +110,12 @@ export default function Bookings() {
         ) : (
           <Card className="p-12 text-center">
             <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No bookings yet</h3>
+            <h3 className="text-xl font-semibold mb-2">{t('bookings.noBookings')}</h3>
             <p className="text-muted-foreground mb-6">
-              Start exploring tours and make your first booking!
+              {t('bookings.noBookingsDesc')}
             </p>
             <Link href="/">
-              <Button>Discover Tours</Button>
+              <Button>{t('navigation.discover')}</Button>
             </Link>
           </Card>
         )}

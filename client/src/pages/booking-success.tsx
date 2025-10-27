@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'wouter';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +7,7 @@ import { CheckCircle } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function BookingSuccess() {
+  const { t } = useTranslation();
   const [location] = useLocation();
   const params = new URLSearchParams(location.split('?')[1]);
   const sessionId = params.get('session_id');
@@ -25,22 +27,21 @@ export default function BookingSuccess() {
           <CheckCircle className="w-10 h-10 text-green-600" />
         </div>
         
-        <h1 className="text-3xl font-serif font-bold mb-4">Booking Confirmed!</h1>
+        <h1 className="text-3xl font-serif font-bold mb-4">{t('bookingSuccess.title')}</h1>
         
         <p className="text-lg text-muted-foreground mb-8">
-          Your payment was successful and your booking has been confirmed. 
-          You'll receive a confirmation email shortly.
+          {t('bookingSuccess.message')}
         </p>
 
         <div className="flex flex-col gap-3">
           <Link href="/bookings">
             <Button className="w-full" data-testid="button-view-bookings">
-              View My Bookings
+              {t('bookingSuccess.viewBookings')}
             </Button>
           </Link>
           <Link href="/">
             <Button variant="outline" className="w-full" data-testid="button-back-home">
-              Back to Home
+              {t('bookingSuccess.backHome')}
             </Button>
           </Link>
         </div>

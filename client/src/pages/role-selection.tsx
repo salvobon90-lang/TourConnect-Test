@@ -12,20 +12,20 @@ const roles = [
   {
     value: 'tourist' as UserRole,
     icon: Compass,
-    titleKey: 'tourist',
-    description: 'Explore tours, book experiences, and discover local attractions',
+    titleKey: 'roles.tourist',
+    descriptionKey: 'roles.touristDesc',
   },
   {
     value: 'guide' as UserRole,
     icon: Map,
-    titleKey: 'guide',
-    description: 'Create and manage tours, share your local expertise with travelers',
+    titleKey: 'roles.guide',
+    descriptionKey: 'roles.guideDesc',
   },
   {
     value: 'provider' as UserRole,
     icon: Store,
-    titleKey: 'provider',
-    description: 'List your services, manage offers, and connect with tourists',
+    titleKey: 'roles.provider',
+    descriptionKey: 'roles.providerDesc',
   },
 ];
 
@@ -45,8 +45,8 @@ export default function RoleSelection() {
     },
     onError: () => {
       toast({
-        title: 'Error',
-        description: 'Failed to set role. Please try again.',
+        title: t('common.error'),
+        description: t('roleSelection.roleSetError'),
         variant: 'destructive',
       });
     },
@@ -62,10 +62,10 @@ export default function RoleSelection() {
       <div className="w-full max-w-5xl">
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-serif font-semibold text-foreground mb-3">
-            {t('selectRole')}
+            {t('roleSelection.title')}
           </h1>
           <p className="text-lg text-muted-foreground">
-            Tell us how you'll be using TourConnect
+            {t('roleSelection.subtitle')}
           </p>
         </div>
 
@@ -89,7 +89,7 @@ export default function RoleSelection() {
                     {t(role.titleKey)}
                   </h3>
                   <p className="text-muted-foreground">
-                    {role.description}
+                    {t(role.descriptionKey)}
                   </p>
                 </div>
               </Card>
