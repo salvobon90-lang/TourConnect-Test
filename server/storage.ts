@@ -23,7 +23,7 @@ import {
   type UserRole,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, gt, or } from "drizzle-orm";
+import { eq, and, desc, sql, gt, or, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -491,14 +491,14 @@ export class DatabaseStorage implements IStorage {
         revenue: sql<number>`sum(${bookings.totalAmount})`,
       })
       .from(bookings)
-      .where(sql`${bookings.tourId} = ANY(${tourIds})`);
+      .where(inArray(bookings.tourId, tourIds));
 
     const [ratingsResult] = await db
       .select({
         avgRating: sql<number>`avg(${reviews.rating})`,
       })
       .from(reviews)
-      .where(sql`${reviews.tourId} = ANY(${tourIds})`);
+      .where(inArray(reviews.tourId, tourIds));
 
     return {
       totalBookings: Number(bookingsResult?.count || 0),
@@ -520,7 +520,7 @@ export class DatabaseStorage implements IStorage {
         avgRating: sql<number>`avg(${reviews.rating})`,
       })
       .from(reviews)
-      .where(sql`${reviews.serviceId} = ANY(${serviceIds})`);
+      .where(inArray(reviews.serviceId, serviceIds));
 
     return {
       totalOrders: 0, // Placeholder - would need order tracking for services

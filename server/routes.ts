@@ -8,12 +8,19 @@ import Stripe from "stripe";
 import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 
-// Validate Stripe secret key - must start with 'sk_' not 'pk_'
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+// Try production key first, then testing key
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || process.env.TESTING_STRIPE_SECRET_KEY;
 const isValidSecretKey = stripeSecretKey && stripeSecretKey.startsWith('sk_');
 const stripe = isValidSecretKey
   ? new Stripe(stripeSecretKey, { apiVersion: "2025-09-30.clover" })
   : null;
+
+// Log which key is being used (helpful for debugging)
+if (stripe) {
+  console.log('[Stripe] Initialized with key starting with:', stripeSecretKey.substring(0, 7));
+} else {
+  console.warn('[Stripe] No valid secret key found. Stripe checkout will be unavailable.');
+}
 
 // Image validation constants and helpers
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
@@ -946,6 +953,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/sponsorships/active-tours', async (req, res) => {
+    try {
+      const tourIds = await storage.getActiveSponsoredTours();
+      res.json(tourIds);
+    } catch (error) {
+      console.error('Error fetching active sponsored tours:', error);
+      // Return empty array instead of 500 to prevent tourist dashboard breakage
+      res.json([]);
+    }
+  });
+
+  app.get('/api/sponsorships/active-services', async (req, res) => {
+    try {
+      const serviceIds = await storage.getActiveSponsoredServices();
+      res.json(serviceIds);
+    } catch (error) {
+      console.error('Error fetching active sponsored services:', error);
+      // Return empty array instead of 500 to prevent tourist dashboard breakage
+      res.json([]);
+    }
+  });
+
   app.get('/api/sponsorships/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -964,26 +993,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching sponsorship:", error);
       res.status(500).json({ message: "Failed to fetch sponsorship" });
-    }
-  });
-
-  app.get('/api/sponsorships/active-tours', async (req, res) => {
-    try {
-      const tourIds = await storage.getActiveSponsoredTours();
-      res.json(tourIds);
-    } catch (error) {
-      console.error("Error fetching active sponsored tours:", error);
-      res.status(500).json({ message: "Failed to fetch active sponsored tours" });
-    }
-  });
-
-  app.get('/api/sponsorships/active-services', async (req, res) => {
-    try {
-      const serviceIds = await storage.getActiveSponsoredServices();
-      res.json(serviceIds);
-    } catch (error) {
-      console.error("Error fetching active sponsored services:", error);
-      res.status(500).json({ message: "Failed to fetch active sponsored services" });
     }
   });
 
