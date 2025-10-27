@@ -7,6 +7,7 @@ import {
   sponsorships,
   conversations,
   messages,
+  subscriptions,
   type User,
   type UpsertUser,
   type Tour,
@@ -30,6 +31,8 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, gt, or, inArray, ne } from "drizzle-orm";
+import { BADGES, type UserStats } from "@shared/badges";
+import { calculateTrustLevel } from "@shared/trustLevel";
 
 export interface IStorage {
   // User operations
@@ -117,6 +120,19 @@ export interface IStorage {
   getUnreadMessageCount(userId: string): Promise<number>;
   setUserOnlineStatus(userId: string, isOnline: boolean): Promise<void>;
   updateLastOnline(userId: string): Promise<void>;
+  
+  // Gamification operations
+  getUserStats(userId: string): Promise<UserStats>;
+  updateUserBadges(userId: string): Promise<string[]>;
+  recalculateTrustLevel(userId: string): Promise<number>;
+  
+  // Subscription operations
+  getSubscription(userId: string): Promise<any | null>;
+  createSubscription(data: any): Promise<any>;
+  updateSubscription(id: string, data: Partial<any>): Promise<any>;
+  cancelSubscription(userId: string): Promise<void>;
+  getSubscriptionByStripeId(subscriptionId: string): Promise<any | null>;
+  updateSubscriptionStatus(stripeSubscriptionId: string, status: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1018,6 +1034,153 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(users.id, userId));
+  }
+
+  // Gamification operations
+  async getUserStats(userId: string): Promise<UserStats> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const [completedToursResult] = await db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.userId, userId),
+          eq(bookings.status, 'completed')
+        )
+      );
+
+    const [toursCompletedResult] = await db.select({ count: sql<number>`COUNT(DISTINCT ${bookings.id})::int` })
+      .from(bookings)
+      .innerJoin(tours, eq(bookings.tourId, tours.id))
+      .where(
+        and(
+          eq(tours.guideId, userId),
+          eq(bookings.status, 'completed')
+        )
+      );
+
+    const [reviewsGivenResult] = await db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(reviews)
+      .where(eq(reviews.userId, userId));
+
+    const [reviewsReceivedResult] = await db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(reviews)
+      .innerJoin(tours, eq(reviews.tourId, tours.id))
+      .where(eq(tours.guideId, userId));
+
+    const avgRating = await this.getGuideAverageRating(userId);
+
+    const subscription = await db.select()
+      .from(subscriptions)
+      .where(
+        and(
+          eq(subscriptions.userId, userId),
+          eq(subscriptions.status, 'active')
+        )
+      )
+      .limit(1);
+
+    const isPremium = subscription.length > 0;
+
+    const accountAgeMs = Date.now() - user.createdAt.getTime();
+    const accountAgeMonths = Math.floor(accountAgeMs / (1000 * 60 * 60 * 24 * 30));
+
+    return {
+      completedTours: completedToursResult?.count || 0,
+      toursCompleted: toursCompletedResult?.count || 0,
+      reviewsGiven: reviewsGivenResult?.count || 0,
+      reviewsReceived: reviewsReceivedResult?.count || 0,
+      averageRating: avgRating,
+      isPremium,
+      accountAgeMonths
+    };
+  }
+
+  async updateUserBadges(userId: string): Promise<string[]> {
+    const stats = await this.getUserStats(userId);
+
+    const earnedBadges = Object.values(BADGES)
+      .filter(badge => badge.criteria(stats))
+      .map(badge => badge.id);
+
+    await db.update(users)
+      .set({ badges: earnedBadges, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+
+    return earnedBadges;
+  }
+
+  async recalculateTrustLevel(userId: string): Promise<number> {
+    const stats = await this.getUserStats(userId);
+    const trustLevel = calculateTrustLevel(stats);
+
+    await db.update(users)
+      .set({ trustLevel, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+
+    return trustLevel;
+  }
+
+  async getSubscription(userId: string): Promise<any | null> {
+    const [subscription] = await db.select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId))
+      .limit(1);
+    
+    return subscription || null;
+  }
+
+  async createSubscription(data: any): Promise<any> {
+    const [subscription] = await db
+      .insert(subscriptions)
+      .values(data)
+      .returning();
+    
+    return subscription;
+  }
+
+  async updateSubscription(id: string, data: Partial<any>): Promise<any> {
+    const [subscription] = await db
+      .update(subscriptions)
+      .set({ 
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(subscriptions.id, id))
+      .returning();
+    
+    return subscription;
+  }
+
+  async cancelSubscription(userId: string): Promise<void> {
+    await db
+      .update(subscriptions)
+      .set({ 
+        status: 'cancelled',
+        updatedAt: new Date()
+      })
+      .where(eq(subscriptions.userId, userId));
+  }
+
+  async getSubscriptionByStripeId(subscriptionId: string): Promise<any | null> {
+    const [subscription] = await db.select()
+      .from(subscriptions)
+      .where(eq(subscriptions.stripeSubscriptionId, subscriptionId))
+      .limit(1);
+    
+    return subscription || null;
+  }
+
+  async updateSubscriptionStatus(stripeSubscriptionId: string, status: string): Promise<void> {
+    await db.update(subscriptions)
+      .set({ 
+        status,
+        updatedAt: new Date()
+      })
+      .where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId));
   }
 }
 

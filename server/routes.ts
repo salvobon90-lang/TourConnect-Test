@@ -679,6 +679,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/bookings/:id', isAuthenticated, async (req, res) => {
     try {
       const booking = await storage.updateBooking(req.params.id, req.body);
+      
+      if (booking.status === 'completed') {
+        await Promise.all([
+          storage.updateUserBadges(booking.userId),
+          storage.recalculateTrustLevel(booking.userId)
+        ]);
+        
+        const tour = await storage.getTour(booking.tourId);
+        if (tour?.guideId) {
+          await Promise.all([
+            storage.updateUserBadges(tour.guideId),
+            storage.recalculateTrustLevel(tour.guideId)
+          ]);
+        }
+      }
+      
       res.json(booking);
     } catch (error) {
       console.error("Error updating booking:", error);
@@ -935,6 +951,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         images: data.images || []
       });
+      
+      await storage.updateUserBadges(userId);
+      
+      if (review.tourId) {
+        const tour = await storage.getTour(review.tourId);
+        if (tour?.guideId) {
+          await Promise.all([
+            storage.updateUserBadges(tour.guideId),
+            storage.recalculateTrustLevel(tour.guideId)
+          ]);
+        }
+      }
       
       res.json(review);
     } catch (error: any) {
@@ -1582,6 +1610,294 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching unread count:", error);
       res.status(500).json({ message: "Failed to fetch unread count" });
+    }
+  });
+
+  // Gamification routes
+  app.get('/api/users/:userId/badges', async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const { BADGES } = await import('@shared/badges');
+      const badgesWithDetails = user.badges.map(badgeId => {
+        const badge = Object.values(BADGES).find(b => b.id === badgeId);
+        return badge || null;
+      }).filter(Boolean);
+      
+      res.json(badgesWithDetails);
+    } catch (error) {
+      console.error("Error fetching user badges:", error);
+      res.status(500).json({ message: "Failed to fetch user badges" });
+    }
+  });
+
+  app.get('/api/users/:userId/stats', async (req, res) => {
+    try {
+      const stats = await storage.getUserStats(req.params.userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+      res.status(500).json({ message: "Failed to fetch user stats" });
+    }
+  });
+
+  app.post('/api/users/me/refresh-gamification', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [badges, trustLevel] = await Promise.all([
+        storage.updateUserBadges(userId),
+        storage.recalculateTrustLevel(userId)
+      ]);
+      
+      res.json({ badges, trustLevel });
+    } catch (error) {
+      console.error("Error refreshing gamification:", error);
+      res.status(500).json({ message: "Failed to refresh gamification" });
+    }
+  });
+
+  // Subscription routes
+  app.post('/api/subscriptions/create-checkout', isAuthenticated, async (req: any, res) => {
+    try {
+      if (!stripe) {
+        return res.status(500).json({ message: "Stripe is not configured" });
+      }
+
+      const schema = z.object({
+        tier: z.enum(['tourist-premium', 'guide-pro'])
+      });
+      
+      const { tier } = schema.parse(req.body);
+      const userId = req.user.claims.sub;
+      
+      const existing = await storage.getSubscription(userId);
+      if (existing && existing.status === 'active') {
+        return res.status(400).json({ 
+          message: 'You already have an active subscription' 
+        });
+      }
+      
+      const { SUBSCRIPTION_TIERS } = await import('@shared/subscriptions');
+      const tierKey = tier.toUpperCase().replace('-', '_') as keyof typeof SUBSCRIPTION_TIERS;
+      const tierConfig = SUBSCRIPTION_TIERS[tierKey];
+      
+      const session = await stripe.checkout.sessions.create({
+        customer_email: req.user.email,
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: tierConfig.stripePriceId,
+            quantity: 1
+          }
+        ],
+        success_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/subscription-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/subscription`,
+        metadata: {
+          userId,
+          tier
+        }
+      });
+      
+      res.json({ sessionUrl: session.url });
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ message: "Failed to create checkout session" });
+    }
+  });
+
+  app.get('/api/subscriptions/me', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const subscription = await storage.getSubscription(userId);
+      
+      if (!subscription) {
+        return res.json({ tier: 'free' });
+      }
+      
+      res.json(subscription);
+    } catch (error) {
+      console.error("Error fetching subscription:", error);
+      res.status(500).json({ message: "Failed to fetch subscription" });
+    }
+  });
+
+  app.post('/api/subscriptions/cancel', isAuthenticated, async (req: any, res) => {
+    try {
+      if (!stripe) {
+        return res.status(500).json({ message: "Stripe is not configured" });
+      }
+
+      const userId = req.user.claims.sub;
+      const subscription = await storage.getSubscription(userId);
+      
+      if (!subscription || subscription.status !== 'active') {
+        return res.status(404).json({ message: 'No active subscription found' });
+      }
+      
+      if (subscription.stripeSubscriptionId) {
+        await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+          cancel_at_period_end: true
+        });
+      }
+      
+      await storage.updateSubscription(subscription.id, {
+        status: 'cancelled',
+        cancelAtPeriodEnd: true
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error canceling subscription:", error);
+      res.status(500).json({ message: "Failed to cancel subscription" });
+    }
+  });
+
+  app.get('/api/subscriptions/verify/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      if (!stripe) {
+        return res.status(500).json({ message: "Stripe is not configured" });
+      }
+
+      const userId = req.user.claims.sub;
+      const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
+      
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ message: 'Payment not completed' });
+      }
+      
+      const stripeSubscription = await stripe.subscriptions.retrieve(
+        session.subscription as string
+      );
+      
+      const existing = await storage.getSubscription(userId);
+      
+      const subscriptionData = {
+        userId,
+        tier: session.metadata!.tier,
+        stripeCustomerId: session.customer as string,
+        stripeSubscriptionId: stripeSubscription.id,
+        stripePriceId: stripeSubscription.items.data[0].price.id,
+        status: 'active',
+        currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
+        currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+        cancelAtPeriodEnd: false
+      };
+      
+      let subscription;
+      if (existing) {
+        subscription = await storage.updateSubscription(existing.id, subscriptionData);
+      } else {
+        subscription = await storage.createSubscription(subscriptionData);
+      }
+      
+      await storage.updateUserBadges(userId);
+      await storage.recalculateTrustLevel(userId);
+      
+      res.json(subscription);
+    } catch (error) {
+      console.error("Error verifying subscription:", error);
+      res.status(500).json({ message: "Failed to verify subscription" });
+    }
+  });
+
+  app.post('/api/webhooks/stripe', async (req: any, res) => {
+    if (!stripe) {
+      return res.status(500).json({ message: "Stripe is not configured" });
+    }
+
+    const sig = req.headers['stripe-signature'];
+    
+    if (!sig) {
+      return res.status(400).send('No signature');
+    }
+    
+    let event;
+    
+    try {
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+      if (!webhookSecret) {
+        console.error('[Stripe] STRIPE_WEBHOOK_SECRET not configured');
+        return res.status(500).send('Webhook secret not configured');
+      }
+      
+      event = stripe.webhooks.constructEvent(
+        req.rawBody || req.body,
+        sig,
+        webhookSecret
+      );
+    } catch (err: any) {
+      console.error('[Stripe] Webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook signature verification failed: ${err.message}`);
+    }
+    
+    try {
+      switch (event.type) {
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated': {
+          const subscription = event.data.object as Stripe.Subscription;
+          
+          await storage.updateSubscriptionStatus(
+            subscription.id,
+            subscription.status
+          );
+          
+          const dbSub = await storage.getSubscriptionByStripeId(subscription.id);
+          if (dbSub) {
+            await storage.updateSubscription(dbSub.id, {
+              currentPeriodStart: new Date(subscription.current_period_start * 1000),
+              currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+              status: subscription.status
+            });
+          }
+          break;
+        }
+        
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object as Stripe.Subscription;
+          
+          await storage.updateSubscriptionStatus(subscription.id, 'expired');
+          
+          const dbSub = await storage.getSubscriptionByStripeId(subscription.id);
+          if (dbSub) {
+            await storage.updateUserBadges(dbSub.userId);
+            await storage.recalculateTrustLevel(dbSub.userId);
+          }
+          break;
+        }
+        
+        case 'invoice.payment_failed': {
+          const invoice = event.data.object as Stripe.Invoice;
+          
+          if (invoice.subscription) {
+            await storage.updateSubscriptionStatus(
+              invoice.subscription as string,
+              'past_due'
+            );
+          }
+          break;
+        }
+        
+        case 'invoice.payment_succeeded': {
+          const invoice = event.data.object as Stripe.Invoice;
+          
+          if (invoice.subscription) {
+            await storage.updateSubscriptionStatus(
+              invoice.subscription as string,
+              'active'
+            );
+          }
+          break;
+        }
+      }
+      
+      res.json({ received: true });
+    } catch (error) {
+      console.error('[Stripe] Webhook handler error:', error);
+      res.status(500).json({ message: "Webhook handler error" });
     }
   });
 
