@@ -1,23 +1,25 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, MapPin, DollarSign, Star, Users, Calendar, Edit2, Trash2 } from 'lucide-react';
-import type { Tour } from '@shared/schema';
+import { Plus, MapPin, DollarSign, Star, Users, Calendar, Edit2, Trash2, Megaphone, Sparkles, Clock } from 'lucide-react';
+import type { Tour, Sponsorship } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link, useLocation } from 'wouter';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { SponsorshipModal } from '@/components/sponsorship-modal';
 
 export default function GuideDashboard() {
   const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const [sponsorshipModal, setSponsorshipModal] = useState<{ tourId: string; title: string } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -39,6 +41,16 @@ export default function GuideDashboard() {
 
   const { data: stats } = useQuery<{ totalBookings: number; totalRevenue: number; avgRating: number }>({
     queryKey: ['/api/guide/stats'],
+    enabled: isAuthenticated,
+  });
+
+  const { data: sponsorships, isLoading: sponsorshipsLoading } = useQuery<Sponsorship[]>({
+    queryKey: ['/api/sponsorships/my-sponsorships'],
+    enabled: isAuthenticated,
+  });
+
+  const { data: activeTourIds = [] } = useQuery<string[]>({
+    queryKey: ['/api/sponsorships/active-tours'],
     enabled: isAuthenticated,
   });
 
@@ -187,6 +199,77 @@ export default function GuideDashboard() {
         </div>
       </section>
 
+      {/* My Promotions Section */}
+      <section className="py-12 px-4 bg-muted/30">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-serif font-semibold mb-6">My Promotions</h2>
+          {sponsorshipsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="p-6">
+                  <Skeleton className="h-6 w-3/4 mb-3" />
+                  <Skeleton className="h-4 w-1/2 mb-2" />
+                  <Skeleton className="h-4 w-2/3" />
+                </Card>
+              ))}
+            </div>
+          ) : sponsorships && sponsorships.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sponsorships.map((sponsorship) => {
+                const tour = tours?.find(t => t.id === sponsorship.tourId);
+                return (
+                  <Card key={sponsorship.id} data-testid={`sponsorship-${sponsorship.id}`}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-primary" />
+                          <CardTitle className="text-lg">{tour?.title || 'Tour'}</CardTitle>
+                        </div>
+                        <Badge 
+                          variant={sponsorship.status === 'active' ? 'default' : 'secondary'}
+                          data-testid={`badge-status-${sponsorship.id}`}
+                        >
+                          {sponsorship.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          {sponsorship.duration === 'weekly' ? 'Weekly (7 days)' : 'Monthly (30 days)'}
+                        </span>
+                      </div>
+                      {sponsorship.expiresAt && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-muted-foreground" data-testid={`text-expires-${sponsorship.id}`}>
+                            Expires: {new Date(sponsorship.expiresAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-sm">
+                        <DollarSign className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-semibold" data-testid={`text-price-${sponsorship.id}`}>
+                          ${sponsorship.price}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="p-8 text-center">
+              <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">
+                No active promotions yet. Promote your tours to increase visibility!
+              </p>
+            </Card>
+          )}
+        </div>
+      </section>
+
       {/* Tours Section */}
       <section className="py-12 px-4">
         <div className="max-w-7xl mx-auto">
@@ -249,6 +332,16 @@ export default function GuideDashboard() {
                             >
                               {tour.approvalStatus === 'approved' ? `✓ ${t('status.approved')}` : tour.approvalStatus === 'pending' ? `⏱ ${t('status.pending')}` : `✗ ${t('status.rejected')}`}
                             </Badge>
+                            {activeTourIds.includes(tour.id) && (
+                              <Badge 
+                                variant="default"
+                                className="bg-primary/20 text-primary border-primary/30"
+                                data-testid={`badge-sponsored-${tour.id}`}
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                Sponsored
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <div className="text-right">
@@ -269,7 +362,7 @@ export default function GuideDashboard() {
                           {tour.meetingPoint}
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         <Button
                           variant="outline"
                           size="sm"
@@ -293,6 +386,17 @@ export default function GuideDashboard() {
                           <Trash2 className="w-4 h-4 mr-1" />
                           {t('common.delete')}
                         </Button>
+                        {tour.approvalStatus === 'approved' && !activeTourIds.includes(tour.id) && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => setSponsorshipModal({ tourId: tour.id, title: tour.title })}
+                            data-testid={`button-promote-${tour.id}`}
+                          >
+                            <Megaphone className="w-4 h-4 mr-1" />
+                            Promote
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -316,6 +420,15 @@ export default function GuideDashboard() {
           )}
         </div>
       </section>
+
+      {/* Sponsorship Modal */}
+      {sponsorshipModal && (
+        <SponsorshipModal
+          tourId={sponsorshipModal.tourId}
+          itemTitle={sponsorshipModal.title}
+          onClose={() => setSponsorshipModal(null)}
+        />
+      )}
     </div>
   );
 }

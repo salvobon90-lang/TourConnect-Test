@@ -1,21 +1,23 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Store, DollarSign, Star, ShoppingBag, Calendar } from 'lucide-react';
-import type { Service } from '@shared/schema';
+import { Plus, Store, DollarSign, Star, ShoppingBag, Calendar, Megaphone, Sparkles, Clock } from 'lucide-react';
+import type { Service, Sponsorship } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { SponsorshipModal } from '@/components/sponsorship-modal';
 
 export default function ProviderDashboard() {
   const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [sponsorshipModal, setSponsorshipModal] = useState<{ serviceId: string; name: string } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -37,6 +39,16 @@ export default function ProviderDashboard() {
 
   const { data: stats } = useQuery<{ totalOrders: number; totalRevenue: number; avgRating: number }>({
     queryKey: ['/api/provider/stats'],
+    enabled: isAuthenticated,
+  });
+
+  const { data: sponsorships, isLoading: sponsorshipsLoading } = useQuery<Sponsorship[]>({
+    queryKey: ['/api/sponsorships/my-sponsorships'],
+    enabled: isAuthenticated,
+  });
+
+  const { data: activeServiceIds = [] } = useQuery<string[]>({
+    queryKey: ['/api/sponsorships/active-services'],
     enabled: isAuthenticated,
   });
 
@@ -161,6 +173,77 @@ export default function ProviderDashboard() {
         </div>
       </section>
 
+      {/* My Promotions Section */}
+      <section className="py-12 px-4 bg-muted/30">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-serif font-semibold mb-6">My Promotions</h2>
+          {sponsorshipsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="p-6">
+                  <Skeleton className="h-6 w-3/4 mb-3" />
+                  <Skeleton className="h-4 w-1/2 mb-2" />
+                  <Skeleton className="h-4 w-2/3" />
+                </Card>
+              ))}
+            </div>
+          ) : sponsorships && sponsorships.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sponsorships.map((sponsorship) => {
+                const service = services?.find(s => s.id === sponsorship.serviceId);
+                return (
+                  <Card key={sponsorship.id} data-testid={`sponsorship-${sponsorship.id}`}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-primary" />
+                          <CardTitle className="text-lg">{service?.name || 'Service'}</CardTitle>
+                        </div>
+                        <Badge 
+                          variant={sponsorship.status === 'active' ? 'default' : 'secondary'}
+                          data-testid={`badge-status-${sponsorship.id}`}
+                        >
+                          {sponsorship.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          {sponsorship.duration === 'weekly' ? 'Weekly (7 days)' : 'Monthly (30 days)'}
+                        </span>
+                      </div>
+                      {sponsorship.expiresAt && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-muted-foreground" data-testid={`text-expires-${sponsorship.id}`}>
+                            Expires: {new Date(sponsorship.expiresAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-sm">
+                        <DollarSign className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-semibold" data-testid={`text-price-${sponsorship.id}`}>
+                          ${sponsorship.price}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="p-8 text-center">
+              <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">
+                No active promotions yet. Promote your services to increase visibility!
+              </p>
+            </Card>
+          )}
+        </div>
+      </section>
+
       {/* Services Section */}
       <section className="py-12 px-4">
         <div className="max-w-7xl mx-auto">
@@ -206,11 +289,21 @@ export default function ProviderDashboard() {
                     )}
                   </div>
                   <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <Badge variant="secondary">{service.type}</Badge>
                       <Badge variant={service.isActive ? 'default' : 'secondary'}>
                         {service.isActive ? t('status.active') : t('status.inactive')}
                       </Badge>
+                      {activeServiceIds.includes(service.id) && (
+                        <Badge 
+                          variant="default"
+                          className="bg-primary/20 text-primary border-primary/30"
+                          data-testid={`badge-sponsored-${service.id}`}
+                        >
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          Sponsored
+                        </Badge>
+                      )}
                     </div>
                     <h3 className="text-xl font-semibold mb-2">{service.name}</h3>
                     <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
@@ -225,9 +318,21 @@ export default function ProviderDashboard() {
                         <span className="text-sm font-medium">5.0</span>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button variant="outline" size="sm" className="flex-1">{t('common.edit')}</Button>
                       <Button variant="outline" size="sm" className="flex-1">{t('dashboards.provider.stats')}</Button>
+                      {!activeServiceIds.includes(service.id) && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => setSponsorshipModal({ serviceId: service.id, name: service.name })}
+                          data-testid={`button-promote-${service.id}`}
+                          className="w-full"
+                        >
+                          <Megaphone className="w-4 h-4 mr-1" />
+                          Promote
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -250,6 +355,15 @@ export default function ProviderDashboard() {
           )}
         </div>
       </section>
+
+      {/* Sponsorship Modal */}
+      {sponsorshipModal && (
+        <SponsorshipModal
+          serviceId={sponsorshipModal.serviceId}
+          itemTitle={sponsorshipModal.name}
+          onClose={() => setSponsorshipModal(null)}
+        />
+      )}
     </div>
   );
 }
