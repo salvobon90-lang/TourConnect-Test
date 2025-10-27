@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { apiRequest } from '@/lib/queryClient';
 import {
   Dialog,
@@ -22,6 +23,7 @@ interface SponsorshipModalProps {
 }
 
 export function SponsorshipModal({ tourId, serviceId, itemTitle, onClose }: SponsorshipModalProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [selectedDuration, setSelectedDuration] = useState<'weekly' | 'monthly' | null>(null);
 
@@ -39,8 +41,8 @@ export function SponsorshipModal({ tourId, serviceId, itemTitle, onClose }: Spon
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to create checkout session. Please try again.',
+        title: t('common.error'),
+        description: error.message || t('sponsorship.sponsorshipError'),
         variant: 'destructive',
       });
       setSelectedDuration(null);
@@ -55,21 +57,21 @@ export function SponsorshipModal({ tourId, serviceId, itemTitle, onClose }: Spon
   const plans = [
     {
       duration: 'weekly' as const,
-      title: 'Weekly Promotion',
+      title: t('sponsorship.weeklyPromotion'),
       price: 49,
       days: 7,
-      description: 'Boost your visibility for one week',
+      description: t('sponsorship.boostVisibility'),
       icon: Clock,
-      badge: 'Popular',
+      badge: t('sponsorship.popularBadge'),
     },
     {
       duration: 'monthly' as const,
-      title: 'Monthly Promotion',
+      title: t('sponsorship.monthlyPromotion'),
       price: 149,
       days: 30,
-      description: 'Extended promotion for maximum reach',
+      description: t('sponsorship.extendedPromotion'),
       icon: Calendar,
-      badge: 'Best Value',
+      badge: t('sponsorship.bestValueBadge'),
     },
   ];
 
@@ -79,7 +81,7 @@ export function SponsorshipModal({ tourId, serviceId, itemTitle, onClose }: Spon
         <DialogHeader>
           <DialogTitle className="text-2xl flex items-center gap-2" data-testid="text-sponsorship-title">
             <Sparkles className="w-6 h-6 text-primary" />
-            Promote Your {tourId ? 'Tour' : 'Service'}
+            {tourId ? t('sponsorship.promoteYourTour') : t('sponsorship.promoteYourService')}
           </DialogTitle>
           <DialogDescription data-testid="text-item-title">
             {itemTitle}
@@ -88,8 +90,7 @@ export function SponsorshipModal({ tourId, serviceId, itemTitle, onClose }: Spon
 
         <div className="py-4">
           <p className="text-sm text-muted-foreground mb-6">
-            Increase your visibility and attract more customers by promoting your {tourId ? 'tour' : 'service'}. 
-            Promoted listings appear at the top of search results and get highlighted with a special badge.
+            {t('sponsorship.promoteSubtitle')}
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -131,7 +132,7 @@ export function SponsorshipModal({ tourId, serviceId, itemTitle, onClose }: Spon
                     <div className="flex items-center justify-center gap-2">
                       <Clock className="w-4 h-4" />
                       <span data-testid={`text-duration-${plan.duration}`}>
-                        {plan.days} days of promotion
+                        {plan.days} {t('sponsorship.daysOfPromotion')}
                       </span>
                     </div>
                   </div>
@@ -139,15 +140,15 @@ export function SponsorshipModal({ tourId, serviceId, itemTitle, onClose }: Spon
                   <div className="pt-2 space-y-2 text-sm text-muted-foreground text-left">
                     <div className="flex items-start gap-2">
                       <Sparkles className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
-                      <span>Top placement in search results</span>
+                      <span>{t('sponsorship.topPlacement')}</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <Sparkles className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
-                      <span>Special "Promoted" badge</span>
+                      <span>{t('sponsorship.specialBadge')}</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <Sparkles className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" />
-                      <span>Increased visibility to tourists</span>
+                      <span>{t('sponsorship.increasedVisibility')}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -160,8 +161,8 @@ export function SponsorshipModal({ tourId, serviceId, itemTitle, onClose }: Spon
                     data-testid={`button-select-${plan.duration}`}
                   >
                     {createCheckoutMutation.isPending && selectedDuration === plan.duration
-                      ? 'Processing...'
-                      : 'Select Plan'}
+                      ? t('sponsorship.processingPayment')
+                      : t('sponsorship.selectPlan')}
                   </Button>
                 </CardFooter>
               </Card>

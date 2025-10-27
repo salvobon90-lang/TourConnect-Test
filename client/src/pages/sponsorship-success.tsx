@@ -8,17 +8,25 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, CheckCircle, Calendar, Clock, DollarSign, Home } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 import type { Sponsorship } from '@shared/schema';
 
 export default function SponsorshipSuccess() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [sponsorshipId, setSponsorshipId] = useState<string | null>(null);
+  const [stripeSessionId, setStripeSessionId] = useState<string | null>(null);
   const [activationAttempted, setActivationAttempted] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
     const id = params.get('sponsorshipId');
+    
+    if (sessionId) {
+      setStripeSessionId(sessionId);
+    }
     if (id) {
       setSponsorshipId(id);
     } else {
@@ -30,23 +38,23 @@ export default function SponsorshipSuccess() {
   }, [navigate]);
 
   const activateMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await apiRequest('POST', `/api/sponsorships/activate/${id}`);
+    mutationFn: async ({ id, sessionId }: { id: string; sessionId: string }) => {
+      const response = await apiRequest('POST', `/api/sponsorships/activate/${id}`, { sessionId });
       return response.json();
     },
   });
 
   const { data: sponsorship, isLoading } = useQuery<Sponsorship>({
-    queryKey: ['/api/sponsorships', sponsorshipId],
+    queryKey: [`/api/sponsorships/${sponsorshipId}`],
     enabled: !!sponsorshipId,
   });
 
   useEffect(() => {
-    if (sponsorshipId && !activationAttempted && sponsorship?.status === 'pending') {
+    if (sponsorshipId && stripeSessionId && !activationAttempted && sponsorship?.status === 'pending') {
       setActivationAttempted(true);
-      activateMutation.mutate(sponsorshipId);
+      activateMutation.mutate({ id: sponsorshipId, sessionId: stripeSessionId });
     }
-  }, [sponsorshipId, activationAttempted, sponsorship, activateMutation]);
+  }, [sponsorshipId, stripeSessionId, activationAttempted, sponsorship, activateMutation]);
 
   const handleReturnToDashboard = () => {
     navigate('/');
@@ -58,7 +66,7 @@ export default function SponsorshipSuccess() {
         <Card className="max-w-md">
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
-              Redirecting to dashboard...
+              {t('sponsorship.redirecting')}...
             </p>
           </CardContent>
         </Card>
@@ -89,15 +97,15 @@ export default function SponsorshipSuccess() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md">
           <CardHeader>
-            <CardTitle className="text-destructive">Sponsorship Not Found</CardTitle>
+            <CardTitle className="text-destructive">{t('sponsorship.notFound')}</CardTitle>
             <CardDescription>
-              We couldn't find the sponsorship details.
+              {t('sponsorship.notFoundDesc')}
             </CardDescription>
           </CardHeader>
           <CardFooter>
             <Button onClick={handleReturnToDashboard} className="w-full" data-testid="button-return-dashboard">
               <Home className="w-4 h-4 mr-2" />
-              Return to Dashboard
+              {t('sponsorship.backToDashboard')}
             </Button>
           </CardFooter>
         </Card>
@@ -106,7 +114,7 @@ export default function SponsorshipSuccess() {
   }
 
   const isActive = sponsorship.status === 'active' || activateMutation.isSuccess;
-  const duration = sponsorship.duration === 'weekly' ? 'Weekly' : 'Monthly';
+  const duration = sponsorship.duration === 'weekly' ? t('sponsorship.weekly') : t('sponsorship.monthly');
   const days = sponsorship.duration === 'weekly' ? 7 : 30;
 
   return (
@@ -118,10 +126,10 @@ export default function SponsorshipSuccess() {
             <CheckCircle className="w-10 h-10 text-primary" data-testid="icon-success" />
           </div>
           <h1 className="text-4xl font-serif font-bold mb-4" data-testid="text-success-title">
-            Payment Successful!
+            {t('sponsorship.paymentSuccess')}
           </h1>
           <p className="text-xl text-muted-foreground" data-testid="text-success-subtitle">
-            Your promotion is now {isActive ? 'active' : 'being activated'}
+            {t('sponsorship.promotionStatus', { status: isActive ? t('sponsorship.statusActive').toLowerCase() : t('sponsorship.beingActivated') })}
           </p>
         </div>
       </section>
@@ -134,13 +142,16 @@ export default function SponsorshipSuccess() {
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
                   <Sparkles className="w-6 h-6 text-primary" />
-                  <CardTitle data-testid="text-promotion-title">Promotion Details</CardTitle>
+                  <CardTitle data-testid="text-promotion-title">{t('sponsorship.promotionDetails')}</CardTitle>
                 </div>
                 <Badge 
                   variant={isActive ? 'default' : 'secondary'}
                   data-testid="badge-status"
                 >
-                  {isActive ? 'Active' : sponsorship.status}
+                  {isActive ? t('sponsorship.statusActive') : 
+                   sponsorship.status === 'pending' ? t('sponsorship.statusPending') :
+                   sponsorship.status === 'expired' ? t('sponsorship.statusExpired') :
+                   t('sponsorship.statusCancelled')}
                 </Badge>
               </div>
             </CardHeader>
@@ -152,10 +163,10 @@ export default function SponsorshipSuccess() {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold mb-1" data-testid="text-duration-type">
-                    {duration} Promotion
+                    {duration} {t('sponsorship.promotion')}
                   </h3>
                   <p className="text-sm text-muted-foreground" data-testid="text-duration-days">
-                    {days} days of premium visibility
+                    {t('sponsorship.daysOfVisibility', { days })}
                   </p>
                 </div>
               </div>
@@ -167,7 +178,7 @@ export default function SponsorshipSuccess() {
                     <Calendar className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold mb-1">Expires On</h3>
+                    <h3 className="font-semibold mb-1">{t('sponsorship.expiresOn')}</h3>
                     <p className="text-sm text-muted-foreground" data-testid="text-expires-at">
                       {new Date(sponsorship.expiresAt).toLocaleDateString('en-US', {
                         weekday: 'long',
@@ -186,7 +197,7 @@ export default function SponsorshipSuccess() {
                   <DollarSign className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold mb-1">Amount Paid</h3>
+                  <h3 className="font-semibold mb-1">{t('sponsorship.amountPaid')}</h3>
                   <p className="text-sm text-muted-foreground" data-testid="text-price-paid">
                     ${sponsorship.price}
                   </p>
@@ -195,32 +206,32 @@ export default function SponsorshipSuccess() {
 
               {/* Benefits List */}
               <div className="pt-4 border-t">
-                <h3 className="font-semibold mb-4">What You Get:</h3>
+                <h3 className="font-semibold mb-4">{t('sponsorship.whatYouGet')}</h3>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3">
                     <Sparkles className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium">Top Placement</p>
+                      <p className="font-medium">{t('sponsorship.topPlacement')}</p>
                       <p className="text-sm text-muted-foreground">
-                        Your {sponsorship.tourId ? 'tour' : 'service'} appears at the top of search results
+                        {t('sponsorship.topPlacementDesc', { itemType: sponsorship.tourId ? t('sponsorship.tour') : t('sponsorship.service') })}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Sparkles className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium">Special Badge</p>
+                      <p className="font-medium">{t('sponsorship.specialBadge')}</p>
                       <p className="text-sm text-muted-foreground">
-                        A "Promoted" badge helps you stand out from competitors
+                        {t('sponsorship.specialBadgeDesc')}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Sparkles className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium">Increased Visibility</p>
+                      <p className="font-medium">{t('sponsorship.increasedVisibility')}</p>
                       <p className="text-sm text-muted-foreground">
-                        Get more views and bookings from tourists searching in your area
+                        {t('sponsorship.increasedVisibilityDesc')}
                       </p>
                     </div>
                   </div>
@@ -234,7 +245,7 @@ export default function SponsorshipSuccess() {
                 data-testid="button-dashboard"
               >
                 <Home className="w-4 h-4 mr-2" />
-                Return to Dashboard
+                {t('sponsorship.backToDashboard')}
               </Button>
             </CardFooter>
           </Card>
@@ -242,7 +253,7 @@ export default function SponsorshipSuccess() {
           {/* Additional Info */}
           <div className="mt-6 p-4 bg-muted/50 rounded-lg">
             <p className="text-sm text-muted-foreground text-center">
-              A confirmation email has been sent to {user?.email}. You can view all your promotions in your dashboard.
+              {t('sponsorship.confirmationEmail', { email: user?.email })}
             </p>
           </div>
         </div>

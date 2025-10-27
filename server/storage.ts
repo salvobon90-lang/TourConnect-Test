@@ -74,6 +74,7 @@ export interface IStorage {
   
   // Sponsorship operations
   getSponsorships(userId?: string): Promise<Sponsorship[]>;
+  getSponsorshipById(id: string): Promise<Sponsorship | undefined>;
   getActiveSponsorship(tourId?: string, serviceId?: string): Promise<Sponsorship | undefined>;
   createSponsorship(sponsorship: InsertSponsorship): Promise<Sponsorship>;
   updateSponsorshipStatus(id: string, status: string, stripePaymentIntentId?: string, stripeCheckoutSessionId?: string): Promise<Sponsorship>;
@@ -540,6 +541,15 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query;
+  }
+
+  async getSponsorshipById(id: string): Promise<Sponsorship | undefined> {
+    const [sponsorship] = await db
+      .select()
+      .from(sponsorships)
+      .where(eq(sponsorships.id, id))
+      .limit(1);
+    return sponsorship;
   }
 
   async getActiveSponsorship(tourId?: string, serviceId?: string): Promise<Sponsorship | undefined> {

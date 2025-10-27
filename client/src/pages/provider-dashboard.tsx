@@ -176,7 +176,7 @@ export default function ProviderDashboard() {
       {/* My Promotions Section */}
       <section className="py-12 px-4 bg-muted/30">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-serif font-semibold mb-6">My Promotions</h2>
+          <h2 className="text-3xl font-serif font-semibold mb-6">{t('sponsorship.myPromotions')}</h2>
           {sponsorshipsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
@@ -203,7 +203,10 @@ export default function ProviderDashboard() {
                           variant={sponsorship.status === 'active' ? 'default' : 'secondary'}
                           data-testid={`badge-status-${sponsorship.id}`}
                         >
-                          {sponsorship.status}
+                          {sponsorship.status === 'active' ? t('sponsorship.statusActive') : 
+                           sponsorship.status === 'pending' ? t('sponsorship.statusPending') :
+                           sponsorship.status === 'expired' ? t('sponsorship.statusExpired') :
+                           t('sponsorship.statusCancelled')}
                         </Badge>
                       </div>
                     </CardHeader>
@@ -211,14 +214,14 @@ export default function ProviderDashboard() {
                       <div className="flex items-center gap-2 text-sm">
                         <Clock className="w-4 h-4 text-muted-foreground" />
                         <span className="text-muted-foreground">
-                          {sponsorship.duration === 'weekly' ? 'Weekly (7 days)' : 'Monthly (30 days)'}
+                          {sponsorship.duration === 'weekly' ? `${t('sponsorship.weeklyPromotion')} (${t('sponsorship.days7')})` : `${t('sponsorship.monthlyPromotion')} (${t('sponsorship.days30')})`}
                         </span>
                       </div>
                       {sponsorship.expiresAt && (
                         <div className="flex items-center gap-2 text-sm">
                           <Calendar className="w-4 h-4 text-muted-foreground" />
                           <span className="text-muted-foreground" data-testid={`text-expires-${sponsorship.id}`}>
-                            Expires: {new Date(sponsorship.expiresAt).toLocaleDateString()}
+                            {t('sponsorship.expiresOn')}: {new Date(sponsorship.expiresAt).toLocaleDateString()}
                           </span>
                         </div>
                       )}
@@ -237,7 +240,7 @@ export default function ProviderDashboard() {
             <Card className="p-8 text-center">
               <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-muted-foreground">
-                No active promotions yet. Promote your services to increase visibility!
+                {t('sponsorship.noPromotions')}. {t('sponsorship.startPromotingServices')}
               </p>
             </Card>
           )}
@@ -301,7 +304,7 @@ export default function ProviderDashboard() {
                           data-testid={`badge-sponsored-${service.id}`}
                         >
                           <Sparkles className="w-3 h-3 mr-1" />
-                          Sponsored
+                          {t('sponsorship.sponsored')}
                         </Badge>
                       )}
                     </div>
@@ -330,7 +333,7 @@ export default function ProviderDashboard() {
                           className="w-full"
                         >
                           <Megaphone className="w-4 h-4 mr-1" />
-                          Promote
+                          {t('sponsorship.promote')}
                         </Button>
                       )}
                     </div>

@@ -351,9 +351,9 @@ export default function TouristDashboard() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                  <h2 className="text-3xl font-serif font-semibold">Featured Tours</h2>
+                  <h2 className="text-3xl font-serif font-semibold">{t('sponsorship.featuredTours')}</h2>
                 </div>
-                <p className="text-muted-foreground">Promoted by our top guides</p>
+                <p className="text-muted-foreground">{t('sponsorship.promotedByGuides')}</p>
               </div>
             </div>
 
@@ -370,7 +370,7 @@ export default function TouristDashboard() {
                       <div className="absolute top-3 right-3 flex flex-col gap-2">
                         <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid={`badge-featured-${tour.id}`}>
                           <Sparkles className="w-3 h-3 mr-1" />
-                          Featured
+                          {t('sponsorship.featured')}
                         </Badge>
                         <Badge className="bg-white/90 text-foreground">
                           ${tour.price}
@@ -444,7 +444,7 @@ export default function TouristDashboard() {
                         {isSponsoredTour(tour.id) && (
                           <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid={`badge-featured-nearby-${tour.id}`}>
                             <Sparkles className="w-3 h-3 mr-1" />
-                            Featured
+                            {t('sponsorship.featured')}
                           </Badge>
                         )}
                         <Badge className="bg-white/90 text-foreground">
@@ -530,7 +530,7 @@ export default function TouristDashboard() {
                         {isSponsoredTour(tour.id) && (
                           <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid={`badge-featured-tour-${tour.id}`}>
                             <Sparkles className="w-3 h-3 mr-1" />
-                            Featured
+                            {t('sponsorship.featured')}
                           </Badge>
                         )}
                         <Badge className="bg-white/90 text-foreground">

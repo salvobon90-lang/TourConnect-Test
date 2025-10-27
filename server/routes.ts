@@ -912,7 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         ],
         mode: 'payment',
-        success_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/sponsorship-success?session_id={CHECKOUT_SESSION_ID}&sponsorship_id=${sponsorship.id}`,
+        success_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/sponsorship-success?session_id={CHECKOUT_SESSION_ID}&sponsorshipId=${sponsorship.id}`,
         cancel_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/${tourId ? 'guide-dashboard' : 'provider-dashboard'}`,
         metadata: {
           sponsorshipId: sponsorship.id,
@@ -946,6 +946,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/sponsorships/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sponsorship = await storage.getSponsorshipById(req.params.id);
+      
+      if (!sponsorship) {
+        return res.status(404).json({ message: "Sponsorship not found" });
+      }
+      
+      // Ensure user owns this sponsorship
+      if (sponsorship.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      res.json(sponsorship);
+    } catch (error) {
+      console.error("Error fetching sponsorship:", error);
+      res.status(500).json({ message: "Failed to fetch sponsorship" });
+    }
+  });
+
   app.get('/api/sponsorships/active-tours', async (req, res) => {
     try {
       const tourIds = await storage.getActiveSponsoredTours();
@@ -968,22 +989,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/sponsorships/activate/:id', isAuthenticated, async (req: any, res) => {
     try {
+      if (!stripe) {
+        return res.status(503).json({ message: "Stripe is not configured" });
+      }
+
       const userId = req.user.claims.sub;
       const sponsorshipId = req.params.id;
+      const { sessionId } = req.body;
 
-      // Get sponsorship to verify ownership
-      const sponsorships = await storage.getMySponsorships(userId);
-      const sponsorship = sponsorships.find(s => s.id === sponsorshipId);
+      // SECURITY: Require session ID from Stripe
+      if (!sessionId) {
+        return res.status(400).json({ message: "Stripe session ID required" });
+      }
+
+      // SECURITY: Retrieve Stripe session to verify payment
+      let session;
+      try {
+        session = await stripe.checkout.sessions.retrieve(sessionId);
+      } catch (error) {
+        console.error("Error retrieving Stripe session:", error);
+        return res.status(400).json({ message: "Invalid Stripe session ID" });
+      }
+
+      // SECURITY: Verify payment was completed
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ message: "Payment not completed" });
+      }
+
+      // SECURITY: Verify sponsorship ID matches metadata
+      if (session.metadata?.sponsorshipId !== sponsorshipId) {
+        return res.status(400).json({ message: "Invalid sponsorship ID" });
+      }
+
+      // SECURITY: Verify user ID matches metadata
+      if (session.metadata?.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      // Get sponsorship to verify it exists and is pending
+      const sponsorship = await storage.getSponsorshipById(sponsorshipId);
 
       if (!sponsorship) {
-        return res.status(404).json({ message: "Sponsorship not found or you don't have permission to activate it" });
+        return res.status(404).json({ message: "Sponsorship not found" });
+      }
+
+      if (sponsorship.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
       }
 
       if (sponsorship.status !== 'pending') {
-        return res.status(400).json({ message: "Only pending sponsorships can be activated" });
+        return res.status(400).json({ message: "Sponsorship already activated or cancelled" });
       }
 
-      // Activate the sponsorship (sets status to active and calculates expiresAt)
+      // Now safe to activate - payment verified
       const activatedSponsorship = await storage.activateSponsorship(sponsorshipId);
       
       res.json(activatedSponsorship);
