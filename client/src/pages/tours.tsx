@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
 import { Logo } from '@/components/logo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { SEO } from '@/components/seo';
 
 export default function Tours() {
   const { t } = useTranslation();
@@ -38,7 +39,12 @@ export default function Tours() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO 
+        title={t('seo.tours.title')}
+        description={t('seo.tours.description')}
+      />
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -261,5 +267,6 @@ export default function Tours() {
         </div>
       </section>
     </div>
+    </>
   );
 }

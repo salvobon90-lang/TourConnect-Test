@@ -16,6 +16,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SiFacebook, SiInstagram, SiX } from 'react-icons/si';
+import { SEO } from '@/components/seo';
 
 export default function Profile() {
   const { t } = useTranslation();
@@ -262,7 +263,12 @@ export default function Profile() {
   const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.toUpperCase();
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO 
+        title={t('seo.profile.title')}
+        description={t('seo.profile.description')}
+      />
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -726,5 +732,6 @@ export default function Profile() {
         </form>
       </main>
     </div>
+    </>
   );
 }

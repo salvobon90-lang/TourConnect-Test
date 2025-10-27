@@ -13,6 +13,7 @@ import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
+import { SEO } from '@/components/seo';
 
 export default function TourDetail() {
   const { t } = useTranslation();
@@ -98,8 +99,29 @@ export default function TourDetail() {
     );
   }
 
+  const tourSchemaData = {
+    "@context": "https://schema.org",
+    "@type": "TouristAttraction",
+    "name": tour.title,
+    "description": tour.description,
+    "image": tour.images,
+    "offers": {
+      "@type": "Offer",
+      "price": tour.price,
+      "priceCurrency": "EUR"
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO 
+        title={tour.title}
+        description={tour.description}
+        image={tour.images[0]}
+        type="article"
+        structuredData={tourSchemaData}
+      />
+      <div className="min-h-screen bg-background">
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
           <Link href="/">
@@ -351,5 +373,6 @@ export default function TourDetail() {
         </div>
       </div>
     </div>
+    </>
   );
 }

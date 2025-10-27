@@ -703,6 +703,52 @@ const resources = {
           roleSetError: "Failed to set role. Please try again.",
         },
       },
+      seo: {
+        landing: {
+          title: "Discover Authentic Local Experiences",
+          description: "Connect with certified local guides, book authentic experiences and discover local services. The tourism platform connecting travelers with local communities.",
+        },
+        tours: {
+          title: "Local Tours",
+          description: "Explore authentic tours with certified guides. Book unique experiences at your destination with TourConnect.",
+        },
+        profile: {
+          title: "My Profile",
+          description: "Manage your TourConnect profile, update your information and view your bookings.",
+        },
+        touristDashboard: {
+          title: "Tourist Dashboard",
+          description: "Discover amazing local tours, book experiences and explore new destinations with TourConnect.",
+        },
+        guideDashboard: {
+          title: "Guide Dashboard",
+          description: "Manage your tours, track bookings and share your local expertise with travelers around the world.",
+        },
+        providerDashboard: {
+          title: "Provider Dashboard",
+          description: "Manage your services, connect with tourists and grow your local business with TourConnect.",
+        },
+        supervisorDashboard: {
+          title: "Supervisor Dashboard",
+          description: "Moderate content, approve users and ensure quality on the TourConnect platform.",
+        },
+        bookings: {
+          title: "My Bookings",
+          description: "View and manage all your tour bookings in one place with TourConnect.",
+        },
+        createTour: {
+          title: "Create Tour",
+          description: "Share your local knowledge and create unique tour experiences for travelers visiting your area.",
+        },
+        editTour: {
+          title: "Edit Tour",
+          description: "Update your tour details, availability and pricing on TourConnect.",
+        },
+        createService: {
+          title: "Add Service",
+          description: "List your local business and connect with tourists looking for authentic local services.",
+        },
+      },
     },
   },
   it: {
@@ -1385,6 +1431,52 @@ const resources = {
         },
         errors: {
           roleSetError: "Impossibile impostare il ruolo. Riprova.",
+        },
+      },
+      seo: {
+        landing: {
+          title: "Scopri Esperienze Locali Autentiche",
+          description: "Connettiti con guide locali certificate, prenota esperienze autentiche e scopri servizi locali. La piattaforma turistica che unisce viaggiatori e comunità locali.",
+        },
+        tours: {
+          title: "Tour Locali",
+          description: "Esplora tour autentici con guide certificate. Prenota esperienze uniche nella tua destinazione con TourConnect.",
+        },
+        profile: {
+          title: "Il Mio Profilo",
+          description: "Gestisci il tuo profilo TourConnect, aggiorna le tue informazioni e visualizza le tue prenotazioni.",
+        },
+        touristDashboard: {
+          title: "Dashboard Turista",
+          description: "Scopri fantastici tour locali, prenota esperienze ed esplora nuove destinazioni con TourConnect.",
+        },
+        guideDashboard: {
+          title: "Dashboard Guida",
+          description: "Gestisci i tuoi tour, monitora le prenotazioni e condividi la tua esperienza locale con viaggiatori di tutto il mondo.",
+        },
+        providerDashboard: {
+          title: "Dashboard Fornitore",
+          description: "Gestisci i tuoi servizi, connettiti con i turisti e fai crescere la tua attività locale con TourConnect.",
+        },
+        supervisorDashboard: {
+          title: "Dashboard Supervisore",
+          description: "Modera i contenuti, approva gli utenti e garantisci la qualità sulla piattaforma TourConnect.",
+        },
+        bookings: {
+          title: "Le Mie Prenotazioni",
+          description: "Visualizza e gestisci tutte le tue prenotazioni di tour in un unico posto con TourConnect.",
+        },
+        createTour: {
+          title: "Crea Tour",
+          description: "Condividi la tua conoscenza locale e crea esperienze di tour uniche per i viaggiatori che visitano la tua zona.",
+        },
+        editTour: {
+          title: "Modifica Tour",
+          description: "Aggiorna i dettagli del tuo tour, la disponibilità e i prezzi su TourConnect.",
+        },
+        createService: {
+          title: "Aggiungi Servizio",
+          description: "Elenca la tua attività locale e connettiti con i turisti alla ricerca di servizi locali autentici.",
         },
       },
     },
@@ -2071,6 +2163,52 @@ const resources = {
           roleSetError: "Rolle konnte nicht festgelegt werden. Bitte versuchen Sie es erneut.",
         },
       },
+      seo: {
+        landing: {
+          title: "Entdecken Sie Authentische Lokale Erlebnisse",
+          description: "Verbinden Sie sich mit zertifizierten lokalen Guides, buchen Sie authentische Erlebnisse und entdecken Sie lokale Dienstleistungen. Die Tourismus-Plattform, die Reisende mit lokalen Gemeinden verbindet.",
+        },
+        tours: {
+          title: "Lokale Touren",
+          description: "Erkunden Sie authentische Touren mit zertifizierten Guides. Buchen Sie einzigartige Erlebnisse an Ihrem Reiseziel mit TourConnect.",
+        },
+        profile: {
+          title: "Mein Profil",
+          description: "Verwalten Sie Ihr TourConnect-Profil, aktualisieren Sie Ihre Informationen und sehen Sie Ihre Buchungen ein.",
+        },
+        touristDashboard: {
+          title: "Touristen-Dashboard",
+          description: "Entdecken Sie erstaunliche lokale Touren, buchen Sie Erlebnisse und erkunden Sie neue Reiseziele mit TourConnect.",
+        },
+        guideDashboard: {
+          title: "Reiseleiter-Dashboard",
+          description: "Verwalten Sie Ihre Touren, verfolgen Sie Buchungen und teilen Sie Ihr lokales Fachwissen mit Reisenden aus der ganzen Welt.",
+        },
+        providerDashboard: {
+          title: "Dienstleister-Dashboard",
+          description: "Verwalten Sie Ihre Dienste, verbinden Sie sich mit Touristen und lassen Sie Ihr lokales Geschäft mit TourConnect wachsen.",
+        },
+        supervisorDashboard: {
+          title: "Supervisor-Dashboard",
+          description: "Moderieren Sie Inhalte, genehmigen Sie Benutzer und gewährleisten Sie Qualität auf der TourConnect-Plattform.",
+        },
+        bookings: {
+          title: "Meine Buchungen",
+          description: "Sehen und verwalten Sie alle Ihre Tourbuchungen an einem Ort mit TourConnect.",
+        },
+        createTour: {
+          title: "Tour Erstellen",
+          description: "Teilen Sie Ihr lokales Wissen und erstellen Sie einzigartige Tourerlebnisse für Reisende, die Ihre Gegend besuchen.",
+        },
+        editTour: {
+          title: "Tour Bearbeiten",
+          description: "Aktualisieren Sie Ihre Tourdetails, Verfügbarkeit und Preise auf TourConnect.",
+        },
+        createService: {
+          title: "Service Hinzufügen",
+          description: "Listen Sie Ihr lokales Geschäft auf und verbinden Sie sich mit Touristen, die nach authentischen lokalen Diensten suchen.",
+        },
+      },
     },
   },
   fr: {
@@ -2755,6 +2893,52 @@ const resources = {
           roleSetError: "Impossible de définir le rôle. Veuillez réessayer.",
         },
       },
+      seo: {
+        landing: {
+          title: "Découvrez des Expériences Locales Authentiques",
+          description: "Connectez-vous avec des guides locaux certifiés, réservez des expériences authentiques et découvrez des services locaux. La plateforme touristique qui relie les voyageurs aux communautés locales.",
+        },
+        tours: {
+          title: "Circuits Locaux",
+          description: "Explorez des circuits authentiques avec des guides certifiés. Réservez des expériences uniques à votre destination avec TourConnect.",
+        },
+        profile: {
+          title: "Mon Profil",
+          description: "Gérez votre profil TourConnect, mettez à jour vos informations et consultez vos réservations.",
+        },
+        touristDashboard: {
+          title: "Tableau de Bord Touriste",
+          description: "Découvrez de superbes circuits locaux, réservez des expériences et explorez de nouvelles destinations avec TourConnect.",
+        },
+        guideDashboard: {
+          title: "Tableau de Bord Guide",
+          description: "Gérez vos circuits, suivez les réservations et partagez votre expertise locale avec des voyageurs du monde entier.",
+        },
+        providerDashboard: {
+          title: "Tableau de Bord Prestataire",
+          description: "Gérez vos services, connectez-vous avec les touristes et développez votre entreprise locale avec TourConnect.",
+        },
+        supervisorDashboard: {
+          title: "Tableau de Bord Superviseur",
+          description: "Modérez le contenu, approuvez les utilisateurs et assurez la qualité sur la plateforme TourConnect.",
+        },
+        bookings: {
+          title: "Mes Réservations",
+          description: "Consultez et gérez toutes vos réservations de circuits en un seul endroit avec TourConnect.",
+        },
+        createTour: {
+          title: "Créer un Circuit",
+          description: "Partagez vos connaissances locales et créez des expériences de circuits uniques pour les voyageurs visitant votre région.",
+        },
+        editTour: {
+          title: "Modifier le Circuit",
+          description: "Mettez à jour les détails de votre circuit, la disponibilité et les tarifs sur TourConnect.",
+        },
+        createService: {
+          title: "Ajouter un Service",
+          description: "Listez votre entreprise locale et connectez-vous avec les touristes à la recherche de services locaux authentiques.",
+        },
+      },
     },
   },
   es: {
@@ -3437,6 +3621,52 @@ const resources = {
         },
         errors: {
           roleSetError: "No se pudo establecer el rol. Por favor, inténtalo de nuevo.",
+        },
+      },
+      seo: {
+        landing: {
+          title: "Descubre Experiencias Locales Auténticas",
+          description: "Conéctate con guías locales certificados, reserva experiencias auténticas y descubre servicios locales. La plataforma turística que une viajeros con comunidades locales.",
+        },
+        tours: {
+          title: "Tours Locales",
+          description: "Explora tours auténticos con guías certificados. Reserva experiencias únicas en tu destino con TourConnect.",
+        },
+        profile: {
+          title: "Mi Perfil",
+          description: "Gestiona tu perfil de TourConnect, actualiza tu información y visualiza tus reservas.",
+        },
+        touristDashboard: {
+          title: "Panel Turista",
+          description: "Descubre increíbles tours locales, reserva experiencias y explora nuevos destinos con TourConnect.",
+        },
+        guideDashboard: {
+          title: "Panel Guía",
+          description: "Gestiona tus tours, rastrea reservas y comparte tu experiencia local con viajeros de todo el mundo.",
+        },
+        providerDashboard: {
+          title: "Panel Proveedor",
+          description: "Gestiona tus servicios, conéctate con turistas y haz crecer tu negocio local con TourConnect.",
+        },
+        supervisorDashboard: {
+          title: "Panel Supervisor",
+          description: "Modera contenido, aprueba usuarios y asegura la calidad en la plataforma TourConnect.",
+        },
+        bookings: {
+          title: "Mis Reservas",
+          description: "Visualiza y gestiona todas tus reservas de tours en un solo lugar con TourConnect.",
+        },
+        createTour: {
+          title: "Crear Tour",
+          description: "Comparte tu conocimiento local y crea experiencias de tours únicas para viajeros que visitan tu área.",
+        },
+        editTour: {
+          title: "Editar Tour",
+          description: "Actualiza los detalles de tu tour, disponibilidad y precios en TourConnect.",
+        },
+        createService: {
+          title: "Agregar Servicio",
+          description: "Lista tu negocio local y conéctate con turistas que buscan servicios locales auténticos.",
         },
       },
     },

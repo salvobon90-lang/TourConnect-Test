@@ -5,12 +5,18 @@ import { Input } from '@/components/ui/input';
 import { MapPin, Search, Star, Users, Calendar, Globe2, Shield, Compass } from 'lucide-react';
 import { Link } from 'wouter';
 import { Logo } from '@/components/logo';
+import { SEO } from '@/components/seo';
 
 export default function Landing() {
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO 
+        title={t('seo.landing.title')}
+        description={t('seo.landing.description')}
+      />
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 z-50 bg-transparent">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -162,5 +168,6 @@ export default function Landing() {
         </div>
       </section>
     </div>
+    </>
   );
 }
