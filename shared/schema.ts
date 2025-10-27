@@ -42,6 +42,14 @@ export type ProviderType = typeof providerTypes[number];
 export const tourCategories = ["walking", "food", "adventure", "cultural", "historical", "nature", "art", "nightlife"] as const;
 export type TourCategory = typeof tourCategories[number];
 
+// Sponsorship duration enum
+export const sponsorshipDurations = ["weekly", "monthly"] as const;
+export type SponsorshipDuration = typeof sponsorshipDurations[number];
+
+// Sponsorship status enum
+export const sponsorshipStatuses = ["pending", "active", "expired", "cancelled"] as const;
+export type SponsorshipStatus = typeof sponsorshipStatuses[number];
+
 // User storage table - Required for Replit Auth with role extension
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -203,6 +211,38 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   }),
 }));
 
+// Sponsorships table - for promoting tours and services
+export const sponsorships = pgTable("sponsorships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tourId: varchar("tour_id").references(() => tours.id, { onDelete: "cascade" }),
+  serviceId: varchar("service_id").references(() => services.id, { onDelete: "cascade" }),
+  duration: varchar("duration", { length: 20 }).notNull(), // weekly, monthly
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, active, expired, cancelled
+  startsAt: timestamp("starts_at"),
+  expiresAt: timestamp("expires_at"),
+  stripePaymentIntentId: varchar("stripe_payment_intent_id"),
+  stripeCheckoutSessionId: varchar("stripe_checkout_session_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const sponsorshipsRelations = relations(sponsorships, ({ one }) => ({
+  user: one(users, {
+    fields: [sponsorships.userId],
+    references: [users.id],
+  }),
+  tour: one(tours, {
+    fields: [sponsorships.tourId],
+    references: [tours.id],
+  }),
+  service: one(services, {
+    fields: [sponsorships.serviceId],
+    references: [services.id],
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -254,6 +294,18 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
   updatedAt: true,
 });
 
+export const insertSponsorshipSchema = createInsertSchema(sponsorships).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  duration: z.enum(sponsorshipDurations),
+  tourId: z.string().optional().nullable(),
+  serviceId: z.string().optional().nullable(),
+}).refine((data) => data.tourId || data.serviceId, {
+  message: "Either tourId or serviceId must be provided",
+});
+
 // TypeScript types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -265,6 +317,8 @@ export type InsertBooking = z.infer<typeof insertBookingSchema>;
 export type Booking = typeof bookings.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type Review = typeof reviews.$inferSelect;
+export type InsertSponsorship = z.infer<typeof insertSponsorshipSchema>;
+export type Sponsorship = typeof sponsorships.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {
