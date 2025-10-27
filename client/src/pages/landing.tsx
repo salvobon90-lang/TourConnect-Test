@@ -21,10 +21,10 @@ export default function Landing() {
         />
         <div className="relative z-10 text-center max-w-5xl mx-auto px-4">
           <h1 className="text-5xl md:text-7xl font-serif font-bold text-white mb-6">
-            {t('welcome')}
+            {t('landing.heroTitle')}
           </h1>
           <p className="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Discover authentic experiences with local guides, explore amazing destinations, and connect with trusted service providers
+            {t('landing.heroSubtitle')}
           </p>
           
           {/* Search Bar */}
@@ -33,7 +33,7 @@ export default function Landing() {
               <div className="flex-1 relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
-                  placeholder="Where do you want to go?"
+                  placeholder={t('landing.searchPlaceholderLocation')}
                   className="pl-10"
                   data-testid="input-search-location"
                 />
@@ -48,7 +48,7 @@ export default function Landing() {
               </div>
               <Button size="lg" className="md:w-auto" data-testid="button-search">
                 <Search className="w-5 h-5 mr-2" />
-                {t('search')}
+                {t('landing.searchButton')}
               </Button>
             </div>
           </Card>
@@ -58,20 +58,20 @@ export default function Landing() {
               <Link href="/tours">
                 <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20" data-testid="button-browse-tours">
                   <Compass className="w-5 h-5 mr-2" />
-                  Browse Tours
+                  {t('landing.exploreTours')}
                 </Button>
               </Link>
               <a href="/api/login">
                 <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20" data-testid="button-login">
                   <Globe2 className="w-5 h-5 mr-2" />
-                  {t('login')}
+                  {t('navigation.login')}
                 </Button>
               </a>
             </div>
             
             <a href="/api/login" className="text-white/70 hover:text-white text-sm flex items-center gap-2 transition-colors" data-testid="link-supervisor-login">
               <Shield className="w-4 h-4" />
-              Accesso Moderatori
+              {t('roles.supervisor')}
             </a>
           </div>
         </div>
@@ -82,10 +82,10 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-serif font-semibold mb-4">
-              Why Choose TourConnect
+              {t('landing.whyChooseUs')}
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Connect with verified guides, discover unique experiences, and book with confidence
+              {t('landing.secureBookingDesc')}
             </p>
           </div>
 
@@ -94,9 +94,9 @@ export default function Landing() {
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
                 <Users className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="text-2xl font-semibold mb-3">Verified Guides</h3>
+              <h3 className="text-2xl font-semibold mb-3">{t('landing.localGuides')}</h3>
               <p className="text-muted-foreground">
-                All our tour guides are verified professionals with years of local expertise and passion for sharing their knowledge
+                {t('landing.localGuidesDesc')}
               </p>
             </Card>
 
@@ -104,9 +104,9 @@ export default function Landing() {
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
                 <Star className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="text-2xl font-semibold mb-3">Authentic Experiences</h3>
+              <h3 className="text-2xl font-semibold mb-3">{t('landing.verifiedServices')}</h3>
               <p className="text-muted-foreground">
-                Discover hidden gems and authentic local experiences that you won't find in typical tourist guides
+                {t('landing.verifiedServicesDesc')}
               </p>
             </Card>
 
@@ -114,9 +114,9 @@ export default function Landing() {
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
                 <MapPin className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="text-2xl font-semibold mb-3">Trusted Services</h3>
+              <h3 className="text-2xl font-semibold mb-3">{t('landing.secureBooking')}</h3>
               <p className="text-muted-foreground">
-                Access a curated selection of restaurants, shops, and transport services recommended by locals
+                {t('landing.secureBookingDesc')}
               </p>
             </Card>
           </div>
@@ -127,14 +127,14 @@ export default function Landing() {
       <section className="py-24 px-4 bg-primary/5">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl font-serif font-semibold mb-6">
-            Ready to Start Your Journey?
+            {t('landing.joinCommunity')}
           </h2>
           <p className="text-xl text-muted-foreground mb-8">
-            Join thousands of travelers discovering authentic experiences around the world
+            {t('landing.trustedBy')}
           </p>
           <a href="/api/login">
             <Button size="lg" data-testid="button-get-started">
-              Get Started Today
+              {t('common.getStarted')}
             </Button>
           </a>
         </div>

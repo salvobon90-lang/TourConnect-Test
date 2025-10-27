@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
 
 export default function Tours() {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState<string>('');
   const [priceFilter, setPriceFilter] = useState<string>('');
@@ -40,12 +42,12 @@ export default function Tours() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/">
             <a className="text-2xl font-serif font-semibold" data-testid="link-logo">
-              TourConnect
+              {t('common.appName')}
             </a>
           </Link>
           <a href="/api/login">
             <Button data-testid="button-login">
-              Log In
+              {t('navigation.login')}
             </Button>
           </a>
         </div>
@@ -62,10 +64,10 @@ export default function Tours() {
         />
         <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4">
-            Discover Amazing Tours
+            {t('tours.title')}
           </h1>
           <p className="text-xl text-white/90 mb-8">
-            Explore authentic experiences with local guides around the world
+            {t('landing.heroSubtitle')}
           </p>
           
           {/* Search Bar */}
@@ -75,7 +77,7 @@ export default function Tours() {
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
-                    placeholder="Search tours, places, or activities..."
+                    placeholder={t('tours.searchPlaceholder')}
                     className="pl-10"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -88,30 +90,30 @@ export default function Tours() {
               <div className="flex flex-wrap gap-2">
                 <Select value={category || "all"} onValueChange={(value) => setCategory(value === "all" ? "" : value)}>
                   <SelectTrigger className="w-40" data-testid="select-category">
-                    <SelectValue placeholder="Category" />
+                    <SelectValue placeholder={t('tours.category')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="walking">Walking</SelectItem>
-                    <SelectItem value="food">Food</SelectItem>
-                    <SelectItem value="adventure">Adventure</SelectItem>
-                    <SelectItem value="cultural">Cultural</SelectItem>
-                    <SelectItem value="historical">Historical</SelectItem>
-                    <SelectItem value="nature">Nature</SelectItem>
-                    <SelectItem value="art">Art</SelectItem>
-                    <SelectItem value="nightlife">Nightlife</SelectItem>
+                    <SelectItem value="all">{t('categories.all')}</SelectItem>
+                    <SelectItem value="walking">{t('categories.walking')}</SelectItem>
+                    <SelectItem value="food">{t('categories.food')}</SelectItem>
+                    <SelectItem value="adventure">{t('categories.adventure')}</SelectItem>
+                    <SelectItem value="cultural">{t('categories.cultural')}</SelectItem>
+                    <SelectItem value="historical">{t('categories.historical')}</SelectItem>
+                    <SelectItem value="nature">{t('categories.nature')}</SelectItem>
+                    <SelectItem value="art">{t('categories.art')}</SelectItem>
+                    <SelectItem value="nightlife">{t('categories.nightlife')}</SelectItem>
                   </SelectContent>
                 </Select>
                 
                 <Select value={priceFilter || "all"} onValueChange={(value) => setPriceFilter(value === "all" ? "" : value)}>
                   <SelectTrigger className="w-40" data-testid="select-price">
-                    <SelectValue placeholder="Price Range" />
+                    <SelectValue placeholder={t('tours.price')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Prices</SelectItem>
-                    <SelectItem value="low">Under $50</SelectItem>
-                    <SelectItem value="medium">$50 - $100</SelectItem>
-                    <SelectItem value="high">Over $100</SelectItem>
+                    <SelectItem value="all">{t('dashboards.tourist.filters.allPrices')}</SelectItem>
+                    <SelectItem value="low">{t('dashboards.tourist.filters.under50')}</SelectItem>
+                    <SelectItem value="medium">{t('dashboards.tourist.filters.range50to100')}</SelectItem>
+                    <SelectItem value="high">{t('dashboards.tourist.filters.over100')}</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -126,7 +128,7 @@ export default function Tours() {
                     }}
                     data-testid="button-clear-filters"
                   >
-                    Clear Filters
+                    {t('common.clearFilters')}
                   </Button>
                 )}
               </div>
@@ -140,9 +142,9 @@ export default function Tours() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-serif font-semibold">Available Tours</h2>
+              <h2 className="text-3xl font-serif font-semibold">{t('tours.title')}</h2>
               <p className="text-muted-foreground mt-2">
-                {tours ? `${tours.length} tours found` : 'Loading tours...'}
+                {tours ? `${tours.length} ${t('navigation.tours').toLowerCase()}` : t('common.loading')}
               </p>
             </div>
           </div>
@@ -168,9 +170,9 @@ export default function Tours() {
           {!isLoading && tours?.length === 0 && (
             <Card className="p-12 text-center">
               <MapPin className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-2xl font-semibold mb-2">No tours found</h3>
+              <h3 className="text-2xl font-semibold mb-2">{t('dashboards.tourist.noToursFound')}</h3>
               <p className="text-muted-foreground mb-6">
-                Try adjusting your filters or search terms
+                {t('dashboards.tourist.tryDifferentFilters')}
               </p>
               <Button 
                 onClick={() => {
@@ -180,7 +182,7 @@ export default function Tours() {
                 }}
                 data-testid="button-clear-all"
               >
-                Clear All Filters
+                {t('common.clearFilters')}
               </Button>
             </Card>
           )}
@@ -236,7 +238,7 @@ export default function Tours() {
                     </div>
                     <Link href={`/tours/${tour.id}`}>
                       <Button className="w-full" data-testid={`button-view-details-${tour.id}`}>
-                        View Details
+                        {t('common.viewDetails')}
                       </Button>
                     </Link>
                   </div>

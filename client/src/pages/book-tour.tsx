@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -25,6 +26,7 @@ const bookingSchema = z.object({
 type BookingFormData = z.infer<typeof bookingSchema>;
 
 export default function BookTour() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -69,8 +71,8 @@ export default function BookTour() {
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to create booking',
+        title: t('system.error'),
+        description: error.message || t('system.bookingFailed'),
         variant: 'destructive',
       });
     },
@@ -91,8 +93,8 @@ export default function BookTour() {
     },
     onError: (error: any) => {
       toast({
-        title: 'Payment Error',
-        description: error.message || 'Stripe is not configured. Payment simulation mode.',
+        title: t('system.paymentError'),
+        description: error.message || t('system.paymentSimulation'),
         variant: 'destructive',
       });
       
@@ -136,9 +138,9 @@ export default function BookTour() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="p-12 text-center">
-          <h2 className="text-2xl font-semibold mb-2">Tour not found</h2>
+          <h2 className="text-2xl font-semibold mb-2">{t('tourDetail.notFound')}</h2>
           <Link href="/">
-            <Button>Back to Home</Button>
+            <Button>{t('common.backToHome')}</Button>
           </Link>
         </Card>
       </div>
@@ -154,7 +156,7 @@ export default function BookTour() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <h1 className="text-2xl font-serif font-semibold">Book Tour</h1>
+          <h1 className="text-2xl font-serif font-semibold">{t('booking.bookTour')}</h1>
         </div>
       </header>
 
@@ -165,21 +167,21 @@ export default function BookTour() {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'details' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
               1
             </div>
-            <span className="font-medium">Details</span>
+            <span className="font-medium">{t('booking.details')}</span>
           </div>
           <div className="w-12 h-px bg-border" />
           <div className={`flex items-center gap-2 ${currentStep === 'payment' ? 'text-primary' : 'text-muted-foreground'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'payment' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
               2
             </div>
-            <span className="font-medium">Payment</span>
+            <span className="font-medium">{t('booking.payment')}</span>
           </div>
           <div className="w-12 h-px bg-border" />
           <div className={`flex items-center gap-2 ${currentStep === 'confirmation' ? 'text-primary' : 'text-muted-foreground'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'confirmation' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
               3
             </div>
-            <span className="font-medium">Confirm</span>
+            <span className="font-medium">{t('booking.confirm')}</span>
           </div>
         </div>
 
@@ -187,7 +189,7 @@ export default function BookTour() {
           <div className="lg:col-span-2">
             {currentStep === 'details' && (
               <Card className="p-6">
-                <h2 className="text-2xl font-semibold mb-6">Booking Details</h2>
+                <h2 className="text-2xl font-semibold mb-6">{t('booking.bookingDetails')}</h2>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmitDetails)} className="space-y-6">
                     <FormField
@@ -195,7 +197,7 @@ export default function BookTour() {
                       name="bookingDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Select Date</FormLabel>
+                          <FormLabel>{t('booking.selectDate')}</FormLabel>
                           <FormControl>
                             <Input type="date" {...field} data-testid="input-booking-date" />
                           </FormControl>
@@ -209,7 +211,7 @@ export default function BookTour() {
                       name="participants"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Number of Participants</FormLabel>
+                          <FormLabel>{t('booking.participants')}</FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
@@ -228,10 +230,10 @@ export default function BookTour() {
                       name="specialRequests"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Special Requests (Optional)</FormLabel>
+                          <FormLabel>{t('booking.specialRequests')}</FormLabel>
                           <FormControl>
                             <Textarea 
-                              placeholder="Any special requirements or requests..." 
+                              placeholder={t('booking.specialRequestsPlaceholder')} 
                               {...field} 
                               rows={4}
                               data-testid="input-special-requests"
@@ -243,7 +245,7 @@ export default function BookTour() {
                     />
 
                     <Button type="submit" className="w-full" disabled={createBookingMutation.isPending} data-testid="button-continue-payment">
-                      {createBookingMutation.isPending ? 'Processing...' : 'Continue to Payment'}
+                      {createBookingMutation.isPending ? t('common.processing') : t('booking.continueToPayment')}
                     </Button>
                   </form>
                 </Form>
@@ -252,19 +254,19 @@ export default function BookTour() {
 
             {currentStep === 'payment' && (
               <Card className="p-6">
-                <h2 className="text-2xl font-semibold mb-6">Payment</h2>
+                <h2 className="text-2xl font-semibold mb-6">{t('booking.payment')}</h2>
                 <div className="space-y-6">
                   <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
                     <CreditCard className="w-8 h-8 text-primary" />
                     <div>
-                      <p className="font-medium">Secure Payment</p>
-                      <p className="text-sm text-muted-foreground">Your payment is encrypted and secure</p>
+                      <p className="font-medium">{t('booking.securePayment')}</p>
+                      <p className="text-sm text-muted-foreground">{t('booking.paymentSecureDesc')}</p>
                     </div>
                   </div>
                   
                   <div className="p-4 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground mb-2">
-                      In a production environment, Stripe payment form would appear here
+                      {t('booking.paymentFormPlaceholder')}
                     </p>
                   </div>
 
@@ -274,7 +276,7 @@ export default function BookTour() {
                     disabled={processPaymentMutation.isPending}
                     data-testid="button-confirm-payment"
                   >
-                    {processPaymentMutation.isPending ? 'Processing Payment...' : 'Confirm Payment'}
+                    {processPaymentMutation.isPending ? t('booking.processingPayment') : t('booking.confirmPayment')}
                   </Button>
                 </div>
               </Card>
@@ -285,16 +287,16 @@ export default function BookTour() {
                 <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-6">
                   <CheckCircle className="w-12 h-12 text-green-600" />
                 </div>
-                <h2 className="text-3xl font-semibold mb-4">Booking Confirmed!</h2>
+                <h2 className="text-3xl font-semibold mb-4">{t('booking.confirmed')}</h2>
                 <p className="text-lg text-muted-foreground mb-8">
-                  Your booking has been confirmed. Check your email for details.
+                  {t('booking.confirmationMessage')}
                 </p>
                 <div className="flex gap-4 justify-center">
                   <Link href="/bookings">
-                    <Button variant="outline">View My Bookings</Button>
+                    <Button variant="outline">{t('booking.viewMyBookings')}</Button>
                   </Link>
                   <Link href="/">
-                    <Button>Browse More Tours</Button>
+                    <Button>{t('booking.browseMoreTours')}</Button>
                   </Link>
                 </div>
               </Card>
@@ -304,7 +306,7 @@ export default function BookTour() {
           {/* Summary sidebar */}
           <div className="lg:col-span-1">
             <Card className="p-6 sticky top-24">
-              <h3 className="font-semibold mb-4">Booking Summary</h3>
+              <h3 className="font-semibold mb-4">{t('booking.bookingSummary')}</h3>
               <div className="space-y-4">
                 <div>
                   <img
@@ -317,16 +319,16 @@ export default function BookTour() {
 
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Price per person</span>
+                    <span className="text-muted-foreground">{t('tourDetail.perPerson')}</span>
                     <span className="font-medium">${tour.price}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Participants</span>
+                    <span className="text-muted-foreground">{t('booking.participants')}</span>
                     <span className="font-medium">{participants}</span>
                   </div>
                   <div className="border-t pt-2">
                     <div className="flex justify-between font-semibold text-lg">
-                      <span>Total</span>
+                      <span>{t('booking.total')}</span>
                       <span>${totalAmount.toFixed(2)}</span>
                     </div>
                   </div>

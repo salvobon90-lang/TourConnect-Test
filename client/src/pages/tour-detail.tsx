@@ -1,5 +1,6 @@
 import { useParams, useLocation } from 'wouter';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function TourDetail() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
@@ -43,19 +45,19 @@ export default function TourDetail() {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: 'Success', description: 'Review submitted successfully!' });
+      toast({ title: t('system.success'), description: t('system.reviewSubmitted') });
       queryClient.invalidateQueries({ queryKey: [`/api/reviews?tourId=${id}`] });
       setComment('');
       setRating(5);
     },
     onError: () => {
-      toast({ title: 'Error', description: 'Failed to submit review', variant: 'destructive' });
+      toast({ title: t('system.error'), description: t('system.reviewSubmissionFailed'), variant: 'destructive' });
     },
   });
 
   const handleSubmitReview = () => {
     if (!comment.trim()) {
-      toast({ title: 'Error', description: 'Please add a comment', variant: 'destructive' });
+      toast({ title: t('system.error'), description: t('tourDetail.addCommentRequired'), variant: 'destructive' });
       return;
     }
     submitReviewMutation.mutate({ rating, comment });
@@ -86,10 +88,10 @@ export default function TourDetail() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="p-12 text-center">
-          <h2 className="text-2xl font-semibold mb-2">Tour not found</h2>
-          <p className="text-muted-foreground mb-6">The tour you're looking for doesn't exist.</p>
+          <h2 className="text-2xl font-semibold mb-2">{t('tourDetail.notFound')}</h2>
+          <p className="text-muted-foreground mb-6">{t('tourDetail.notFoundDesc')}</p>
           <Link href="/">
-            <Button>Back to Home</Button>
+            <Button>{t('common.backToHome')}</Button>
           </Link>
         </Card>
       </div>
@@ -130,7 +132,7 @@ export default function TourDetail() {
                   <div className="flex items-center gap-1">
                     <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
                     <span className="font-semibold">{averageRating.toFixed(1)}</span>
-                    <span className="text-muted-foreground">({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})</span>
+                    <span className="text-muted-foreground">({reviews.length} {t('tourDetail.reviews', { count: reviews.length })})</span>
                   </div>
                 </div>
                 <h2 className="text-3xl font-serif font-bold mb-4">{tour.title}</h2>
@@ -138,12 +140,12 @@ export default function TourDetail() {
               </div>
 
               <Card className="p-6">
-                <h3 className="text-xl font-semibold mb-4">What to Expect</h3>
+                <h3 className="text-xl font-semibold mb-4">{t('tourDetail.whatToExpect')}</h3>
                 <p className="text-foreground whitespace-pre-wrap">{tour.itinerary}</p>
               </Card>
 
               <Card className="p-6">
-                <h3 className="text-xl font-semibold mb-4">What's Included</h3>
+                <h3 className="text-xl font-semibold mb-4">{t('tourDetail.whatsIncluded')}</h3>
                 <ul className="list-disc list-inside space-y-2">
                   {tour.included.map((item, i) => (
                     <li key={i} className="text-foreground">{item}</li>
@@ -151,7 +153,7 @@ export default function TourDetail() {
                 </ul>
                 {tour.excluded.length > 0 && (
                   <>
-                    <h3 className="text-xl font-semibold mb-4 mt-6">What's Not Included</h3>
+                    <h3 className="text-xl font-semibold mb-4 mt-6">{t('tourDetail.whatsNotIncluded')}</h3>
                     <ul className="list-disc list-inside space-y-2">
                       {tour.excluded.map((item, i) => (
                         <li key={i} className="text-foreground">{item}</li>
@@ -162,7 +164,7 @@ export default function TourDetail() {
               </Card>
 
               <Card className="p-6">
-                <h3 className="text-xl font-semibold mb-4">Meeting Point</h3>
+                <h3 className="text-xl font-semibold mb-4">{t('tourDetail.meetingPoint')}</h3>
                 <div className="flex items-start gap-2">
                   <MapPin className="w-5 h-5 text-primary mt-1" />
                   <p className="text-foreground">{tour.meetingPoint}</p>
@@ -170,7 +172,7 @@ export default function TourDetail() {
               </Card>
 
               <Card className="p-6">
-                <h3 className="text-xl font-semibold mb-4">Your Guide</h3>
+                <h3 className="text-xl font-semibold mb-4">{t('tourDetail.yourGuide')}</h3>
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
                     <span className="text-2xl font-semibold text-primary">
@@ -181,23 +183,23 @@ export default function TourDetail() {
                     <p className="font-semibold text-lg">
                       {tour.guide.firstName} {tour.guide.lastName}
                     </p>
-                    <p className="text-muted-foreground">Professional Tour Guide</p>
+                    <p className="text-muted-foreground">{t('roles.guide')}</p>
                   </div>
                 </div>
               </Card>
 
               {/* Reviews Section */}
               <Card className="p-6">
-                <h3 className="text-xl font-semibold mb-6">Reviews ({reviews.length})</h3>
+                <h3 className="text-xl font-semibold mb-6">{t('tourDetail.reviews', { count: reviews.length })} ({reviews.length})</h3>
                 
                 {!user && (
                   <div className="mb-8 p-6 bg-muted/30 rounded-lg text-center">
                     <p className="text-muted-foreground mb-3">
-                      Log in to leave a review
+                      {t('tourDetail.loginToReview')}
                     </p>
                     <Link href="/role-selection">
                       <Button variant="outline" data-testid="button-login-to-review">
-                        Log In
+                        {t('navigation.login')}
                       </Button>
                     </Link>
                   </div>
@@ -205,9 +207,9 @@ export default function TourDetail() {
 
                 {user && user.role === 'tourist' && (
                   <div className="mb-8 p-4 bg-muted/30 rounded-lg">
-                    <h4 className="font-semibold mb-3">Write a Review</h4>
+                    <h4 className="font-semibold mb-3">{t('tourDetail.writeReview')}</h4>
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-sm font-medium">Your Rating:</span>
+                      <span className="text-sm font-medium">{t('tourDetail.yourRating')}:</span>
                       <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <button
@@ -229,7 +231,7 @@ export default function TourDetail() {
                       <span className="text-sm text-muted-foreground ml-2">{rating}/5</span>
                     </div>
                     <Textarea
-                      placeholder="Share your experience..."
+                      placeholder={t('tourDetail.shareExperience')}
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                       className="mb-3"
@@ -241,7 +243,7 @@ export default function TourDetail() {
                       disabled={submitReviewMutation.isPending}
                       data-testid="button-submit-review"
                     >
-                      {submitReviewMutation.isPending ? 'Submitting...' : 'Submit Review'}
+                      {submitReviewMutation.isPending ? t('common.submitting') : t('tourDetail.submitReview')}
                     </Button>
                   </div>
                 )}
@@ -249,7 +251,7 @@ export default function TourDetail() {
                 <div className="space-y-4">
                   {reviews.length === 0 && (
                     <p className="text-center text-muted-foreground py-8">
-                      No reviews yet. Be the first to review this tour!
+                      {t('tourDetail.noReviews')}
                     </p>
                   )}
                   {reviews.map((review) => (
@@ -277,7 +279,7 @@ export default function TourDetail() {
                           <p className="text-foreground">{review.comment}</p>
                           {review.response && (
                             <div className="mt-3 p-3 bg-muted/30 rounded-lg">
-                              <p className="text-sm font-semibold mb-1">Response from Guide:</p>
+                              <p className="text-sm font-semibold mb-1">{t('tourDetail.guideResponse')}:</p>
                               <p className="text-sm text-foreground">{review.response}</p>
                             </div>
                           )}
@@ -297,7 +299,7 @@ export default function TourDetail() {
                 <div>
                   <div className="flex items-baseline gap-2 mb-4">
                     <span className="text-4xl font-bold">${tour.price}</span>
-                    <span className="text-muted-foreground">per person</span>
+                    <span className="text-muted-foreground">{t('tourDetail.perPerson')}</span>
                   </div>
                 </div>
 
@@ -310,11 +312,11 @@ export default function TourDetail() {
                   </div>
                   <div className="flex items-center gap-3 text-foreground">
                     <Users className="w-5 h-5 text-muted-foreground" />
-                    <span>Max {tour.maxGroupSize} people</span>
+                    <span>{t('tourDetail.maxPeople', { count: tour.maxGroupSize })}</span>
                   </div>
                   <div className="flex items-center gap-3 text-foreground">
                     <Calendar className="w-5 h-5 text-muted-foreground" />
-                    <span>Available daily</span>
+                    <span>{t('tourDetail.availableDaily')}</span>
                   </div>
                 </div>
 
@@ -325,7 +327,7 @@ export default function TourDetail() {
                     onClick={() => setLocation(`/book/${tour.id}`)}
                     data-testid="button-book-now"
                   >
-                    Book Now
+                    {t('actions.bookNow')}
                   </Button>
                 ) : (
                   <Link href="/role-selection">
@@ -335,13 +337,13 @@ export default function TourDetail() {
                       variant="outline"
                       data-testid="button-login-to-book"
                     >
-                      Log In to Book
+                      {t('tourDetail.loginToBook')}
                     </Button>
                   </Link>
                 )}
 
                 <p className="text-sm text-center text-muted-foreground">
-                  Free cancellation up to 24 hours before the tour
+                  {t('tourDetail.freeCancellation')}
                 </p>
               </div>
             </Card>
