@@ -8,6 +8,7 @@ import Stripe from "stripe";
 import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import { chatWithAssistant, chatWithAssistantStream, getTourRecommendations } from "./openai";
 
 // Try production key first, then testing key
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || process.env.TESTING_STRIPE_SECRET_KEY;
@@ -1622,7 +1623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { BADGES } = await import('@shared/badges');
-      const badgesWithDetails = user.badges.map(badgeId => {
+      const badgesWithDetails = (user.badges || []).map(badgeId => {
         const badge = Object.values(BADGES).find(b => b.id === badgeId);
         return badge || null;
       }).filter(Boolean);
@@ -1683,6 +1684,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { SUBSCRIPTION_TIERS } = await import('@shared/subscriptions');
       const tierKey = tier.toUpperCase().replace('-', '_') as keyof typeof SUBSCRIPTION_TIERS;
       const tierConfig = SUBSCRIPTION_TIERS[tierKey];
+      
+      if (!('stripePriceId' in tierConfig)) {
+        return res.status(400).json({ message: 'Invalid subscription tier' });
+      }
       
       const session = await stripe.checkout.sessions.create({
         customer_email: req.user.email,
@@ -1769,7 +1774,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Payment not completed' });
       }
       
-      const stripeSubscription = await stripe.subscriptions.retrieve(
+      const stripeSubscriptionResponse = await stripe.subscriptions.retrieve(
         session.subscription as string
       );
       
@@ -1779,11 +1784,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         tier: session.metadata!.tier,
         stripeCustomerId: session.customer as string,
-        stripeSubscriptionId: stripeSubscription.id,
-        stripePriceId: stripeSubscription.items.data[0].price.id,
+        stripeSubscriptionId: stripeSubscriptionResponse.id,
+        stripePriceId: stripeSubscriptionResponse.items.data[0].price.id,
         status: 'active',
-        currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-        currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+        currentPeriodStart: new Date((stripeSubscriptionResponse as any).current_period_start * 1000),
+        currentPeriodEnd: new Date((stripeSubscriptionResponse as any).current_period_end * 1000),
         cancelAtPeriodEnd: false
       };
       
@@ -1847,11 +1852,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const dbSub = await storage.getSubscriptionByStripeId(subscription.id);
           if (dbSub) {
-            await storage.updateSubscription(dbSub.id, {
-              currentPeriodStart: new Date(subscription.current_period_start * 1000),
-              currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-              status: subscription.status
-            });
+            const sub = subscription as any;
+            if (sub.current_period_start && sub.current_period_end) {
+              await storage.updateSubscription(dbSub.id, {
+                currentPeriodStart: new Date(sub.current_period_start * 1000),
+                currentPeriodEnd: new Date(sub.current_period_end * 1000),
+                status: subscription.status
+              });
+            }
           }
           break;
         }
@@ -1870,11 +1878,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         case 'invoice.payment_failed': {
-          const invoice = event.data.object as Stripe.Invoice;
+          const invoice = event.data.object as any;
           
-          if (invoice.subscription) {
+          if (invoice.subscription && typeof invoice.subscription === 'string') {
             await storage.updateSubscriptionStatus(
-              invoice.subscription as string,
+              invoice.subscription,
               'past_due'
             );
           }
@@ -1882,11 +1890,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         case 'invoice.payment_succeeded': {
-          const invoice = event.data.object as Stripe.Invoice;
+          const invoice = event.data.object as any;
           
-          if (invoice.subscription) {
+          if (invoice.subscription && typeof invoice.subscription === 'string') {
             await storage.updateSubscriptionStatus(
-              invoice.subscription as string,
+              invoice.subscription,
               'active'
             );
           }
@@ -1899,6 +1907,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('[Stripe] Webhook handler error:', error);
       res.status(500).json({ message: "Webhook handler error" });
     }
+  });
+
+  // AI Assistant endpoints
+  app.post('/api/ai/chat', isAuthenticated, async (req: any, res) => {
+    const schema = z.object({
+      messages: z.array(z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string().min(1).max(1000)
+      })).min(1).max(20)
+    });
+    
+    try {
+      const { messages } = schema.parse(req.body);
+      
+      const response = await chatWithAssistant(
+        messages,
+        req.user.claims.sub
+      );
+      
+      res.json({ response });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: 'Invalid request data',
+          errors: error.errors 
+        });
+      }
+      console.error('[OpenAI] Chat error:', error);
+      res.status(500).json({ 
+        message: 'AI assistant is temporarily unavailable' 
+      });
+    }
+  });
+
+  app.post('/api/ai/chat/stream', isAuthenticated, async (req: any, res) => {
+    const schema = z.object({
+      messages: z.array(z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string().min(1).max(1000)
+      })).min(1).max(20)
+    });
+    
+    try {
+      const { messages } = schema.parse(req.body);
+      
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      const stream = chatWithAssistantStream(messages, req.user.claims.sub);
+      
+      for await (const chunk of stream) {
+        res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+      }
+      
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: 'Invalid request data',
+          errors: error.errors 
+        });
+      }
+      console.error('[OpenAI] Streaming error:', error);
+      res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
+      res.end();
+    }
+  });
+
+  app.post('/api/ai/tour-recommendations', isAuthenticated, async (req: any, res) => {
+    const schema = z.object({
+      query: z.string().min(5).max(500),
+      location: z.string().optional(),
+      maxPrice: z.number().optional()
+    });
+    
+    try {
+      const { query, location, maxPrice } = schema.parse(req.body);
+      
+      let tours = await storage.getTours();
+      
+      if (location) {
+        tours = tours.filter(t => t.meetingPoint.includes(location));
+      }
+      if (maxPrice) {
+        tours = tours.filter(t => t.price && parseFloat(t.price.toString()) <= maxPrice);
+      }
+      
+      const availableTours = tours.slice(0, 10).map(t => ({
+        name: t.title,
+        description: t.description,
+        location: t.meetingPoint,
+        price: parseFloat(t.price?.toString() || '0')
+      }));
+      
+      const recommendations = await getTourRecommendations(
+        query,
+        availableTours,
+        req.user.claims.sub
+      );
+      
+      res.json({ recommendations });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: 'Invalid request data',
+          errors: error.errors 
+        });
+      }
+      console.error('[OpenAI] Recommendations error:', error);
+      res.status(500).json({ 
+        message: 'Could not generate recommendations' 
+      });
+    }
+  });
+
+  app.get('/api/ai/suggestions', async (req, res) => {
+    const suggestions = [
+      "What are the best tours in Rome?",
+      "Show me family-friendly activities",
+      "What should I do in Paris for 3 days?",
+      "Recommend adventure tours",
+      "Best food tours in Italy",
+      "Hidden gems in Barcelona",
+      "Weekend getaway ideas"
+    ];
+    
+    res.json(suggestions);
   });
 
   const httpServer = createServer(app);
