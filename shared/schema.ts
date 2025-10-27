@@ -72,7 +72,7 @@ export const tours = pgTable("tours", {
   description: text("description").notNull(),
   itinerary: text("itinerary").notNull(),
   category: varchar("category", { length: 50 }).notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }),
   duration: integer("duration").notNull(), // in minutes
   maxGroupSize: integer("max_group_size").notNull(),
   images: text("images").array().notNull().default(sql`ARRAY[]::text[]`),
@@ -82,6 +82,10 @@ export const tours = pgTable("tours", {
   languages: text("languages").array().notNull().default(sql`ARRAY[]::text[]`),
   included: text("included").array().notNull().default(sql`ARRAY[]::text[]`),
   excluded: text("excluded").array().notNull().default(sql`ARRAY[]::text[]`),
+  availableDates: text("available_dates").array().notNull().default(sql`ARRAY[]::text[]`), // ISO date strings
+  approvalStatus: varchar("approval_status", { length: 20 }).notNull().default("pending"), // pending, approved, rejected
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
