@@ -10,6 +10,7 @@ import { Plus, Store, DollarSign, Star, ShoppingBag, Calendar } from 'lucide-rea
 import type { Service } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 export default function ProviderDashboard() {
   const { t } = useTranslation();
@@ -19,15 +20,15 @@ export default function ProviderDashboard() {
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       toast({
-        title: 'Unauthorized',
-        description: 'You are logged out. Logging in again...',
+        title: t('system.unauthorized'),
+        description: t('system.unauthorizedDesc'),
         variant: 'destructive',
       });
       setTimeout(() => {
         window.location.href = '/api/login';
       }, 500);
     }
-  }, [isAuthenticated, authLoading, toast]);
+  }, [isAuthenticated, authLoading, toast, t]);
 
   const { data: services, isLoading: servicesLoading } = useQuery<Service[]>({
     queryKey: ['/api/services/my-services'],
@@ -53,32 +54,33 @@ export default function ProviderDashboard() {
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-serif font-semibold">TourConnect</h1>
+            <h1 className="text-2xl font-serif font-semibold">{t('common.appName')}</h1>
             <nav className="hidden md:flex gap-6">
               <Link href="/">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-my-services">
-                  {t('myServices')}
+                  {t('navigation.myServices')}
                 </a>
               </Link>
               <Link href="/offers">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-offers">
-                  {t('offers')}
+                  {t('navigation.offers')}
                 </a>
               </Link>
               <Link href="/insights">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-insights">
-                  {t('insights')}
+                  {t('navigation.insights')}
                 </a>
               </Link>
             </nav>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
               {user?.firstName || user?.email}
             </span>
+            <LanguageSwitcher />
             <a href="/api/logout">
               <Button variant="outline" size="sm" data-testid="button-logout">
-                {t('logout')}
+                {t('navigation.logout')}
               </Button>
             </a>
           </div>
@@ -95,15 +97,15 @@ export default function ProviderDashboard() {
         />
         <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
           <h2 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4">
-            Welcome, {user?.firstName || 'Provider'}!
+            {t('dashboards.provider.welcomeMessage', { name: user?.firstName || t('roles.provider') })}
           </h2>
           <p className="text-xl text-white/90 mb-6">
-            Manage your services and grow your business
+            {t('dashboards.provider.subtitle')}
           </p>
           <Link href="/create-service">
             <Button size="lg" className="bg-white/10 backdrop-blur-md border-white/20 border hover:bg-white/20" data-testid="button-add-service">
               <Plus className="w-5 h-5 mr-2" />
-              Add New Service
+              {t('dashboards.provider.addNewService')}
             </Button>
           </Link>
         </div>
@@ -119,7 +121,7 @@ export default function ProviderDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">{services?.length || 0}</p>
-                <p className="text-sm text-muted-foreground">Services</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.provider.stats.services')}</p>
               </div>
             </div>
           </Card>
@@ -130,7 +132,7 @@ export default function ProviderDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">{stats?.totalOrders || 0}</p>
-                <p className="text-sm text-muted-foreground">Orders</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.provider.stats.orders')}</p>
               </div>
             </div>
           </Card>
@@ -141,7 +143,7 @@ export default function ProviderDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">{stats?.avgRating?.toFixed(1) || '5.0'}</p>
-                <p className="text-sm text-muted-foreground">Avg Rating</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.provider.stats.avgRating')}</p>
               </div>
             </div>
           </Card>
@@ -152,7 +154,7 @@ export default function ProviderDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">${stats?.totalRevenue || 0}</p>
-                <p className="text-sm text-muted-foreground">Revenue</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.provider.stats.revenue')}</p>
               </div>
             </div>
           </Card>
@@ -163,11 +165,11 @@ export default function ProviderDashboard() {
       <section className="py-12 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-serif font-semibold">My Services</h2>
+            <h2 className="text-3xl font-serif font-semibold">{t('dashboards.provider.myServices')}</h2>
             <Link href="/create-service">
               <Button data-testid="button-add-new-service">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Service
+                {t('dashboards.provider.addService')}
               </Button>
             </Link>
           </div>
@@ -198,7 +200,7 @@ export default function ProviderDashboard() {
                     {service.specialOffer && (
                       <div className="absolute top-3 right-3">
                         <Badge className="bg-destructive text-destructive-foreground">
-                          Special Offer
+                          {t('dashboards.provider.specialOffer')}
                         </Badge>
                       </div>
                     )}
@@ -207,7 +209,7 @@ export default function ProviderDashboard() {
                     <div className="flex items-center gap-2 mb-2">
                       <Badge variant="secondary">{service.type}</Badge>
                       <Badge variant={service.isActive ? 'default' : 'secondary'}>
-                        {service.isActive ? 'Active' : 'Inactive'}
+                        {service.isActive ? t('status.active') : t('status.inactive')}
                       </Badge>
                     </div>
                     <h3 className="text-xl font-semibold mb-2">{service.name}</h3>
@@ -224,8 +226,8 @@ export default function ProviderDashboard() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1">Edit</Button>
-                      <Button variant="outline" size="sm" className="flex-1">Stats</Button>
+                      <Button variant="outline" size="sm" className="flex-1">{t('common.edit')}</Button>
+                      <Button variant="outline" size="sm" className="flex-1">{t('dashboards.provider.stats')}</Button>
                     </div>
                   </div>
                 </Card>
@@ -234,14 +236,14 @@ export default function ProviderDashboard() {
           ) : (
             <Card className="p-12 text-center">
               <Store className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No services yet</h3>
+              <h3 className="text-xl font-semibold mb-2">{t('dashboards.provider.noServices')}</h3>
               <p className="text-muted-foreground mb-6">
-                Add your first service and start connecting with tourists!
+                {t('dashboards.provider.noServicesDesc')}
               </p>
               <Link href="/create-service">
                 <Button data-testid="button-add-first-service">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Your First Service
+                  {t('dashboards.provider.addFirstService')}
                 </Button>
               </Link>
             </Card>

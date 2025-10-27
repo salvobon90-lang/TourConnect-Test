@@ -5,14 +5,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Globe } from 'lucide-react';
+import { Globe, Check } from 'lucide-react';
 
 const languages = [
-  { code: 'en', name: 'English', flag: '🇬🇧' },
-  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
-  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'en', name: 'English' },
+  { code: 'it', name: 'Italiano' },
+  { code: 'de', name: 'Deutsch' },
+  { code: 'fr', name: 'Français' },
+  { code: 'es', name: 'Español' },
 ];
 
 export function LanguageSwitcher() {
@@ -46,14 +46,14 @@ export function LanguageSwitcher() {
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors hover-elevate active-elevate-2 ${
                 i18n.language === lang.code
                   ? 'bg-accent text-accent-foreground'
-                  : 'hover:bg-accent/50'
+                  : ''
               }`}
               data-testid={`language-option-${lang.code}`}
             >
-              <span className="text-lg">{lang.flag}</span>
+              <Globe className="w-4 h-4" />
               <span className="flex-1 text-left font-medium">{lang.name}</span>
               {i18n.language === lang.code && (
-                <span className="text-xs text-primary">✓</span>
+                <Check className="w-4 h-4 text-primary" />
               )}
             </button>
           ))}

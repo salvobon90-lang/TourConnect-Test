@@ -11,6 +11,7 @@ import { Plus, MapPin, DollarSign, Star, Users, Calendar, Edit2, Trash2 } from '
 import type { Tour } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link, useLocation } from 'wouter';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 export default function GuideDashboard() {
   const { t } = useTranslation();
@@ -21,15 +22,15 @@ export default function GuideDashboard() {
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       toast({
-        title: 'Unauthorized',
-        description: 'You are logged out. Logging in again...',
+        title: t('system.unauthorized'),
+        description: t('system.unauthorizedDesc'),
         variant: 'destructive',
       });
       setTimeout(() => {
         window.location.href = '/api/login';
       }, 500);
     }
-  }, [isAuthenticated, authLoading, toast]);
+  }, [isAuthenticated, authLoading, toast, t]);
 
   const { data: tours, isLoading: toursLoading } = useQuery<Tour[]>({
     queryKey: ['/api/my-tours'],
@@ -48,8 +49,8 @@ export default function GuideDashboard() {
     },
     onSuccess: (_, tourId) => {
       toast({
-        title: 'Success',
-        description: 'Tour deleted successfully',
+        title: t('common.success'),
+        description: t('system.deleteTourSuccess'),
       });
       // Invalidate all tour-related queries
       queryClient.invalidateQueries({ queryKey: ['/api/my-tours'] });
@@ -58,8 +59,8 @@ export default function GuideDashboard() {
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete tour',
+        title: t('common.error'),
+        description: error.message || t('system.deleteTourError'),
         variant: 'destructive',
       });
     },
@@ -79,32 +80,33 @@ export default function GuideDashboard() {
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-serif font-semibold">TourConnect</h1>
+            <h1 className="text-2xl font-serif font-semibold">{t('common.appName')}</h1>
             <nav className="hidden md:flex gap-6">
               <Link href="/">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-my-tours">
-                  {t('myTours')}
+                  {t('navigation.myTours')}
                 </a>
               </Link>
               <Link href="/bookings">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-bookings">
-                  {t('bookings')}
+                  {t('navigation.bookings')}
                 </a>
               </Link>
               <Link href="/analytics">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-analytics">
-                  {t('analytics')}
+                  {t('navigation.analytics')}
                 </a>
               </Link>
             </nav>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
               {user?.firstName || user?.email}
             </span>
+            <LanguageSwitcher />
             <a href="/api/logout">
               <Button variant="outline" size="sm" data-testid="button-logout">
-                {t('logout')}
+                {t('navigation.logout')}
               </Button>
             </a>
           </div>
@@ -121,15 +123,15 @@ export default function GuideDashboard() {
         />
         <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
           <h2 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4">
-            Welcome, {user?.firstName || 'Guide'}!
+            {t('dashboards.guide.welcomeMessage', { name: user?.firstName || t('roles.guide') })}
           </h2>
           <p className="text-xl text-white/90 mb-6">
-            Share your expertise and create unforgettable experiences
+            {t('dashboards.guide.subtitle')}
           </p>
           <Link href="/create-tour">
             <Button size="lg" className="bg-white/10 backdrop-blur-md border-white/20 border hover:bg-white/20" data-testid="button-create-tour">
               <Plus className="w-5 h-5 mr-2" />
-              {t('createTour')}
+              {t('navigation.createTour')}
             </Button>
           </Link>
         </div>
@@ -145,7 +147,7 @@ export default function GuideDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">{tours?.length || 0}</p>
-                <p className="text-sm text-muted-foreground">Active Tours</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.guide.stats.activeTours')}</p>
               </div>
             </div>
           </Card>
@@ -156,7 +158,7 @@ export default function GuideDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">{stats?.totalBookings || 0}</p>
-                <p className="text-sm text-muted-foreground">Bookings</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.guide.stats.bookings')}</p>
               </div>
             </div>
           </Card>
@@ -167,7 +169,7 @@ export default function GuideDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">{stats?.avgRating?.toFixed(1) || '5.0'}</p>
-                <p className="text-sm text-muted-foreground">Avg Rating</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.guide.stats.avgRating')}</p>
               </div>
             </div>
           </Card>
@@ -178,7 +180,7 @@ export default function GuideDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">${stats?.totalRevenue || 0}</p>
-                <p className="text-sm text-muted-foreground">Revenue</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.guide.stats.revenue')}</p>
               </div>
             </div>
           </Card>
@@ -189,11 +191,11 @@ export default function GuideDashboard() {
       <section className="py-12 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-serif font-semibold">My Tours</h2>
+            <h2 className="text-3xl font-serif font-semibold">{t('dashboards.guide.myTours')}</h2>
             <Link href="/create-tour">
               <Button data-testid="button-create-new-tour">
                 <Plus className="w-4 h-4 mr-2" />
-                Create New Tour
+                {t('dashboards.guide.createNewTour')}
               </Button>
             </Link>
           </div>
@@ -232,7 +234,7 @@ export default function GuideDashboard() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="secondary">{tour.category}</Badge>
                             <Badge variant={tour.isActive ? 'default' : 'secondary'}>
-                              {tour.isActive ? 'Active' : 'Inactive'}
+                              {tour.isActive ? t('status.active') : t('status.inactive')}
                             </Badge>
                             <Badge 
                               variant="outline"
@@ -245,7 +247,7 @@ export default function GuideDashboard() {
                               }
                               data-testid={`badge-approval-${tour.id}`}
                             >
-                              {tour.approvalStatus === 'approved' ? '✓ Approved' : tour.approvalStatus === 'pending' ? '⏱ Pending Approval' : '✗ Rejected'}
+                              {tour.approvalStatus === 'approved' ? `✓ ${t('status.approved')}` : tour.approvalStatus === 'pending' ? `⏱ ${t('status.pending')}` : `✗ ${t('status.rejected')}`}
                             </Badge>
                           </div>
                         </div>
@@ -275,13 +277,13 @@ export default function GuideDashboard() {
                           data-testid={`button-edit-${tour.id}`}
                         >
                           <Edit2 className="w-4 h-4 mr-1" />
-                          Edit
+                          {t('common.edit')}
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            if (confirm('Are you sure you want to delete this tour?')) {
+                            if (confirm(t('dashboards.guide.deleteTourConfirm'))) {
                               deleteTourMutation.mutate(tour.id);
                             }
                           }}
@@ -289,7 +291,7 @@ export default function GuideDashboard() {
                           data-testid={`button-delete-${tour.id}`}
                         >
                           <Trash2 className="w-4 h-4 mr-1" />
-                          Delete
+                          {t('common.delete')}
                         </Button>
                       </div>
                     </div>
@@ -300,14 +302,14 @@ export default function GuideDashboard() {
           ) : (
             <Card className="p-12 text-center">
               <MapPin className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No tours yet</h3>
+              <h3 className="text-xl font-semibold mb-2">{t('dashboards.guide.noTours')}</h3>
               <p className="text-muted-foreground mb-6">
-                Create your first tour and start sharing your expertise!
+                {t('dashboards.guide.noToursDesc')}
               </p>
               <Link href="/create-tour">
                 <Button data-testid="button-create-first-tour">
                   <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Tour
+                  {t('dashboards.guide.createFirstTour')}
                 </Button>
               </Link>
             </Card>

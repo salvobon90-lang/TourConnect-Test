@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
 import { useUserLocation } from '@/hooks/use-location';
 import { calculateDistance, formatDistance } from '@/lib/geolocation';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 export default function TouristDashboard() {
   const { t } = useTranslation();
@@ -28,15 +29,15 @@ export default function TouristDashboard() {
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       toast({
-        title: 'Unauthorized',
-        description: 'You are logged out. Logging in again...',
+        title: t('system.unauthorized'),
+        description: t('system.unauthorizedDesc'),
         variant: 'destructive',
       });
       setTimeout(() => {
         window.location.href = '/api/login';
       }, 500);
     }
-  }, [isAuthenticated, authLoading, toast]);
+  }, [isAuthenticated, authLoading, toast, t]);
 
   const queryParams = new URLSearchParams();
   if (searchTerm) queryParams.append('search', searchTerm);
@@ -115,37 +116,38 @@ export default function TouristDashboard() {
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-serif font-semibold">TourConnect</h1>
+            <h1 className="text-2xl font-serif font-semibold">{t('common.appName')}</h1>
             <nav className="hidden md:flex gap-6">
               <Link href="/">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-discover">
-                  {t('discover')}
+                  {t('navigation.discover')}
                 </a>
               </Link>
               <Link href="/bookings">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-bookings">
-                  {t('myBookings')}
+                  {t('navigation.myBookings')}
                 </a>
               </Link>
               <Link href="/saved">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-saved">
-                  {t('saved')}
+                  {t('navigation.saved')}
                 </a>
               </Link>
               <Link href="/map">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-map">
-                  {t('map')}
+                  {t('navigation.map')}
                 </a>
               </Link>
             </nav>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
               {user?.firstName || user?.email}
             </span>
+            <LanguageSwitcher />
             <a href="/api/logout">
               <Button variant="outline" size="sm" data-testid="button-logout">
-                {t('logout')}
+                {t('navigation.logout')}
               </Button>
             </a>
           </div>
@@ -162,10 +164,10 @@ export default function TouristDashboard() {
         />
         <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
           <h2 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4">
-            Welcome back, {user?.firstName || 'Explorer'}!
+            {t('common.welcomeBack', { name: user?.firstName || t('roles.tourist') })}
           </h2>
           <p className="text-xl text-white/90 mb-8">
-            Discover your next adventure
+            {t('dashboards.tourist.title')}
           </p>
           
           {/* Search Bar */}
@@ -175,7 +177,7 @@ export default function TouristDashboard() {
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
-                    placeholder="Search tours, places, or activities..."
+                    placeholder={t('dashboards.tourist.searchPlaceholder')}
                     className="pl-10"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -184,7 +186,7 @@ export default function TouristDashboard() {
                 </div>
                 <Button onClick={() => {}} data-testid="button-search-submit">
                   <Search className="w-4 h-4 mr-2" />
-                  Search
+                  {t('common.search')}
                 </Button>
               </div>
               
@@ -192,43 +194,43 @@ export default function TouristDashboard() {
               <div className="flex flex-wrap gap-2">
                 <Select value={category || "all"} onValueChange={(value) => setCategory(value === "all" ? "" : value)}>
                   <SelectTrigger className="w-40" data-testid="select-category">
-                    <SelectValue placeholder="Category" />
+                    <SelectValue placeholder={t('dashboards.tourist.filters.category')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="walking">Walking</SelectItem>
-                    <SelectItem value="food">Food</SelectItem>
-                    <SelectItem value="adventure">Adventure</SelectItem>
-                    <SelectItem value="cultural">Cultural</SelectItem>
-                    <SelectItem value="historical">Historical</SelectItem>
-                    <SelectItem value="nature">Nature</SelectItem>
-                    <SelectItem value="art">Art</SelectItem>
-                    <SelectItem value="nightlife">Nightlife</SelectItem>
+                    <SelectItem value="all">{t('categories.all')}</SelectItem>
+                    <SelectItem value="walking">{t('categories.walking')}</SelectItem>
+                    <SelectItem value="food">{t('categories.food')}</SelectItem>
+                    <SelectItem value="adventure">{t('categories.adventure')}</SelectItem>
+                    <SelectItem value="cultural">{t('categories.cultural')}</SelectItem>
+                    <SelectItem value="historical">{t('categories.historical')}</SelectItem>
+                    <SelectItem value="nature">{t('categories.nature')}</SelectItem>
+                    <SelectItem value="art">{t('categories.art')}</SelectItem>
+                    <SelectItem value="nightlife">{t('categories.nightlife')}</SelectItem>
                   </SelectContent>
                 </Select>
                 
                 <Select value={priceFilter || "all"} onValueChange={(value) => setPriceFilter(value === "all" ? "" : value)}>
                   <SelectTrigger className="w-40" data-testid="select-price">
-                    <SelectValue placeholder="Price Range" />
+                    <SelectValue placeholder={t('dashboards.tourist.filters.priceRange')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Prices</SelectItem>
-                    <SelectItem value="low">Under $50</SelectItem>
-                    <SelectItem value="medium">$50 - $100</SelectItem>
-                    <SelectItem value="high">Over $100</SelectItem>
+                    <SelectItem value="all">{t('dashboards.tourist.filters.allPrices')}</SelectItem>
+                    <SelectItem value="low">{t('dashboards.tourist.filters.under50')}</SelectItem>
+                    <SelectItem value="medium">{t('dashboards.tourist.filters.range50to100')}</SelectItem>
+                    <SelectItem value="high">{t('dashboards.tourist.filters.over100')}</SelectItem>
                   </SelectContent>
                 </Select>
                 
                 <Select value={proximityFilter || "all"} onValueChange={(value) => setProximityFilter(value === "all" ? "" : value)}>
                   <SelectTrigger className="w-40" data-testid="select-proximity">
-                    <SelectValue placeholder="Distance" />
+                    <SelectValue placeholder={t('dashboards.tourist.filters.distance')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Any Distance</SelectItem>
-                    <SelectItem value="5">Within 5 km</SelectItem>
-                    <SelectItem value="10">Within 10 km</SelectItem>
-                    <SelectItem value="20">Within 20 km</SelectItem>
-                    <SelectItem value="50">Within 50 km</SelectItem>
+                    <SelectItem value="all">{t('dashboards.tourist.filters.anyDistance')}</SelectItem>
+                    <SelectItem value="5">{t('dashboards.tourist.filters.within5km')}</SelectItem>
+                    <SelectItem value="10">{t('dashboards.tourist.filters.within10km')}</SelectItem>
+                    <SelectItem value="20">{t('dashboards.tourist.filters.within20km')}</SelectItem>
+                    <SelectItem value="50">{t('dashboards.tourist.filters.within50km')}</SelectItem>
                   </SelectContent>
                 </Select>
                 
@@ -241,7 +243,7 @@ export default function TouristDashboard() {
                     data-testid="button-enable-location"
                   >
                     <Navigation className="w-4 h-4 mr-2" />
-                    {locationLoading ? 'Getting location...' : 'Enable Location'}
+                    {locationLoading ? t('dashboards.tourist.getLocation') : t('dashboards.tourist.enableLocation')}
                   </Button>
                 )}
                 
@@ -257,7 +259,7 @@ export default function TouristDashboard() {
                     }}
                     data-testid="button-clear-filters"
                   >
-                    Clear Filters
+                    {t('common.clearFilters')}
                   </Button>
                 )}
               </div>
@@ -276,7 +278,7 @@ export default function TouristDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">{bookingsCount?.count || 0}</p>
-                <p className="text-sm text-muted-foreground">Bookings</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.tourist.stats.bookings')}</p>
               </div>
             </div>
           </Card>
@@ -287,7 +289,7 @@ export default function TouristDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">0</p>
-                <p className="text-sm text-muted-foreground">Favorites</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.tourist.stats.favorites')}</p>
               </div>
             </div>
           </Card>
@@ -298,7 +300,7 @@ export default function TouristDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">0</p>
-                <p className="text-sm text-muted-foreground">Reviews</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.tourist.stats.reviews')}</p>
               </div>
             </div>
           </Card>
@@ -309,7 +311,7 @@ export default function TouristDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">0</p>
-                <p className="text-sm text-muted-foreground">Points</p>
+                <p className="text-sm text-muted-foreground">{t('dashboards.tourist.stats.points')}</p>
               </div>
             </div>
           </Card>
@@ -322,8 +324,8 @@ export default function TouristDashboard() {
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="text-3xl font-serif font-semibold">Near You</h2>
-                <p className="text-muted-foreground mt-2">Discover experiences close to your location</p>
+                <h2 className="text-3xl font-serif font-semibold">{t('dashboards.tourist.nearYou')}</h2>
+                <p className="text-muted-foreground mt-2">{t('dashboards.tourist.nearYouDesc')}</p>
               </div>
             </div>
 
@@ -389,8 +391,8 @@ export default function TouristDashboard() {
       <section className="py-12 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-serif font-semibold">Popular Tours</h2>
-            <Button variant="outline" data-testid="button-view-all">View All</Button>
+            <h2 className="text-3xl font-serif font-semibold">{t('dashboards.tourist.popularTours')}</h2>
+            <Button variant="outline" data-testid="button-view-all">{t('common.viewAll')}</Button>
           </div>
 
           {toursLoading ? (
@@ -464,9 +466,9 @@ export default function TouristDashboard() {
           ) : (
             <Card className="p-12 text-center">
               <MapPin className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No tours available yet</h3>
+              <h3 className="text-xl font-semibold mb-2">{t('dashboards.tourist.noToursFound')}</h3>
               <p className="text-muted-foreground">
-                Check back soon for exciting new tours and experiences!
+                {t('dashboards.tourist.tryDifferentFilters')}
               </p>
             </Card>
           )}

@@ -9,10 +9,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2, XCircle, Clock, Users, UserCheck, UserX, Shield, Map } from "lucide-react";
 import type { User, TourWithGuide } from "@shared/schema";
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 export default function SupervisorDashboard() {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const { data: pendingUsers, isLoading } = useQuery<User[]>({
     queryKey: ['/api/supervisor/pending-users'],
@@ -36,14 +39,14 @@ export default function SupervisorDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/supervisor/pending-users'] });
       toast({
-        title: "User Approved",
-        description: "The user has been approved successfully",
+        title: t('dashboards.supervisor.userApproved'),
+        description: t('dashboards.supervisor.userApprovedDesc'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to approve user",
+        title: t('common.error'),
+        description: t('dashboards.supervisor.approveUserError'),
         variant: "destructive",
       });
     },
@@ -56,14 +59,14 @@ export default function SupervisorDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/supervisor/pending-users'] });
       toast({
-        title: "User Rejected",
-        description: "The user has been rejected",
+        title: t('dashboards.supervisor.userRejected'),
+        description: t('dashboards.supervisor.userRejectedDesc'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to reject user",
+        title: t('common.error'),
+        description: t('dashboards.supervisor.rejectUserError'),
         variant: "destructive",
       });
     },
@@ -76,14 +79,14 @@ export default function SupervisorDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/supervisor/users'] });
       toast({
-        title: "User Promoted",
-        description: "The user has been promoted to supervisor",
+        title: t('dashboards.supervisor.userPromoted'),
+        description: t('dashboards.supervisor.userPromotedDesc'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error?.message || "Failed to promote user",
+        title: t('common.error'),
+        description: error?.message || t('dashboards.supervisor.promoteUserError'),
         variant: "destructive",
       });
     },
@@ -96,14 +99,14 @@ export default function SupervisorDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/supervisor/pending-tours'] });
       toast({
-        title: "Tour Approved",
-        description: "The tour has been approved successfully",
+        title: t('dashboards.supervisor.tourApproved'),
+        description: t('dashboards.supervisor.tourApprovedDesc'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to approve tour",
+        title: t('common.error'),
+        description: t('dashboards.supervisor.approveTourError'),
         variant: "destructive",
       });
     },
@@ -116,14 +119,14 @@ export default function SupervisorDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/supervisor/pending-tours'] });
       toast({
-        title: "Tour Rejected",
-        description: "The tour has been rejected",
+        title: t('dashboards.supervisor.tourRejected'),
+        description: t('dashboards.supervisor.tourRejectedDesc'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to reject tour",
+        title: t('common.error'),
+        description: t('dashboards.supervisor.rejectTourError'),
         variant: "destructive",
       });
     },
@@ -134,8 +137,8 @@ export default function SupervisorDashboard() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="p-8 text-center">
           <XCircle className="w-16 h-16 mx-auto text-destructive mb-4" />
-          <h2 className="text-2xl font-semibold mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">Only supervisors can access this page.</p>
+          <h2 className="text-2xl font-semibold mb-2">{t('system.accessDenied')}</h2>
+          <p className="text-muted-foreground">{t('dashboards.supervisor.accessDeniedDesc')}</p>
         </Card>
       </div>
     );
@@ -144,9 +147,12 @@ export default function SupervisorDashboard() {
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-gradient-to-r from-primary/90 to-primary text-primary-foreground py-12 px-4">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-serif font-bold mb-2">Supervisor Dashboard</h1>
-          <p className="text-primary-foreground/90">Manage user approvals and platform access</p>
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-serif font-bold mb-2">{t('dashboards.supervisor.title')}</h1>
+            <p className="text-primary-foreground/90">{t('dashboards.supervisor.subtitle')}</p>
+          </div>
+          <LanguageSwitcher />
         </div>
       </div>
 
@@ -156,7 +162,7 @@ export default function SupervisorDashboard() {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Pending Approval</p>
+                <p className="text-sm text-muted-foreground mb-1">{t('dashboards.supervisor.stats.pendingApproval')}</p>
                 <p className="text-3xl font-bold">{pendingUsers?.length || 0}</p>
               </div>
               <Clock className="w-12 h-12 text-orange-500" />
@@ -166,7 +172,7 @@ export default function SupervisorDashboard() {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Total Users</p>
+                <p className="text-sm text-muted-foreground mb-1">{t('dashboards.supervisor.stats.totalUsers')}</p>
                 <p className="text-3xl font-bold">-</p>
               </div>
               <Users className="w-12 h-12 text-blue-500" />
@@ -176,7 +182,7 @@ export default function SupervisorDashboard() {
           <Card className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Approved Today</p>
+                <p className="text-sm text-muted-foreground mb-1">{t('dashboards.supervisor.stats.approvedToday')}</p>
                 <p className="text-3xl font-bold">-</p>
               </div>
               <UserCheck className="w-12 h-12 text-green-500" />
@@ -189,26 +195,26 @@ export default function SupervisorDashboard() {
           <TabsList className="grid w-full max-w-3xl grid-cols-3">
             <TabsTrigger value="pending" data-testid="tab-pending">
               <Clock className="w-4 h-4 mr-2" />
-              Pending Approvals
+              {t('dashboards.supervisor.tabs.pendingApprovals')}
             </TabsTrigger>
             <TabsTrigger value="users" data-testid="tab-users">
               <Users className="w-4 h-4 mr-2" />
-              User Management
+              {t('dashboards.supervisor.tabs.userManagement')}
             </TabsTrigger>
             <TabsTrigger value="tours" data-testid="tab-tours">
               <Map className="w-4 h-4 mr-2" />
-              Tour Moderation
+              {t('dashboards.supervisor.tabs.tourModeration')}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending">
             <Card className="p-6">
-              <h2 className="text-2xl font-semibold mb-6">Pending Approvals</h2>
+              <h2 className="text-2xl font-semibold mb-6">{t('dashboards.supervisor.tabs.pendingApprovals')}</h2>
 
               {isLoading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-                  <p className="text-muted-foreground mt-4">Loading pending users...</p>
+                  <p className="text-muted-foreground mt-4">{t('dashboards.supervisor.loadingUsers')}</p>
                 </div>
               ) : pendingUsers && pendingUsers.length > 0 ? (
                 <div className="space-y-4">
@@ -229,15 +235,15 @@ export default function SupervisorDashboard() {
                             <p className="text-sm text-muted-foreground">{pendingUser.email}</p>
                             <div className="flex items-center gap-2 mt-1">
                               <Badge variant="secondary" data-testid={`badge-role-${pendingUser.id}`}>
-                                {pendingUser.role}
+                                {t(`roles.${pendingUser.role}`)}
                               </Badge>
                               <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
                                 <Clock className="w-3 h-3 mr-1" />
-                                Pending
+                                {t('status.pending')}
                               </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Registered: {new Date(pendingUser.createdAt).toLocaleDateString()}
+                              {t('dashboards.supervisor.registered')}: {new Date(pendingUser.createdAt).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
@@ -250,7 +256,7 @@ export default function SupervisorDashboard() {
                             data-testid={`button-approve-${pendingUser.id}`}
                           >
                             <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Approve
+                            {t('common.approve')}
                           </Button>
                           <Button
                             onClick={() => rejectMutation.mutate(pendingUser.id)}
@@ -259,7 +265,7 @@ export default function SupervisorDashboard() {
                             data-testid={`button-reject-${pendingUser.id}`}
                           >
                             <XCircle className="w-4 h-4 mr-2" />
-                            Reject
+                            {t('common.reject')}
                           </Button>
                         </div>
                       </div>
@@ -269,8 +275,8 @@ export default function SupervisorDashboard() {
               ) : (
                 <div className="text-center py-12">
                   <UserCheck className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Pending Approvals</h3>
-                  <p className="text-muted-foreground">All users have been reviewed</p>
+                  <h3 className="text-lg font-semibold mb-2">{t('dashboards.supervisor.noPending')}</h3>
+                  <p className="text-muted-foreground">{t('dashboards.supervisor.noPendingDesc')}</p>
                 </div>
               )}
             </Card>
@@ -278,12 +284,12 @@ export default function SupervisorDashboard() {
 
           <TabsContent value="users">
             <Card className="p-6">
-              <h2 className="text-2xl font-semibold mb-6">User Management</h2>
+              <h2 className="text-2xl font-semibold mb-6">{t('dashboards.supervisor.tabs.userManagement')}</h2>
 
               {isLoadingAllUsers ? (
                 <div className="text-center py-12">
                   <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-                  <p className="text-muted-foreground mt-4">Loading users...</p>
+                  <p className="text-muted-foreground mt-4">{t('dashboards.supervisor.loadingUsers')}</p>
                 </div>
               ) : allUsers && allUsers.length > 0 ? (
                 <div className="space-y-4">
@@ -307,7 +313,7 @@ export default function SupervisorDashboard() {
                                 variant={u.role === 'supervisor' ? 'default' : 'secondary'}
                                 data-testid={`badge-role-${u.id}`}
                               >
-                                {u.role || 'No Role'}
+                                {u.role ? t(`roles.${u.role}`) : t('dashboards.supervisor.noRole')}
                               </Badge>
                               {u.approvalStatus && (
                                 <Badge 
@@ -320,12 +326,12 @@ export default function SupervisorDashboard() {
                                       : 'bg-red-100 text-red-800 border-red-300'
                                   }
                                 >
-                                  {u.approvalStatus}
+                                  {t(`status.${u.approvalStatus}`)}
                                 </Badge>
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Registered: {new Date(u.createdAt).toLocaleDateString()}
+                              {t('dashboards.supervisor.registered')}: {new Date(u.createdAt).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
@@ -339,13 +345,13 @@ export default function SupervisorDashboard() {
                               data-testid={`button-promote-${u.id}`}
                             >
                               <Shield className="w-4 h-4 mr-2" />
-                              Promote to Supervisor
+                              {t('dashboards.supervisor.promoteToSupervisor')}
                             </Button>
                           )}
                           {u.role === 'supervisor' && (
                             <Badge variant="default" className="px-4 py-2">
                               <Shield className="w-4 h-4 mr-2" />
-                              Supervisor
+                              {t('roles.supervisor')}
                             </Badge>
                           )}
                         </div>
@@ -356,8 +362,8 @@ export default function SupervisorDashboard() {
               ) : (
                 <div className="text-center py-12">
                   <Users className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Users Found</h3>
-                  <p className="text-muted-foreground">No users in the system</p>
+                  <h3 className="text-lg font-semibold mb-2">{t('dashboards.supervisor.noUsers')}</h3>
+                  <p className="text-muted-foreground">{t('dashboards.supervisor.noUsersDesc')}</p>
                 </div>
               )}
             </Card>
@@ -365,12 +371,12 @@ export default function SupervisorDashboard() {
 
           <TabsContent value="tours">
             <Card className="p-6">
-              <h2 className="text-2xl font-semibold mb-6">Tour Moderation</h2>
+              <h2 className="text-2xl font-semibold mb-6">{t('dashboards.supervisor.tabs.tourModeration')}</h2>
 
               {isLoadingTours ? (
                 <div className="text-center py-12">
                   <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-                  <p className="text-muted-foreground mt-4">Loading pending tours...</p>
+                  <p className="text-muted-foreground mt-4">{t('dashboards.supervisor.loadingTours')}</p>
                 </div>
               ) : pendingTours && pendingTours.length > 0 ? (
                 <div className="space-y-4">
@@ -382,26 +388,26 @@ export default function SupervisorDashboard() {
                             {tour.title}
                           </h3>
                           <p className="text-sm text-muted-foreground mt-1">
-                            by {tour.guide?.firstName} {tour.guide?.lastName}
+                            {t('dashboards.supervisor.by')} {tour.guide?.firstName} {tour.guide?.lastName}
                           </p>
                           <div className="flex flex-wrap items-center gap-2 mt-2">
                             <Badge variant="secondary" data-testid={`badge-category-${tour.id}`}>
-                              {tour.category}
+                              {t(`categories.${tour.category}`)}
                             </Badge>
                             <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
                               <Clock className="w-3 h-3 mr-1" />
-                              Pending
+                              {t('status.pending')}
                             </Badge>
                             <span className="text-sm text-muted-foreground">
                               ${tour.price}
                             </span>
                             <span className="text-sm text-muted-foreground">•</span>
                             <span className="text-sm text-muted-foreground">
-                              {tour.duration} min
+                              {tour.duration} {t('common.minutes')}
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground mt-2">
-                            Created: {new Date(tour.createdAt).toLocaleDateString()}
+                            {t('dashboards.supervisor.created')}: {new Date(tour.createdAt).toLocaleDateString()}
                           </p>
                         </div>
 
@@ -413,7 +419,7 @@ export default function SupervisorDashboard() {
                             data-testid={`button-approve-tour-${tour.id}`}
                           >
                             <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Approve
+                            {t('common.approve')}
                           </Button>
                           <Button
                             onClick={() => rejectTourMutation.mutate(tour.id)}
@@ -422,7 +428,7 @@ export default function SupervisorDashboard() {
                             data-testid={`button-reject-tour-${tour.id}`}
                           >
                             <XCircle className="w-4 h-4 mr-2" />
-                            Reject
+                            {t('common.reject')}
                           </Button>
                         </div>
                       </div>
@@ -432,8 +438,8 @@ export default function SupervisorDashboard() {
               ) : (
                 <div className="text-center py-12">
                   <Map className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Pending Tours</h3>
-                  <p className="text-muted-foreground">All tours have been reviewed</p>
+                  <h3 className="text-lg font-semibold mb-2">{t('dashboards.supervisor.noPendingTours')}</h3>
+                  <p className="text-muted-foreground">{t('dashboards.supervisor.noPendingToursDesc')}</p>
                 </div>
               )}
             </Card>
