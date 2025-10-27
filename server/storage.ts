@@ -4,6 +4,7 @@ import {
   services,
   bookings,
   reviews,
+  sponsorships,
   type User,
   type UpsertUser,
   type Tour,
@@ -14,13 +15,15 @@ import {
   type InsertBooking,
   type Review,
   type InsertReview,
+  type Sponsorship,
+  type InsertSponsorship,
   type TourWithGuide,
   type ServiceWithProvider,
   type BookingWithDetails,
   type UserRole,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, gt, or } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -68,6 +71,16 @@ export interface IStorage {
   // Stats operations
   getGuideStats(guideId: string): Promise<{ totalBookings: number; totalRevenue: number; avgRating: number }>;
   getProviderStats(providerId: string): Promise<{ totalOrders: number; totalRevenue: number; avgRating: number }>;
+  
+  // Sponsorship operations
+  getSponsorships(userId?: string): Promise<Sponsorship[]>;
+  getActiveSponsorship(tourId?: string, serviceId?: string): Promise<Sponsorship | undefined>;
+  createSponsorship(sponsorship: InsertSponsorship): Promise<Sponsorship>;
+  updateSponsorshipStatus(id: string, status: string, stripePaymentIntentId?: string, stripeCheckoutSessionId?: string): Promise<Sponsorship>;
+  getMySponsorships(userId: string): Promise<Sponsorship[]>;
+  getActiveSponsoredTours(): Promise<string[]>;
+  getActiveSponsoredServices(): Promise<string[]>;
+  activateSponsorship(id: string): Promise<Sponsorship>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -513,6 +526,149 @@ export class DatabaseStorage implements IStorage {
       totalRevenue: 0, // Placeholder
       avgRating: Number(ratingsResult?.avgRating || 0),
     };
+  }
+
+  // Sponsorship operations
+  async getSponsorships(userId?: string): Promise<Sponsorship[]> {
+    const query = db
+      .select()
+      .from(sponsorships)
+      .orderBy(desc(sponsorships.createdAt));
+
+    if (userId) {
+      return await query.where(eq(sponsorships.userId, userId));
+    }
+    
+    return await query;
+  }
+
+  async getActiveSponsorship(tourId?: string, serviceId?: string): Promise<Sponsorship | undefined> {
+    const conditions = [
+      eq(sponsorships.status, 'active'),
+      gt(sponsorships.expiresAt, new Date())
+    ];
+
+    if (tourId) {
+      conditions.push(eq(sponsorships.tourId, tourId));
+    }
+    if (serviceId) {
+      conditions.push(eq(sponsorships.serviceId, serviceId));
+    }
+
+    const [sponsorship] = await db
+      .select()
+      .from(sponsorships)
+      .where(and(...conditions))
+      .limit(1);
+
+    return sponsorship;
+  }
+
+  async createSponsorship(sponsorship: InsertSponsorship): Promise<Sponsorship> {
+    const [newSponsorship] = await db
+      .insert(sponsorships)
+      .values(sponsorship)
+      .returning();
+    return newSponsorship;
+  }
+
+  async updateSponsorshipStatus(
+    id: string,
+    status: string,
+    stripePaymentIntentId?: string,
+    stripeCheckoutSessionId?: string
+  ): Promise<Sponsorship> {
+    const updateData: any = {
+      status,
+      updatedAt: new Date()
+    };
+
+    if (stripePaymentIntentId) {
+      updateData.stripePaymentIntentId = stripePaymentIntentId;
+    }
+    if (stripeCheckoutSessionId) {
+      updateData.stripeCheckoutSessionId = stripeCheckoutSessionId;
+    }
+
+    const [updated] = await db
+      .update(sponsorships)
+      .set(updateData)
+      .where(eq(sponsorships.id, id))
+      .returning();
+    
+    return updated;
+  }
+
+  async getMySponsorships(userId: string): Promise<Sponsorship[]> {
+    return await db
+      .select()
+      .from(sponsorships)
+      .where(eq(sponsorships.userId, userId))
+      .orderBy(desc(sponsorships.createdAt));
+  }
+
+  async getActiveSponsoredTours(): Promise<string[]> {
+    const results = await db
+      .select({ tourId: sponsorships.tourId })
+      .from(sponsorships)
+      .where(
+        and(
+          eq(sponsorships.status, 'active'),
+          gt(sponsorships.expiresAt, new Date()),
+          sql`${sponsorships.tourId} IS NOT NULL`
+        )
+      );
+
+    return results.map(r => r.tourId!).filter(Boolean);
+  }
+
+  async getActiveSponsoredServices(): Promise<string[]> {
+    const results = await db
+      .select({ serviceId: sponsorships.serviceId })
+      .from(sponsorships)
+      .where(
+        and(
+          eq(sponsorships.status, 'active'),
+          gt(sponsorships.expiresAt, new Date()),
+          sql`${sponsorships.serviceId} IS NOT NULL`
+        )
+      );
+
+    return results.map(r => r.serviceId!).filter(Boolean);
+  }
+
+  async activateSponsorship(id: string): Promise<Sponsorship> {
+    const [sponsorship] = await db
+      .select()
+      .from(sponsorships)
+      .where(eq(sponsorships.id, id))
+      .limit(1);
+
+    if (!sponsorship) {
+      throw new Error('Sponsorship not found');
+    }
+
+    const startsAt = new Date();
+    const expiresAt = new Date();
+    
+    if (sponsorship.duration === 'weekly') {
+      expiresAt.setDate(expiresAt.getDate() + 7);
+    } else if (sponsorship.duration === 'monthly') {
+      expiresAt.setDate(expiresAt.getDate() + 30);
+    }
+
+    const [updated] = await db
+      .update(sponsorships)
+      .set({
+        status: 'active',
+        startsAt,
+        expiresAt,
+        updatedAt: new Date()
+      })
+      .where(eq(sponsorships.id, id))
+      .returning();
+
+    return updated;
   }
 }
 

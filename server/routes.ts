@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema } from "@shared/schema";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // Validate Stripe secret key - must start with 'sk_' not 'pk_'
@@ -392,10 +392,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       if (minPrice) {
-        tours = tours.filter(t => parseFloat(t.price.toString()) >= parseFloat(minPrice as string));
+        tours = tours.filter(t => t.price && parseFloat(t.price.toString()) >= parseFloat(minPrice as string));
       }
       if (maxPrice) {
-        tours = tours.filter(t => parseFloat(t.price.toString()) <= parseFloat(maxPrice as string));
+        tours = tours.filter(t => t.price && parseFloat(t.price.toString()) <= parseFloat(maxPrice as string));
       }
       
       res.json(tours);
@@ -796,6 +796,200 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching provider stats:", error);
       res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Sponsorship routes
+  app.post('/api/sponsorships/create-checkout', isAuthenticated, async (req: any, res) => {
+    try {
+      if (!stripe) {
+        return res.status(503).json({ message: "Stripe is not configured" });
+      }
+
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { tourId, serviceId, duration } = req.body;
+
+      // Validate that either tourId or serviceId is provided, but not both
+      if ((!tourId && !serviceId) || (tourId && serviceId)) {
+        return res.status(400).json({ message: "Please provide either tourId or serviceId, not both" });
+      }
+
+      // Validate duration
+      if (!['weekly', 'monthly'].includes(duration)) {
+        return res.status(400).json({ message: "Duration must be 'weekly' or 'monthly'" });
+      }
+
+      // Validate user role and ownership
+      if (tourId) {
+        if (user.role !== 'guide') {
+          return res.status(403).json({ message: "Only guides can sponsor tours" });
+        }
+        
+        const tour = await storage.getTour(tourId);
+        if (!tour) {
+          return res.status(404).json({ message: "Tour not found" });
+        }
+        
+        if (tour.guideId !== userId) {
+          return res.status(403).json({ message: "You can only sponsor your own tours" });
+        }
+
+        // Check if tour already has an active sponsorship
+        const existingSponsorship = await storage.getActiveSponsorship(tourId, undefined);
+        if (existingSponsorship) {
+          return res.status(400).json({ message: "This tour already has an active sponsorship" });
+        }
+      }
+
+      if (serviceId) {
+        if (user.role !== 'provider') {
+          return res.status(403).json({ message: "Only providers can sponsor services" });
+        }
+        
+        const service = await storage.getService(serviceId);
+        if (!service) {
+          return res.status(404).json({ message: "Service not found" });
+        }
+        
+        if (service.providerId !== userId) {
+          return res.status(403).json({ message: "You can only sponsor your own services" });
+        }
+
+        // Check if service already has an active sponsorship
+        const existingSponsorship = await storage.getActiveSponsorship(undefined, serviceId);
+        if (existingSponsorship) {
+          return res.status(400).json({ message: "This service already has an active sponsorship" });
+        }
+      }
+
+      // Calculate price based on duration
+      const price = duration === 'weekly' ? 49 : 149;
+
+      // Create pending sponsorship record
+      const sponsorshipData = {
+        userId,
+        tourId: tourId || null,
+        serviceId: serviceId || null,
+        duration,
+        price: price.toString(),
+        status: 'pending'
+      };
+
+      const validation = insertSponsorshipSchema.safeParse(sponsorshipData);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid sponsorship data", 
+          errors: validation.error.errors 
+        });
+      }
+
+      const sponsorship = await storage.createSponsorship(validation.data);
+
+      // Create Stripe Checkout session
+      const itemName = tourId 
+        ? `Tour Sponsorship - ${duration === 'weekly' ? 'Weekly' : 'Monthly'}`
+        : `Service Sponsorship - ${duration === 'weekly' ? 'Weekly' : 'Monthly'}`;
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: itemName,
+                description: `${duration === 'weekly' ? '7 days' : '30 days'} of promoted visibility`,
+              },
+              unit_amount: price * 100, // Convert to cents
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/sponsorship-success?session_id={CHECKOUT_SESSION_ID}&sponsorship_id=${sponsorship.id}`,
+        cancel_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/${tourId ? 'guide-dashboard' : 'provider-dashboard'}`,
+        metadata: {
+          sponsorshipId: sponsorship.id,
+          userId,
+        },
+      });
+
+      // Update sponsorship with Stripe session ID
+      await storage.updateSponsorshipStatus(
+        sponsorship.id,
+        'pending',
+        undefined,
+        session.id
+      );
+
+      res.json({ sessionId: session.id, url: session.url });
+    } catch (error: any) {
+      console.error("Error creating sponsorship checkout:", error);
+      res.status(500).json({ message: error.message || "Failed to create sponsorship checkout" });
+    }
+  });
+
+  app.get('/api/sponsorships/my-sponsorships', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sponsorships = await storage.getMySponsorships(userId);
+      res.json(sponsorships);
+    } catch (error) {
+      console.error("Error fetching my sponsorships:", error);
+      res.status(500).json({ message: "Failed to fetch sponsorships" });
+    }
+  });
+
+  app.get('/api/sponsorships/active-tours', async (req, res) => {
+    try {
+      const tourIds = await storage.getActiveSponsoredTours();
+      res.json(tourIds);
+    } catch (error) {
+      console.error("Error fetching active sponsored tours:", error);
+      res.status(500).json({ message: "Failed to fetch active sponsored tours" });
+    }
+  });
+
+  app.get('/api/sponsorships/active-services', async (req, res) => {
+    try {
+      const serviceIds = await storage.getActiveSponsoredServices();
+      res.json(serviceIds);
+    } catch (error) {
+      console.error("Error fetching active sponsored services:", error);
+      res.status(500).json({ message: "Failed to fetch active sponsored services" });
+    }
+  });
+
+  app.post('/api/sponsorships/activate/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sponsorshipId = req.params.id;
+
+      // Get sponsorship to verify ownership
+      const sponsorships = await storage.getMySponsorships(userId);
+      const sponsorship = sponsorships.find(s => s.id === sponsorshipId);
+
+      if (!sponsorship) {
+        return res.status(404).json({ message: "Sponsorship not found or you don't have permission to activate it" });
+      }
+
+      if (sponsorship.status !== 'pending') {
+        return res.status(400).json({ message: "Only pending sponsorships can be activated" });
+      }
+
+      // Activate the sponsorship (sets status to active and calculates expiresAt)
+      const activatedSponsorship = await storage.activateSponsorship(sponsorshipId);
+      
+      res.json(activatedSponsorship);
+    } catch (error: any) {
+      console.error("Error activating sponsorship:", error);
+      res.status(500).json({ message: error.message || "Failed to activate sponsorship" });
     }
   });
 
