@@ -138,6 +138,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Tour moderation routes (supervisor only)
+  app.get('/api/supervisor/pending-tours', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (user?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Supervisor role required." });
+      }
+
+      const pendingTours = await storage.getPendingTours();
+      res.json(pendingTours);
+    } catch (error) {
+      console.error("Error fetching pending tours:", error);
+      res.status(500).json({ message: "Failed to fetch pending tours" });
+    }
+  });
+
+  app.post('/api/supervisor/approve-tour/:tourId', isAuthenticated, async (req: any, res) => {
+    try {
+      const supervisorId = req.user.claims.sub;
+      const supervisor = await storage.getUser(supervisorId);
+      
+      if (supervisor?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Supervisor role required." });
+      }
+
+      const tour = await storage.approveTour(req.params.tourId, supervisorId);
+      res.json(tour);
+    } catch (error) {
+      console.error("Error approving tour:", error);
+      res.status(500).json({ message: "Failed to approve tour" });
+    }
+  });
+
+  app.post('/api/supervisor/reject-tour/:tourId', isAuthenticated, async (req: any, res) => {
+    try {
+      const supervisorId = req.user.claims.sub;
+      const supervisor = await storage.getUser(supervisorId);
+      
+      if (supervisor?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Supervisor role required." });
+      }
+
+      const tour = await storage.rejectTour(req.params.tourId, supervisorId);
+      res.json(tour);
+    } catch (error) {
+      console.error("Error rejecting tour:", error);
+      res.status(500).json({ message: "Failed to reject tour" });
+    }
+  });
+
   // Tour routes
   app.get('/api/tours', async (req, res) => {
     try {
@@ -182,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/tours/my-tours', isAuthenticated, async (req: any, res) => {
+  app.get('/api/my-tours', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const tours = await storage.getMyTours(userId);
