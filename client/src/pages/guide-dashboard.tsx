@@ -32,7 +32,7 @@ export default function GuideDashboard() {
   }, [isAuthenticated, authLoading, toast]);
 
   const { data: tours, isLoading: toursLoading } = useQuery<Tour[]>({
-    queryKey: ['/api/tours/my-tours'],
+    queryKey: ['/api/my-tours'],
     enabled: isAuthenticated,
   });
 
@@ -52,7 +52,7 @@ export default function GuideDashboard() {
         description: 'Tour deleted successfully',
       });
       // Invalidate all tour-related queries
-      queryClient.invalidateQueries({ queryKey: ['/api/tours/my-tours'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/my-tours'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tours'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tours', tourId] });
     },
@@ -229,10 +229,23 @@ export default function GuideDashboard() {
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <h3 className="text-xl font-semibold mb-1">{tour.title}</h3>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="secondary">{tour.category}</Badge>
                             <Badge variant={tour.isActive ? 'default' : 'secondary'}>
                               {tour.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                            <Badge 
+                              variant="outline"
+                              className={
+                                tour.approvalStatus === 'approved' 
+                                  ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300'
+                                  : tour.approvalStatus === 'pending'
+                                  ? 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300'
+                                  : 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300'
+                              }
+                              data-testid={`badge-approval-${tour.id}`}
+                            >
+                              {tour.approvalStatus === 'approved' ? '✓ Approved' : tour.approvalStatus === 'pending' ? '⏱ Pending Approval' : '✗ Rejected'}
                             </Badge>
                           </div>
                         </div>
