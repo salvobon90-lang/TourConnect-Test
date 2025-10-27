@@ -28,8 +28,10 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   setUserRole(userId: string, role: UserRole): Promise<User>;
   getPendingUsers(): Promise<User[]>;
+  getAllUsers(): Promise<User[]>;
   approveUser(userId: string, supervisorId: string): Promise<User>;
   rejectUser(userId: string, supervisorId: string): Promise<User>;
+  promoteToSupervisor(userId: string, promotedBy: string): Promise<User>;
   
   // Tour operations
   getTours(): Promise<TourWithGuide[]>;
@@ -129,6 +131,28 @@ export class DatabaseStorage implements IStorage {
       .set({ 
         approvalStatus: 'rejected',
         approvedBy: supervisorId,
+        approvedAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .orderBy(desc(users.createdAt));
+  }
+
+  async promoteToSupervisor(userId: string, promotedBy: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        role: 'supervisor',
+        approvalStatus: 'approved',
+        approvedBy: promotedBy,
         approvedAt: new Date(),
         updatedAt: new Date() 
       })
