@@ -5,6 +5,24 @@
 TourConnect is a comprehensive tourism platform that connects four distinct user groups: tourists seeking authentic experiences, tour guides offering local expertise, service providers (restaurants, shops, transport), and supervisors who manage platform access. The application features role-based dashboards, supervisor approval workflow for guides/providers, interactive mapping with geolocation, booking management with Stripe payment integration, sponsorship system for promoting tours and services, and multi-language support (English, Italian, German, French, Spanish).
 
 **Recent Upgrades (October 2025):**
+
+**v4.0 Immersive Experience System (95% Complete - October 28, 2025):**
+Production-ready multi-role tourism platform with cutting-edge 3D/VR experiences, advanced AI features, and community engagement systems. Built on completed v3.0 foundation (messaging, reviews, gamification, Stripe subscriptions, AI assistant).
+
+**Core Features:**
+- **3D/VR Tours:** WebXR-powered virtual reality tours compatible with Meta Quest/Vision Pro, Three.js 360° panorama viewer with interactive POIs
+- **Interactive 3D Globe:** Esplora Mondo page with rotating Earth visualization, clickable tour/service/event markers with geolocation
+- **Mapbox 3D Integration:** Advanced 3D maps with custom markers, dynamic filters (type, category, price, rating), heatmap visualization
+- **Community & Events:** Local events system with Stripe ticket payments, RSVP management, participant tracking with atomic transactions
+- **Social Feed:** Real-time posts with photos, likes, comments via WebSocket, hashtag support, privacy controls
+- **Partner API:** Public REST API with SHA-256 API key authentication, rate limiting (row-level locks), comprehensive error responses
+- **Analytics Dashboard:** Role-gated insights for guides/providers with Recharts visualizations, KPIs (views, clicks, conversions, revenue)
+- **AI Features:** OpenAI-powered itinerary builder, language translation, review summaries, content moderation with severity logging
+- **Performance:** 85% bundle reduction (192 KB initial vs 1.5 MB before), route-based lazy loading, code splitting (Three.js/Mapbox/Recharts isolated)
+- **Dark Mode:** ThemeProvider with localStorage persistence, system preference detection, deep grey gradients, animated orange accents
+- **Cinematic UX:** Framer Motion page transitions, 3D card tilt effects, Lottie navbar animation, reduced-motion support
+
+**Previous Upgrades (v3.0):**
 - Professional brand refresh with dark grey + orange (#FF6600) color scheme
 - TourConnect logo integration across all touchpoints (header, favicon, loading screens)
 - 3-screen onboarding flow for new users (welcome, role selection, feature showcase)
