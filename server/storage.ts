@@ -8,6 +8,11 @@ import {
   conversations,
   messages,
   subscriptions,
+  events,
+  eventParticipants,
+  posts,
+  postLikes,
+  postComments,
   type User,
   type UpsertUser,
   type Tour,
@@ -24,6 +29,16 @@ import {
   type InsertConversation,
   type SelectMessage,
   type InsertMessage,
+  type Event,
+  type InsertEvent,
+  type EventParticipant,
+  type InsertEventParticipant,
+  type Post,
+  type InsertPost,
+  type PostLike,
+  type InsertPostLike,
+  type PostComment,
+  type InsertPostComment,
   type TourWithGuide,
   type ServiceWithProvider,
   type BookingWithDetails,
@@ -133,6 +148,29 @@ export interface IStorage {
   cancelSubscription(userId: string): Promise<void>;
   getSubscriptionByStripeId(subscriptionId: string): Promise<any | null>;
   updateSubscriptionStatus(stripeSubscriptionId: string, status: string): Promise<void>;
+  
+  // Events operations
+  createEvent(event: InsertEvent): Promise<Event>;
+  getEventById(id: string): Promise<Event | null>;
+  listEvents(filters?: any): Promise<Event[]>;
+  updateEvent(id: string, updates: Partial<Event>): Promise<Event>;
+  deleteEvent(id: string): Promise<void>;
+  
+  // Event Participants operations
+  addEventParticipant(participant: InsertEventParticipant): Promise<EventParticipant>;
+  getEventParticipants(eventId: string): Promise<EventParticipant[]>;
+  
+  // Posts operations
+  createPost(post: InsertPost): Promise<Post>;
+  getFeedPosts(filters?: any): Promise<Post[]>;
+  deletePost(id: string): Promise<void>;
+  
+  // Post Likes operations
+  togglePostLike(postId: string, userId: string): Promise<void>;
+  
+  // Post Comments operations
+  addComment(comment: InsertPostComment): Promise<PostComment>;
+  getPostComments(postId: string): Promise<PostComment[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1181,6 +1219,63 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId));
+  }
+
+  // Events operations (to be implemented in next task)
+  async createEvent(event: InsertEvent): Promise<Event> {
+    throw new Error("Not implemented yet");
+  }
+
+  async getEventById(id: string): Promise<Event | null> {
+    throw new Error("Not implemented yet");
+  }
+
+  async listEvents(filters?: any): Promise<Event[]> {
+    throw new Error("Not implemented yet");
+  }
+
+  async updateEvent(id: string, updates: Partial<Event>): Promise<Event> {
+    throw new Error("Not implemented yet");
+  }
+
+  async deleteEvent(id: string): Promise<void> {
+    throw new Error("Not implemented yet");
+  }
+
+  // Event Participants operations (to be implemented in next task)
+  async addEventParticipant(participant: InsertEventParticipant): Promise<EventParticipant> {
+    throw new Error("Not implemented yet");
+  }
+
+  async getEventParticipants(eventId: string): Promise<EventParticipant[]> {
+    throw new Error("Not implemented yet");
+  }
+
+  // Posts operations (to be implemented in next task)
+  async createPost(post: InsertPost): Promise<Post> {
+    throw new Error("Not implemented yet");
+  }
+
+  async getFeedPosts(filters?: any): Promise<Post[]> {
+    throw new Error("Not implemented yet");
+  }
+
+  async deletePost(id: string): Promise<void> {
+    throw new Error("Not implemented yet");
+  }
+
+  // Post Likes operations (to be implemented in next task)
+  async togglePostLike(postId: string, userId: string): Promise<void> {
+    throw new Error("Not implemented yet");
+  }
+
+  // Post Comments operations (to be implemented in next task)
+  async addComment(comment: InsertPostComment): Promise<PostComment> {
+    throw new Error("Not implemented yet");
+  }
+
+  async getPostComments(postId: string): Promise<PostComment[]> {
+    throw new Error("Not implemented yet");
   }
 }
 

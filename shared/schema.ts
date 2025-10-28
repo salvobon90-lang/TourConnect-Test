@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   index,
+  uniqueIndex,
   jsonb,
   pgTable,
   timestamp,
@@ -122,6 +123,11 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   participant2Conversations: many(conversations, { relationName: "participant2Conversations" }),
   messagesSent: many(messages),
   subscription: one(subscriptions),
+  eventsCreated: many(events),
+  eventParticipations: many(eventParticipants),
+  posts: many(posts),
+  postLikes: many(postLikes),
+  postComments: many(postComments),
 }));
 
 // Tours table - created by guides
@@ -355,6 +361,204 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   }),
 }));
 
+// Events table - local events created by any user
+export const events = pgTable("events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Ownership
+  createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Event details
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description").notNull(),
+  category: varchar("category", { length: 50 }).notNull(), // workshop, festival, excursion, meetup
+  
+  // Location
+  locationName: varchar("location_name", { length: 200 }),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  
+  // Timing
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  
+  // Capacity & Pricing
+  isPrivate: boolean("is_private").default(false),
+  maxParticipants: integer("max_participants"),
+  isFree: boolean("is_free").default(true),
+  ticketPrice: decimal("ticket_price", { precision: 10, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).default("EUR"),
+  
+  // Stripe
+  stripeProductId: varchar("stripe_product_id", { length: 255 }),
+  stripePriceId: varchar("stripe_price_id", { length: 255 }),
+  
+  // Media
+  coverImage: varchar("cover_image", { length: 500 }),
+  images: text("images").array().default(sql`ARRAY[]::text[]`),
+  
+  // Social
+  hashtags: text("hashtags").array().default(sql`ARRAY[]::text[]`),
+  
+  // Status
+  status: varchar("status", { length: 20 }).default("active"), // active, cancelled, completed
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const eventsRelations = relations(events, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [events.createdBy],
+    references: [users.id],
+  }),
+  participants: many(eventParticipants),
+  posts: many(posts),
+}));
+
+// Event Participants table - RSVP and ticket purchases
+export const eventParticipants = pgTable("event_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  eventId: varchar("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Ticket info
+  ticketsPurchased: integer("tickets_purchased").default(1),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  
+  // Stripe payment
+  stripeSessionId: varchar("stripe_session_id", { length: 255 }),
+  paymentStatus: varchar("payment_status", { length: 20 }).default("pending"), // pending, paid, refunded
+  
+  // Status
+  status: varchar("status", { length: 20 }).default("confirmed"), // confirmed, cancelled, attended
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const eventParticipantsRelations = relations(eventParticipants, ({ one }) => ({
+  event: one(events, {
+    fields: [eventParticipants.eventId],
+    references: [events.id],
+  }),
+  user: one(users, {
+    fields: [eventParticipants.userId],
+    references: [users.id],
+  }),
+}));
+
+// Posts table - social feed posts
+export const posts = pgTable("posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Ownership
+  authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Content
+  content: text("content").notNull(),
+  images: text("images").array().default(sql`ARRAY[]::text[]`),
+  
+  // Context (optional - linked to tour/service/event)
+  tourId: varchar("tour_id").references(() => tours.id, { onDelete: "set null" }),
+  serviceId: varchar("service_id").references(() => services.id, { onDelete: "set null" }),
+  eventId: varchar("event_id").references(() => events.id, { onDelete: "set null" }),
+  
+  // Social
+  hashtags: text("hashtags").array().default(sql`ARRAY[]::text[]`),
+  
+  // Engagement counters (denormalized for performance)
+  likesCount: integer("likes_count").default(0),
+  commentsCount: integer("comments_count").default(0),
+  
+  // Status
+  isPublic: boolean("is_public").default(true),
+  moderationStatus: varchar("moderation_status", { length: 20 }).default("approved"), // pending, approved, rejected
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const postsRelations = relations(posts, ({ one, many }) => ({
+  author: one(users, {
+    fields: [posts.authorId],
+    references: [users.id],
+  }),
+  tour: one(tours, {
+    fields: [posts.tourId],
+    references: [tours.id],
+  }),
+  service: one(services, {
+    fields: [posts.serviceId],
+    references: [services.id],
+  }),
+  event: one(events, {
+    fields: [posts.eventId],
+    references: [events.id],
+  }),
+  likes: many(postLikes),
+  comments: many(postComments),
+}));
+
+// Post Likes table
+export const postLikes = pgTable("post_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  postId: varchar("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueUserPost: uniqueIndex("unique_user_post_like").on(table.postId, table.userId),
+}));
+
+export const postLikesRelations = relations(postLikes, ({ one }) => ({
+  post: one(posts, {
+    fields: [postLikes.postId],
+    references: [posts.id],
+  }),
+  user: one(users, {
+    fields: [postLikes.userId],
+    references: [users.id],
+  }),
+}));
+
+// Post Comments table
+export const postComments = pgTable("post_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  postId: varchar("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+  authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  content: text("content").notNull(),
+  
+  // Nested comments (replies) - self-referential foreign key
+  // Type assertion needed due to TypeScript circular reference limitation
+  parentCommentId: varchar("parent_comment_id").references((): any => postComments.id, { onDelete: "cascade" }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const postCommentsRelations = relations(postComments, ({ one, many }) => ({
+  post: one(posts, {
+    fields: [postComments.postId],
+    references: [posts.id],
+  }),
+  author: one(users, {
+    fields: [postComments.authorId],
+    references: [users.id],
+  }),
+  parentComment: one(postComments, {
+    fields: [postComments.parentCommentId],
+    references: [postComments.id],
+    relationName: "commentReplies",
+  }),
+  replies: many(postComments, {
+    relationName: "commentReplies",
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -462,6 +666,41 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
   updatedAt: true,
 });
 
+// Events
+export const insertEventSchema = createInsertSchema(events).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Event Participants
+export const insertEventParticipantSchema = createInsertSchema(eventParticipants).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Posts
+export const insertPostSchema = createInsertSchema(posts).omit({
+  id: true,
+  likesCount: true,
+  commentsCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Post Likes
+export const insertPostLikeSchema = createInsertSchema(postLikes).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Post Comments
+export const insertPostCommentSchema = createInsertSchema(postComments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // TypeScript types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -481,6 +720,16 @@ export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type SelectMessage = typeof messages.$inferSelect;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type SelectSubscription = typeof subscriptions.$inferSelect;
+export type InsertEvent = z.infer<typeof insertEventSchema>;
+export type Event = typeof events.$inferSelect;
+export type InsertEventParticipant = z.infer<typeof insertEventParticipantSchema>;
+export type EventParticipant = typeof eventParticipants.$inferSelect;
+export type InsertPost = z.infer<typeof insertPostSchema>;
+export type Post = typeof posts.$inferSelect;
+export type InsertPostLike = z.infer<typeof insertPostLikeSchema>;
+export type PostLike = typeof postLikes.$inferSelect;
+export type InsertPostComment = z.infer<typeof insertPostCommentSchema>;
+export type PostComment = typeof postComments.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {
