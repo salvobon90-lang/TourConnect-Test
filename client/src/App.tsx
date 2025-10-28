@@ -33,6 +33,7 @@ import Messages from "@/pages/Messages";
 import Subscriptions from "@/pages/Subscriptions";
 import SubscriptionSuccess from "@/pages/SubscriptionSuccess";
 import SubscriptionCancel from "@/pages/SubscriptionCancel";
+import { AIChatWidget } from "@/components/ai/AIChatWidget";
 import "./i18n";
 
 function Router() {
@@ -133,8 +134,9 @@ function App() {
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <Toaster />
           <Router />
+          <AIChatWidget />
+          <Toaster />
         </TooltipProvider>
       </QueryClientProvider>
     </HelmetProvider>
