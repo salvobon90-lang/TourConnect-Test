@@ -216,14 +216,20 @@ export interface IStorage {
   // Posts operations
   createPost(post: InsertPost): Promise<Post>;
   getFeedPosts(filters?: any): Promise<Post[]>;
+  getPostById(id: string): Promise<Post | null>;
   deletePost(id: string): Promise<void>;
+  getUserById(id: string): Promise<User | undefined>;
+  getUsersByIds(ids: string[]): Promise<Map<string, User>>;
   
   // Post Likes operations
-  togglePostLike(postId: string, userId: string): Promise<void>;
+  togglePostLike(postId: string, userId: string): Promise<{ liked: boolean }>;
+  getPostLikes(postId: string): Promise<PostLike[]>;
+  hasUserLikedPost(postId: string, userId: string): Promise<boolean>;
   
   // Post Comments operations
   addComment(comment: InsertPostComment): Promise<PostComment>;
   getPostComments(postId: string): Promise<PostComment[]>;
+  deleteComment(id: string): Promise<{ postId: string }>;
   
   // API Keys operations
   createApiKey(apiKey: InsertApiKey): Promise<ApiKey>;
@@ -1373,31 +1379,175 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  // Posts operations (to be implemented in next task)
+  // ========== POSTS ==========
   async createPost(post: InsertPost): Promise<Post> {
-    throw new Error("Not implemented yet");
+    const [newPost] = await db.insert(posts).values(post).returning();
+    return newPost;
   }
 
-  async getFeedPosts(filters?: any): Promise<Post[]> {
-    throw new Error("Not implemented yet");
+  async getFeedPosts(filters?: {
+    authorId?: string;
+    tourId?: string;
+    serviceId?: string;
+    eventId?: string;
+    hashtag?: string;
+    isPublic?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<Post[]> {
+    let query = db.select().from(posts);
+    
+    const conditions = [];
+    if (filters?.authorId) conditions.push(eq(posts.authorId, filters.authorId));
+    if (filters?.tourId) conditions.push(eq(posts.tourId, filters.tourId));
+    if (filters?.serviceId) conditions.push(eq(posts.serviceId, filters.serviceId));
+    if (filters?.eventId) conditions.push(eq(posts.eventId, filters.eventId));
+    if (filters?.isPublic !== undefined) conditions.push(eq(posts.isPublic, filters.isPublic));
+    
+    // Hashtag filter - check if hashtag exists in array
+    if (filters?.hashtag) {
+      conditions.push(sql`${filters.hashtag} = ANY(${posts.hashtags})`);
+    }
+    
+    // Only approved posts by default
+    conditions.push(eq(posts.moderationStatus, "approved"));
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    // Order by most recent first
+    query = query.orderBy(desc(posts.createdAt));
+    
+    if (filters?.limit) query = query.limit(filters.limit);
+    if (filters?.offset) query = query.offset(filters.offset);
+    
+    return await query;
+  }
+
+  async getPostById(id: string): Promise<Post | null> {
+    const result = await db.select().from(posts).where(eq(posts.id, id)).limit(1);
+    return result[0] || null;
   }
 
   async deletePost(id: string): Promise<void> {
-    throw new Error("Not implemented yet");
+    await db.delete(posts).where(eq(posts.id, id));
   }
 
-  // Post Likes operations (to be implemented in next task)
-  async togglePostLike(postId: string, userId: string): Promise<void> {
-    throw new Error("Not implemented yet");
+  async getUserById(id: string): Promise<User | undefined> {
+    return this.getUser(id);
   }
 
-  // Post Comments operations (to be implemented in next task)
+  async getUsersByIds(ids: string[]): Promise<Map<string, User>> {
+    if (ids.length === 0) return new Map();
+    
+    const usersList = await db.select().from(users).where(
+      sql`${users.id} = ANY(${ids})`
+    );
+    
+    return new Map(usersList.map(user => [user.id, user]));
+  }
+
+  // ========== POST LIKES ==========
+  async togglePostLike(postId: string, userId: string): Promise<{ liked: boolean }> {
+    // Atomic transaction: check + insert/delete + counter update together
+    return await db.transaction(async (tx) => {
+      // Lock post row to prevent concurrent counter updates
+      const [post] = await tx
+        .select()
+        .from(posts)
+        .where(eq(posts.id, postId))
+        .for("update");
+      
+      if (!post) {
+        throw new Error("Post not found");
+      }
+      
+      // Check if already liked
+      const [existing] = await tx
+        .select()
+        .from(postLikes)
+        .where(and(
+          eq(postLikes.postId, postId),
+          eq(postLikes.userId, userId)
+        ))
+        .limit(1);
+      
+      if (existing) {
+        // Unlike - delete like + decrement counter atomically
+        await tx.delete(postLikes).where(eq(postLikes.id, existing.id));
+        await tx.update(posts)
+          .set({ likesCount: sql`${posts.likesCount} - 1` })
+          .where(eq(posts.id, postId));
+        
+        return { liked: false };
+      } else {
+        // Like - insert like + increment counter atomically
+        await tx.insert(postLikes).values({ postId, userId });
+        await tx.update(posts)
+          .set({ likesCount: sql`${posts.likesCount} + 1` })
+          .where(eq(posts.id, postId));
+        
+        return { liked: true };
+      }
+    });
+  }
+
+  async getPostLikes(postId: string): Promise<PostLike[]> {
+    return await db.select().from(postLikes).where(eq(postLikes.postId, postId));
+  }
+
+  async hasUserLikedPost(postId: string, userId: string): Promise<boolean> {
+    const result = await db.select().from(postLikes)
+      .where(and(
+        eq(postLikes.postId, postId),
+        eq(postLikes.userId, userId)
+      ))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  // ========== POST COMMENTS ==========
   async addComment(comment: InsertPostComment): Promise<PostComment> {
-    throw new Error("Not implemented yet");
+    return await db.transaction(async (tx) => {
+      // Insert comment + increment counter atomically
+      const [newComment] = await tx.insert(postComments).values(comment).returning();
+      
+      await tx.update(posts)
+        .set({ commentsCount: sql`${posts.commentsCount} + 1` })
+        .where(eq(posts.id, comment.postId));
+      
+      return newComment;
+    });
   }
 
   async getPostComments(postId: string): Promise<PostComment[]> {
-    throw new Error("Not implemented yet");
+    return await db.select().from(postComments)
+      .where(eq(postComments.postId, postId))
+      .orderBy(asc(postComments.createdAt));
+  }
+
+  async deleteComment(id: string): Promise<{ postId: string }> {
+    return await db.transaction(async (tx) => {
+      const [comment] = await tx
+        .select()
+        .from(postComments)
+        .where(eq(postComments.id, id))
+        .limit(1);
+      
+      if (!comment) {
+        throw new Error("Comment not found");
+      }
+      
+      // Delete comment + decrement counter atomically
+      await tx.delete(postComments).where(eq(postComments.id, id));
+      
+      await tx.update(posts)
+        .set({ commentsCount: sql`${posts.commentsCount} - 1` })
+        .where(eq(posts.id, comment.postId));
+      
+      return { postId: comment.postId };
+    });
   }
 
   // API Keys operations (to be implemented in next task)

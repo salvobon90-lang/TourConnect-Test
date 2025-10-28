@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, events, eventParticipants, type InsertEventParticipant } from "@shared/schema";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, events, eventParticipants, type InsertEventParticipant } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { chatWithAssistant, chatWithAssistantStream, getTourRecommendations } from "./openai";
@@ -20,6 +20,7 @@ import {
 import { sanitizeBody, sanitizeHtml } from './middleware/sanitize';
 import { db } from "./db";
 import { sql, eq, and, ne } from "drizzle-orm";
+import { broadcastToUser, broadcastToAll } from "./websocket";
 
 // Try production key first, then testing key
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || process.env.TESTING_STRIPE_SECRET_KEY;
@@ -2178,6 +2179,299 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (error: any) {
       console.error("Error updating event status:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ========== FEED SOCIAL API ==========
+
+  // Create Post
+  app.post("/api/posts", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user!;
+      
+      const postData = insertPostSchema.parse({
+        ...req.body,
+        authorId: user.id
+      });
+      
+      const post = await storage.createPost(postData);
+      
+      // Broadcast to WebSocket ONLY if post is public (privacy fix)
+      if (post.isPublic) {
+        broadcastToAll({
+          type: "new_post",
+          post: {
+            ...post,
+            author: {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              profileImageUrl: user.profileImageUrl
+            }
+          }
+        });
+      }
+      
+      res.status(201).json(post);
+    } catch (error: any) {
+      console.error("Error creating post:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get Feed Posts
+  app.get("/api/posts", async (req, res) => {
+    try {
+      const filters = {
+        authorId: req.query.authorId as string | undefined,
+        tourId: req.query.tourId as string | undefined,
+        serviceId: req.query.serviceId as string | undefined,
+        eventId: req.query.eventId as string | undefined,
+        hashtag: req.query.hashtag as string | undefined,
+        isPublic: req.query.isPublic === "false" ? false : true,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0
+      };
+      
+      const postsList = await storage.getFeedPosts(filters);
+      
+      // OPTIMIZED: Batch author lookup instead of N+1 queries
+      const authorIds = [...new Set(postsList.map(p => p.authorId))];
+      const authorsMap = await storage.getUsersByIds(authorIds);
+      
+      const enrichedPosts = postsList.map((post) => {
+        const author = authorsMap.get(post.authorId);
+        return {
+          ...post,
+          author: author ? {
+            id: author.id,
+            firstName: author.firstName,
+            lastName: author.lastName,
+            profileImageUrl: author.profileImageUrl,
+            verified: author.verified
+          } : null
+        };
+      });
+      
+      res.json(enrichedPosts);
+    } catch (error: any) {
+      console.error("Error getting feed posts:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get Post by ID
+  app.get("/api/posts/:id", async (req: any, res) => {
+    try {
+      const post = await storage.getPostById(req.params.id);
+      
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      // Get author info
+      const author = await storage.getUserById(post.authorId);
+      
+      // Get user's like status (if authenticated)
+      let hasLiked = false;
+      if (req.user) {
+        hasLiked = await storage.hasUserLikedPost(post.id, req.user.id);
+      }
+      
+      res.json({
+        ...post,
+        author: author ? {
+          id: author.id,
+          firstName: author.firstName,
+          lastName: author.lastName,
+          profileImageUrl: author.profileImageUrl,
+          verified: author.verified
+        } : null,
+        hasLiked
+      });
+    } catch (error: any) {
+      console.error("Error getting post:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Delete Post (Owner only)
+  app.delete("/api/posts/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user!;
+      const postId = req.params.id;
+      
+      const post = await storage.getPostById(postId);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      if (post.authorId !== user.id) {
+        return res.status(403).json({ message: "You can only delete your own posts" });
+      }
+      
+      await storage.deletePost(postId);
+      
+      res.json({ message: "Post deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting post:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Toggle Like on Post
+  app.post("/api/posts/:id/like", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user!;
+      const postId = req.params.id;
+      
+      const post = await storage.getPostById(postId);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      const result = await storage.togglePostLike(postId, user.id);
+      
+      // Get updated post
+      const updatedPost = await storage.getPostById(postId);
+      
+      // Broadcast like notification via WebSocket (only if liked, not unliked)
+      if (result.liked) {
+        broadcastToUser(post.authorId, {
+          type: "post_liked",
+          postId,
+          likedBy: {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            profileImageUrl: user.profileImageUrl
+          },
+          likesCount: updatedPost!.likesCount
+        });
+      }
+      
+      res.json({
+        liked: result.liked,
+        likesCount: updatedPost!.likesCount
+      });
+    } catch (error: any) {
+      console.error("Error toggling like:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add Comment to Post
+  app.post("/api/posts/:id/comments", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user!;
+      const postId = req.params.id;
+      const { content, parentCommentId } = req.body;
+      
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({ message: "Comment content required" });
+      }
+      
+      const post = await storage.getPostById(postId);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      const comment = await storage.addComment({
+        postId,
+        authorId: user.id,
+        content: content.trim(),
+        parentCommentId: parentCommentId || null
+      });
+      
+      // Get updated post
+      const updatedPost = await storage.getPostById(postId);
+      
+      // Broadcast comment notification via WebSocket
+      broadcastToUser(post.authorId, {
+        type: "post_commented",
+        postId,
+        comment: {
+          ...comment,
+          author: {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            profileImageUrl: user.profileImageUrl
+          }
+        },
+        commentsCount: updatedPost!.commentsCount
+      });
+      
+      res.status(201).json({
+        ...comment,
+        author: {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          profileImageUrl: user.profileImageUrl
+        }
+      });
+    } catch (error: any) {
+      console.error("Error adding comment:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get Post Comments
+  app.get("/api/posts/:id/comments", async (req, res) => {
+    try {
+      const postId = req.params.id;
+      
+      const comments = await storage.getPostComments(postId);
+      
+      // OPTIMIZED: Batch author lookup
+      const authorIds = [...new Set(comments.map(c => c.authorId))];
+      const authorsMap = await storage.getUsersByIds(authorIds);
+      
+      const enrichedComments = comments.map((comment) => {
+        const author = authorsMap.get(comment.authorId);
+        return {
+          ...comment,
+          author: author ? {
+            id: author.id,
+            firstName: author.firstName,
+            lastName: author.lastName,
+            profileImageUrl: author.profileImageUrl,
+            verified: author.verified
+          } : null
+        };
+      });
+      
+      res.json(enrichedComments);
+    } catch (error: any) {
+      console.error("Error getting comments:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Delete Comment (Owner only)
+  app.delete("/api/posts/:id/comments/:commentId", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user!;
+      const { commentId } = req.params;
+      
+      const comments = await storage.getPostComments(req.params.id);
+      const comment = comments.find(c => c.id === commentId);
+      
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      
+      if (comment.authorId !== user.id) {
+        return res.status(403).json({ message: "You can only delete your own comments" });
+      }
+      
+      await storage.deleteComment(commentId);
+      
+      res.json({ message: "Comment deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting comment:", error);
       res.status(500).json({ message: error.message });
     }
   });

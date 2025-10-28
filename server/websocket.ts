@@ -308,3 +308,16 @@ export function setupWebSocketServer(server: Server, sessionStore: any): WebSock
 export function getWebSocketServer(): WebSocketServer | null {
   return wsServerInstance;
 }
+
+// Helper functions for broadcasting from routes
+export function broadcastToUser(userId: string, message: any) {
+  if (wsServerInstance) {
+    wsServerInstance.sendToUser(userId, message);
+  }
+}
+
+export function broadcastToAll(message: any) {
+  if (wsServerInstance) {
+    wsServerInstance.broadcast(message);
+  }
+}
