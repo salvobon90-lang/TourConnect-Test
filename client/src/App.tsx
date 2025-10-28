@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from '@/components/theme-provider';
 import { useAuth } from "@/hooks/useAuth";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { useTranslation } from "react-i18next";
@@ -190,11 +191,13 @@ function App() {
   return (
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Router />
-          <AIChatWidget />
-          <Toaster />
-        </TooltipProvider>
+        <ThemeProvider defaultTheme="system" storageKey="tourconnect-theme">
+          <TooltipProvider>
+            <Router />
+            <AIChatWidget />
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     </HelmetProvider>
   );

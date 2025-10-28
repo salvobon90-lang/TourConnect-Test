@@ -134,6 +134,10 @@
 
   --background: 220 15% 12%;
 
+  /* Gradient backgrounds for depth */
+  --background-gradient: linear-gradient(180deg, hsl(220 15% 12%) 0%, hsl(220 15% 8%) 100%);
+  --card-gradient: linear-gradient(135deg, hsl(220 15% 16%) 0%, hsl(220 15% 14%) 100%);
+
   --foreground: 0 0% 98%;
 
   --border: 220 15% 18%;
@@ -211,6 +215,25 @@
   --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+}
+
+/* Apply gradient backgrounds in dark mode */
+.dark body {
+  background: var(--background-gradient);
+  background-attachment: fixed;
+}
+
+.dark .card-with-gradient {
+  background: var(--card-gradient);
+}
+
+/* Utility for gradient cards */
+.bg-card-gradient {
+  background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card)) 100%);
+}
+
+.dark .bg-card-gradient {
+  background: var(--card-gradient);
 }
 
 @layer base {
@@ -310,6 +333,45 @@
 
   .animate-pulse-scale {
     animation: pulse-scale 2s ease-in-out infinite;
+  }
+
+  /* Orange accent animations - respects prefers-reduced-motion */
+  @keyframes pulse-orange {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  @keyframes glow-orange {
+    0%, 100% {
+      box-shadow: 0 0 5px hsl(25 100% 50% / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 20px hsl(25 100% 50% / 0.6), 0 0 30px hsl(25 100% 50% / 0.3);
+    }
+  }
+
+  /* Apply to primary buttons only if NOT prefers-reduced-motion */
+  @media (prefers-reduced-motion: no-preference) {
+    .dark .animate-primary-pulse {
+      animation: pulse-orange 2s ease-in-out infinite;
+    }
+    
+    .dark .animate-primary-glow:hover {
+      animation: glow-orange 1.5s ease-in-out infinite;
+    }
+  }
+
+  /* Utility classes for animated accents */
+  .primary-accent-animated {
+    transition: all 0.3s ease;
+  }
+
+  .dark .primary-accent-animated:hover {
+    filter: brightness(1.1);
   }
 
   .mapbox-popup-content {

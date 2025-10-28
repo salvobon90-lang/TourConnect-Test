@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Globe
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useState, useEffect, Suspense, lazy } from 'react';
@@ -134,6 +135,9 @@ export function Header() {
           >
             <Bell className="h-5 w-5" />
           </Button>
+          
+          {/* Theme Toggle */}
+          <ThemeToggle />
           
           {/* Premium indicator */}
           {isPremium && tierDisplayName && (
