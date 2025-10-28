@@ -43,6 +43,7 @@ import Feed from "@/pages/feed";
 import PostDetails from "@/pages/post-details";
 import Analytics from "@/pages/analytics";
 import ItineraryBuilder from "@/pages/itinerary-builder";
+import EsploraMondo from "@/pages/esplora-mondo";
 import { AIChatWidget } from "@/components/ai/AIChatWidget";
 import "./i18n";
 
@@ -120,6 +121,9 @@ function Router() {
       
       {/* AI Itinerary Builder */}
       <Route path="/itinerary-builder" component={ItineraryBuilder} />
+      
+      {/* 3D Globe Explorer */}
+      <Route path="/esplora-mondo" component={EsploraMondo} />
       
       {user.role === 'tourist' && (
         <>

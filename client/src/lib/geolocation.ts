@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 // Haversine formula to calculate distance between two coordinates
 export function calculateDistance(
   lat1: number,
@@ -64,5 +66,63 @@ export function formatDistance(km: number): string {
     return `${Math.round(km * 1000)}m`;
   } else {
     return `${km.toFixed(1)}km`;
+  }
+}
+
+// ===== Globe-specific types and functions =====
+
+export interface GeoLocation {
+  latitude: number;
+  longitude: number;
+}
+
+export interface GlobeMarker {
+  id: string;
+  type: 'tour' | 'service' | 'event';
+  title: string;
+  location: string;
+  latitude: number;
+  longitude: number;
+  category?: string;
+  price?: number;
+  images?: string[];
+}
+
+/**
+ * Convert lat/lon coordinates to 3D Vector3 position on sphere
+ * @param lat Latitude in degrees (-90 to 90)
+ * @param lon Longitude in degrees (-180 to 180)
+ * @param radius Sphere radius (default 2)
+ */
+export function latLonToVector3(
+  lat: number,
+  lon: number,
+  radius: number = 2
+): THREE.Vector3 {
+  // Convert to radians
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = (lon + 180) * (Math.PI / 180);
+  
+  // Spherical to Cartesian conversion
+  const x = -(radius * Math.sin(phi) * Math.cos(theta));
+  const z = radius * Math.sin(phi) * Math.sin(theta);
+  const y = radius * Math.cos(phi);
+  
+  return new THREE.Vector3(x, y, z);
+}
+
+/**
+ * Get marker color based on type
+ */
+export function getMarkerColor(type: 'tour' | 'service' | 'event'): string {
+  switch (type) {
+    case 'tour':
+      return '#FF6600'; // Primary orange
+    case 'service':
+      return '#3b82f6'; // Blue
+    case 'event':
+      return '#10b981'; // Green
+    default:
+      return '#FF6600';
   }
 }
