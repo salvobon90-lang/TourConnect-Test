@@ -29,6 +29,7 @@ import EditTour from "@/pages/edit-tour";
 import Profile from "@/pages/profile";
 import SponsorshipSuccess from "@/pages/sponsorship-success";
 import Onboarding from "@/pages/onboarding";
+import Messages from "@/pages/Messages";
 import "./i18n";
 
 function Router() {
@@ -80,6 +81,7 @@ function Router() {
     <Switch>
       {/* Shared routes for all authenticated users */}
       <Route path="/profile" component={Profile} />
+      <Route path="/messages" component={Messages} />
       <Route path="/tours/:id" component={TourDetail} />
       <Route path="/book/:id" component={BookTour} />
       <Route path="/booking-success" component={BookingSuccess} />

@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Store, DollarSign, Star, ShoppingBag, Calendar, Megaphone, Sparkles, Clock } from 'lucide-react';
+import { Plus, Store, DollarSign, Star, ShoppingBag, Calendar, Megaphone, Sparkles, Clock, MessageSquare } from 'lucide-react';
 import type { Service, Sponsorship } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
@@ -77,6 +77,11 @@ export default function ProviderDashboard() {
               <Link href="/offers">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-offers">
                   {t('navigation.offers')}
+                </a>
+              </Link>
+              <Link href="/messages">
+                <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-messages">
+                  Messages
                 </a>
               </Link>
               <Link href="/insights">

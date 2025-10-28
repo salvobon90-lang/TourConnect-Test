@@ -7,7 +7,7 @@ import { queryClient, apiRequest } from '@/lib/queryClient';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, MapPin, DollarSign, Star, Users, Calendar, Edit2, Trash2, Megaphone, Sparkles, Clock } from 'lucide-react';
+import { Plus, MapPin, DollarSign, Star, Users, Calendar, Edit2, Trash2, Megaphone, Sparkles, Clock, MessageSquare } from 'lucide-react';
 import type { Tour, Sponsorship } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link, useLocation } from 'wouter';
@@ -103,6 +103,11 @@ export default function GuideDashboard() {
               <Link href="/bookings">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-bookings">
                   {t('navigation.bookings')}
+                </a>
+              </Link>
+              <Link href="/messages">
+                <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-messages">
+                  Messages
                 </a>
               </Link>
               <Link href="/analytics">

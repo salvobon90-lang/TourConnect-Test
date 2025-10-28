@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, MapPin, Star, Clock, Users, Heart, Calendar, Map as MapIcon, Navigation, Sparkles } from 'lucide-react';
+import { Search, MapPin, Star, Clock, Users, Heart, Calendar, Map as MapIcon, Navigation, Sparkles, MessageSquare } from 'lucide-react';
 import type { TourWithGuide } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
@@ -157,6 +157,11 @@ export default function TouristDashboard() {
               <Link href="/saved">
                 <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-saved">
                   {t('navigation.saved')}
+                </a>
+              </Link>
+              <Link href="/messages">
+                <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-messages">
+                  Messages
                 </a>
               </Link>
               <Link href="/map">
