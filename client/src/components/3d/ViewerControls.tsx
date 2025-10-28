@@ -7,6 +7,7 @@ import {
   Volume2,
   VolumeX
 } from "lucide-react";
+import { VRButton } from "./VRButton";
 
 interface ViewerControlsProps {
   onZoomIn: () => void;
@@ -16,6 +17,10 @@ interface ViewerControlsProps {
   isAutoRotate: boolean;
   audioPlaying: boolean;
   onToggleAudio: () => void;
+  isVRAvailable: boolean;
+  isInVR: boolean;
+  onEnterVR: () => void;
+  onExitVR: () => void;
 }
 
 export function ViewerControls({
@@ -25,13 +30,24 @@ export function ViewerControls({
   onToggleAuto,
   isAutoRotate,
   audioPlaying,
-  onToggleAudio
+  onToggleAudio,
+  isVRAvailable,
+  isInVR,
+  onEnterVR,
+  onExitVR
 }: ViewerControlsProps) {
   return (
     <div 
       className="absolute bottom-4 right-4 flex flex-col gap-2"
       data-testid="viewer-controls"
     >
+      <VRButton 
+        isVRAvailable={isVRAvailable}
+        isInVR={isInVR}
+        onEnterVR={onEnterVR}
+        onExitVR={onExitVR}
+      />
+      
       <Button 
         size="icon" 
         variant="secondary"

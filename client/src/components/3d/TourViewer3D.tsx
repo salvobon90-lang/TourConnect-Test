@@ -1,4 +1,4 @@
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useState, useRef, useEffect } from "react";
 import { PanoramicSphere } from "./PanoramicSphere";
@@ -6,6 +6,72 @@ import { POIMarker } from "./POIMarker";
 import { ViewerControls } from "./ViewerControls";
 import type { OrbitControls as OrbitControlsType } from "three-stdlib";
 import { PerspectiveCamera } from "three";
+
+function VRManager({ 
+  onVRAvailabilityChange,
+  onVRSessionStart,
+  onVRSessionEnd,
+  onVREnter,
+  onVRError,
+  onSessionRef
+}: { 
+  onVRAvailabilityChange: (available: boolean) => void;
+  onVRSessionStart: () => void;
+  onVRSessionEnd: () => void;
+  onVREnter: (enterFn: () => Promise<void>) => void;
+  onVRError: (error: string) => void;
+  onSessionRef: (getSession: () => XRSession | null) => void;
+}) {
+  const { gl } = useThree();
+  
+  useEffect(() => {
+    gl.xr.enabled = true;
+    
+    if ('xr' in navigator) {
+      navigator.xr?.isSessionSupported('immersive-vr').then((supported) => {
+        onVRAvailabilityChange(supported);
+      }).catch(() => {
+        onVRAvailabilityChange(false);
+      });
+    } else {
+      onVRAvailabilityChange(false);
+    }
+    
+    const handleSessionStart = () => {
+      console.log('[VR] Session started');
+      onVRSessionStart();
+    };
+    
+    const handleSessionEnd = () => {
+      console.log('[VR] Session ended');
+      onVRSessionEnd();
+    };
+    
+    gl.xr.addEventListener('sessionstart', handleSessionStart);
+    gl.xr.addEventListener('sessionend', handleSessionEnd);
+    
+    onSessionRef(() => gl.xr.getSession());
+    
+    onVREnter(async () => {
+      try {
+        const session = await navigator.xr?.requestSession('immersive-vr');
+        if (session) {
+          await gl.xr.setSession(session);
+        }
+      } catch (error: any) {
+        console.error('[VR] Error entering VR:', error);
+        onVRError(error.message || 'Failed to enter VR');
+      }
+    });
+    
+    return () => {
+      gl.xr.removeEventListener('sessionstart', handleSessionStart);
+      gl.xr.removeEventListener('sessionend', handleSessionEnd);
+    };
+  }, [gl, onVRAvailabilityChange, onVRSessionStart, onVRSessionEnd, onVREnter, onVRError, onSessionRef]);
+  
+  return null;
+}
 
 const SAMPLE_POIS = [
   {
@@ -42,6 +108,14 @@ export function TourViewer3D({
   const [autoRotate, setAutoRotate] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  
+  const [isVRAvailable, setIsVRAvailable] = useState(false);
+  const [isInVR, setIsInVR] = useState(false);
+  const [vrError, setVRError] = useState<string | null>(null);
+  const vrEnterFnRef = useRef<(() => Promise<void>) | null>(null);
+  const vrSessionGetterRef = useRef<(() => XRSession | null) | null>(null);
+  
+  const autoRotateBeforeVRRef = useRef(false);
   
   const handleAudioPlay = (audioUrl: string) => {
     if (currentAudio) {
@@ -103,6 +177,58 @@ export function TourViewer3D({
     }
   };
   
+  const handleEnterVR = async () => {
+    if (vrEnterFnRef.current) {
+      autoRotateBeforeVRRef.current = autoRotate;
+      setAutoRotate(false);
+      
+      try {
+        await vrEnterFnRef.current();
+      } catch (error: any) {
+        setVRError(error.message || 'Failed to enter VR');
+        setAutoRotate(autoRotateBeforeVRRef.current);
+      }
+    }
+  };
+  
+  const handleExitVR = async () => {
+    if (!vrSessionGetterRef.current) return;
+    
+    try {
+      const session = vrSessionGetterRef.current();
+      if (session) {
+        console.log('[VR] Exiting VR session...');
+        await session.end();
+      }
+    } catch (error: any) {
+      console.error('[VR] Error exiting VR:', error);
+      setVRError(error.message || 'Failed to exit VR');
+    }
+  };
+  
+  const handleVRSessionStart = () => {
+    setIsInVR(true);
+    setVRError(null);
+  };
+  
+  const handleVRSessionEnd = () => {
+    setIsInVR(false);
+    setAutoRotate(autoRotateBeforeVRRef.current);
+    setVRError(null);
+  };
+  
+  const handleVREnter = (enterFn: () => Promise<void>) => {
+    vrEnterFnRef.current = enterFn;
+  };
+  
+  const handleVRError = (error: string) => {
+    setVRError(error);
+  };
+  
+  const handleSessionRef = (getSession: () => XRSession | null) => {
+    vrSessionGetterRef.current = getSession;
+  };
+  
   useEffect(() => {
     return () => {
       if (currentAudio) {
@@ -114,7 +240,18 @@ export function TourViewer3D({
   
   return (
     <div className="relative w-full h-screen bg-black" data-testid="tour-viewer-3d">
-      <Canvas camera={{ position: [0, 0, 0.1], fov: 75 }}>
+      <Canvas 
+        camera={{ position: [0, 0, 0.1], fov: 75 }}
+      >
+        <VRManager 
+          onVRAvailabilityChange={setIsVRAvailable}
+          onVRSessionStart={handleVRSessionStart}
+          onVRSessionEnd={handleVRSessionEnd}
+          onVREnter={handleVREnter}
+          onVRError={handleVRError}
+          onSessionRef={handleSessionRef}
+        />
+        
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
         
@@ -139,6 +276,15 @@ export function TourViewer3D({
         />
       </Canvas>
       
+      {vrError && (
+        <div 
+          className="absolute top-20 left-1/2 -translate-x-1/2 z-10 bg-destructive text-destructive-foreground px-4 py-2 rounded-lg"
+          data-testid="text-vr-error"
+        >
+          {vrError}
+        </div>
+      )}
+      
       <ViewerControls
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
@@ -147,6 +293,10 @@ export function TourViewer3D({
         isAutoRotate={autoRotate}
         audioPlaying={audioPlaying}
         onToggleAudio={toggleAudio}
+        isVRAvailable={isVRAvailable}
+        isInVR={isInVR}
+        onEnterVR={handleEnterVR}
+        onExitVR={handleExitVR}
       />
     </div>
   );
