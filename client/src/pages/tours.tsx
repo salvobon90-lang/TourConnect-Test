@@ -13,6 +13,9 @@ import { Link } from 'wouter';
 import { Logo } from '@/components/logo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SEO } from '@/components/seo';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
+import { TrustLevel } from '@/components/badges/TrustLevel';
 
 export default function Tours() {
   const { t } = useTranslation();
@@ -222,23 +225,27 @@ export default function Tours() {
                     <p className="text-sm text-muted-foreground mb-3 line-clamp-2" data-testid={`text-description-${tour.id}`}>
                       {tour.description}
                     </p>
-                    <div className="flex items-center gap-1 mb-3 text-sm text-muted-foreground">
-                      <Users className="w-4 h-4" />
-                      <span data-testid={`text-guide-${tour.id}`} className="flex items-center gap-1">
-                        <span>by {tour.guide?.firstName || tour.guide?.email || 'Guide'}</span>
-                        {tour.guide?.verified && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <BadgeCheck className="w-4 h-4 text-primary" data-testid={`badge-verified-guide-${tour.id}`} />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{t('profile.verifiedTooltip')}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </span>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={tour.guide?.profileImageUrl || undefined} />
+                        <AvatarFallback>
+                          {tour.guide?.firstName?.[0]}{tour.guide?.lastName?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" data-testid={`text-guide-${tour.id}`}>
+                          {tour.guide?.firstName} {tour.guide?.lastName}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          {tour.guide?.trustLevel !== undefined && tour.guide.trustLevel !== null && tour.guide.trustLevel > 0 && (
+                            <TrustLevel level={tour.guide.trustLevel} variant="badge" showLabel={false} />
+                          )}
+                          {tour.guide?.badges && tour.guide.badges.length > 0 && (
+                            <BadgeDisplay badges={tour.guide.badges} size="sm" maxVisible={2} />
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
                       <div className="flex items-center gap-1" data-testid={`text-duration-${tour.id}`}>

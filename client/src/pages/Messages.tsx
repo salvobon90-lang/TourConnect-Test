@@ -12,6 +12,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import type { SelectConversation, SelectMessage, User } from '@shared/schema';
 import { Logo } from '@/components/logo';
+import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
+import { TrustLevel } from '@/components/badges/TrustLevel';
 
 interface ConversationWithUser extends SelectConversation {
   otherUser: User;
@@ -60,17 +62,27 @@ function ConversationItem({
       </div>
       
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-1">
           <p className="font-medium truncate">
             {otherUser?.firstName} {otherUser?.lastName}
+          </p>
+          {otherUser?.trustLevel !== undefined && otherUser.trustLevel !== null && otherUser.trustLevel > 0 && (
+            <TrustLevel level={otherUser.trustLevel} variant="badge" showLabel={false} />
+          )}
+        </div>
+        {otherUser?.badges && otherUser.badges.length > 0 && (
+          <div className="mb-1">
+            <BadgeDisplay badges={otherUser.badges} size="sm" maxVisible={2} />
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground truncate">
+            {conversation.lastMessagePreview || 'No messages yet'}
           </p>
           <span className="text-xs text-muted-foreground">
             {formatTime(conversation.lastMessageAt)}
           </span>
         </div>
-        <p className="text-sm text-muted-foreground truncate">
-          {conversation.lastMessagePreview || 'No messages yet'}
-        </p>
       </div>
     </div>
   );

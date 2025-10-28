@@ -17,6 +17,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SiFacebook, SiInstagram, SiX } from 'react-icons/si';
 import { SEO } from '@/components/seo';
+import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
+import { TrustLevel } from '@/components/badges/TrustLevel';
+import { BADGE_CONFIG } from '@/lib/badges';
 
 export default function Profile() {
   const { t } = useTranslation();
@@ -308,6 +311,20 @@ export default function Profile() {
             )}
           </div>
           <p className="text-muted-foreground">{t('profile.subtitle')}</p>
+          
+          {/* Trust Level and Badges Display */}
+          <div className="mt-4 space-y-3">
+            {user?.trustLevel !== undefined && user.trustLevel !== null && user.trustLevel > 0 && (
+              <TrustLevel level={user.trustLevel} variant="full" />
+            )}
+            
+            {user?.badges && user.badges.length > 0 && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Achievements</p>
+                <BadgeDisplay badges={user.badges} showLabels size="lg" />
+              </div>
+            )}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -730,6 +747,45 @@ export default function Profile() {
             </Button>
           </div>
         </form>
+
+        {/* Achievements Showcase Section */}
+        {(user?.badges && user.badges.length > 0) || user?.trustLevel !== undefined && (
+          <Card className="p-6 mt-6">
+            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Award className="w-5 h-5" />
+              Achievements
+            </h3>
+            
+            {user?.badges && user.badges.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {user.badges.map((badgeKey) => {
+                  const config = BADGE_CONFIG[badgeKey];
+                  if (!config) return null;
+                  
+                  const Icon = config.icon;
+                  
+                  return (
+                    <Card key={badgeKey} className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-lg bg-muted">
+                          <Icon className={`h-6 w-6 ${config.color}`} />
+                        </div>
+                        <div>
+                          <h4 className="font-medium">{config.label}</h4>
+                          <p className="text-sm text-muted-foreground">{config.description}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No badges earned yet. Keep exploring to unlock achievements!
+              </p>
+            )}
+          </Card>
+        )}
       </main>
     </div>
     </>
