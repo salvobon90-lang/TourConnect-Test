@@ -39,6 +39,8 @@ import Events from "@/pages/events";
 import EventDetails from "@/pages/event-details";
 import CreateEvent from "@/pages/create-event";
 import MyEvents from "@/pages/my-events";
+import Feed from "@/pages/feed";
+import PostDetails from "@/pages/post-details";
 import { AIChatWidget } from "@/components/ai/AIChatWidget";
 import "./i18n";
 
@@ -108,6 +110,11 @@ function Router() {
       <Route path="/events/new" component={CreateEvent} />
       <Route path="/events/my-events" component={MyEvents} />
       <Route path="/events/:id" component={EventDetails} />
+      
+      {/* Feed routes */}
+      <Route path="/feed" component={Feed} />
+      <Route path="/feed/new" component={Feed} />
+      <Route path="/feed/:id" component={PostDetails} />
       
       {user.role === 'tourist' && (
         <>
