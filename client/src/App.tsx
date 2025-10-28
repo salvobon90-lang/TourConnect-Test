@@ -34,6 +34,7 @@ import Subscriptions from "@/pages/Subscriptions";
 import SubscriptionSuccess from "@/pages/SubscriptionSuccess";
 import SubscriptionCancel from "@/pages/SubscriptionCancel";
 import Tour3DPage from "@/pages/Tour3DPage";
+import MapboxMap3D from "@/pages/mapbox-3d";
 import { AIChatWidget } from "@/components/ai/AIChatWidget";
 import "./i18n";
 
@@ -104,6 +105,7 @@ function Router() {
           <Route path="/bookings" component={Bookings} />
           <Route path="/saved" component={() => <div>Saved Page - Coming Soon</div>} />
           <Route path="/map" component={MapView} />
+          <Route path="/map-3d" component={MapboxMap3D} />
         </>
       )}
       {user.role === 'guide' && (
@@ -112,6 +114,7 @@ function Router() {
           <Route path="/bookings" component={Bookings} />
           <Route path="/analytics" component={() => <div>Analytics - Coming Soon</div>} />
           <Route path="/create-tour" component={CreateTour} />
+          <Route path="/map-3d" component={MapboxMap3D} />
         </>
       )}
       {user.role === 'provider' && (
@@ -120,11 +123,13 @@ function Router() {
           <Route path="/offers" component={() => <div>Offers - Coming Soon</div>} />
           <Route path="/insights" component={() => <div>Insights - Coming Soon</div>} />
           <Route path="/create-service" component={CreateService} />
+          <Route path="/map-3d" component={MapboxMap3D} />
         </>
       )}
       {user.role === 'supervisor' && (
         <>
           <Route path="/" component={SupervisorDashboard} />
+          <Route path="/map-3d" component={MapboxMap3D} />
         </>
       )}
       <Route component={NotFound} />

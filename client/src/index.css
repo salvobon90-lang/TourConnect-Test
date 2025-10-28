@@ -311,4 +311,40 @@
   .animate-pulse-scale {
     animation: pulse-scale 2s ease-in-out infinite;
   }
+
+  .mapbox-popup-content {
+    padding: 0.75rem;
+  }
+
+  .mapboxgl-popup-content {
+    background: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    padding: 0;
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .dark .mapboxgl-popup-content {
+    background: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+  }
+
+  .mapboxgl-popup-close-button {
+    color: hsl(var(--muted-foreground));
+    font-size: 1.5rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .mapboxgl-popup-close-button:hover {
+    background-color: hsl(var(--muted));
+    color: hsl(var(--foreground));
+  }
+
+  .mapboxgl-popup-tip {
+    border-top-color: hsl(var(--card));
+  }
+
+  .dark .mapboxgl-popup-tip {
+    border-top-color: hsl(var(--card));
+  }
 }
