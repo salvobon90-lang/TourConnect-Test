@@ -10,9 +10,8 @@ import { Plus, Store, DollarSign, Star, ShoppingBag, Calendar, Megaphone, Sparkl
 import type { Service, Sponsorship } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { SponsorshipModal } from '@/components/sponsorship-modal';
-import { Logo } from '@/components/logo';
+import { Header } from '@/components/layout/Header';
 
 export default function ProviderDashboard() {
   const { t } = useTranslation();
@@ -63,47 +62,7 @@ export default function ProviderDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Logo className="h-8" />
-            <nav className="hidden md:flex gap-6">
-              <Link href="/">
-                <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-my-services">
-                  {t('navigation.myServices')}
-                </a>
-              </Link>
-              <Link href="/offers">
-                <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-offers">
-                  {t('navigation.offers')}
-                </a>
-              </Link>
-              <Link href="/messages">
-                <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-messages">
-                  Messages
-                </a>
-              </Link>
-              <Link href="/insights">
-                <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-insights">
-                  {t('navigation.insights')}
-                </a>
-              </Link>
-              <Link href="/profile">
-                <a className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-profile">
-                  {t('navigation.profile')}
-                </a>
-              </Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {user?.firstName || user?.email}
-            </span>
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="relative h-80 flex items-center justify-center overflow-hidden">
