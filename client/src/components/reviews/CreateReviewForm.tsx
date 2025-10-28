@@ -41,14 +41,13 @@ export function CreateReviewForm({ tourId, serviceId, onSuccess }: CreateReviewF
   
   const createReviewMutation = useMutation({
     mutationFn: async (data: ReviewFormData) => {
-      const response = await apiRequest('POST', '/api/reviews', {
+      return await apiRequest('POST', '/api/reviews', {
         tourId,
         serviceId,
         rating: data.rating,
         comment: data.comment,
         images: imageUrls
       });
-      return response.json();
     },
     onSuccess: () => {
       toast({ title: 'Review posted successfully!' });

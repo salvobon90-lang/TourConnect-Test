@@ -47,8 +47,7 @@ export default function EventDetails() {
   // RSVP mutation
   const rsvpMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest('POST', `/api/events/${id}/rsvp`, { ticketsCount: 1 });
-      return await res.json();
+      return await apiRequest('POST', `/api/events/${id}/rsvp`, { ticketsCount: 1 });
     },
     onSuccess: (data: any) => {
       if (data.checkoutUrl) {

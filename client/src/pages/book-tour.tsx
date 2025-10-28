@@ -53,7 +53,7 @@ export default function BookTour() {
 
   const createBookingMutation = useMutation({
     mutationFn: async (data: BookingFormData) => {
-      const response = await apiRequest('POST', '/api/bookings', {
+      return await apiRequest('POST', '/api/bookings', {
         tourId: id,
         bookingDate: new Date(data.bookingDate).toISOString(),
         participants: data.participants,
@@ -62,7 +62,6 @@ export default function BookTour() {
         status: 'pending',
         paymentStatus: 'pending',
       });
-      return response.json();
     },
     onSuccess: (data) => {
       setBookingId(data.id);
@@ -82,10 +81,9 @@ export default function BookTour() {
     mutationFn: async () => {
       if (!bookingId) throw new Error('No booking ID');
       
-      const response = await apiRequest('POST', '/api/create-checkout-session', {
+      return await apiRequest('POST', '/api/create-checkout-session', {
         bookingId,
       });
-      return response.json();
     },
     onSuccess: (data: { url: string }) => {
       // Redirect to Stripe Checkout

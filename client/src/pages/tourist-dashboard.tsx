@@ -253,6 +253,32 @@ export default function TouristDashboard() {
         </div>
       </section>
 
+      {/* Quick Actions */}
+      <section className="py-6 px-4 border-b bg-background">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Link href="/itinerary-builder" data-testid="link-itinerary-builder">
+              <Button size="lg" className="gap-2">
+                <Sparkles className="h-5 w-5" />
+                AI Itinerary Builder
+              </Button>
+            </Link>
+            <Link href="/map" data-testid="link-map">
+              <Button variant="outline" size="lg" className="gap-2">
+                <MapIcon className="h-5 w-5" />
+                Esplora Mappa
+              </Button>
+            </Link>
+            <Link href="/events" data-testid="link-events">
+              <Button variant="outline" size="lg" className="gap-2">
+                <Calendar className="h-5 w-5" />
+                Eventi Locali
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Stats Section */}
       <section className="py-8 px-4 bg-card border-b">
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">

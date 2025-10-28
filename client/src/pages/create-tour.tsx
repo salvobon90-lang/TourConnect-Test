@@ -50,8 +50,7 @@ export default function CreateTour() {
 
   const mutation = useMutation({
     mutationFn: async (data: InsertTour) => {
-      const response = await apiRequest('POST', '/api/tours', data);
-      return response.json();
+      return await apiRequest('POST', '/api/tours', data);
     },
     onSuccess: () => {
       toast({

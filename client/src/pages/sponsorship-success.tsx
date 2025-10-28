@@ -39,8 +39,7 @@ export default function SponsorshipSuccess() {
 
   const activateMutation = useMutation({
     mutationFn: async ({ id, sessionId }: { id: string; sessionId: string }) => {
-      const response = await apiRequest('POST', `/api/sponsorships/activate/${id}`, { sessionId });
-      return response.json();
+      return await apiRequest('POST', `/api/sponsorships/activate/${id}`, { sessionId });
     },
   });
 

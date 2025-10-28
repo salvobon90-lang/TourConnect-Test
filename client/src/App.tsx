@@ -42,6 +42,7 @@ import MyEvents from "@/pages/my-events";
 import Feed from "@/pages/feed";
 import PostDetails from "@/pages/post-details";
 import Analytics from "@/pages/analytics";
+import ItineraryBuilder from "@/pages/itinerary-builder";
 import { AIChatWidget } from "@/components/ai/AIChatWidget";
 import "./i18n";
 
@@ -116,6 +117,9 @@ function Router() {
       <Route path="/feed" component={Feed} />
       <Route path="/feed/new" component={Feed} />
       <Route path="/feed/:id" component={PostDetails} />
+      
+      {/* AI Itinerary Builder */}
+      <Route path="/itinerary-builder" component={ItineraryBuilder} />
       
       {user.role === 'tourist' && (
         <>

@@ -43,8 +43,7 @@ export default function CreateService() {
 
   const mutation = useMutation({
     mutationFn: async (data: InsertService) => {
-      const response = await apiRequest('POST', '/api/services', data);
-      return response.json();
+      return await apiRequest('POST', '/api/services', data);
     },
     onSuccess: () => {
       toast({

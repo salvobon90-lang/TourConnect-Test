@@ -105,8 +105,7 @@ export default function CreateEvent() {
         ticketPrice: data.isFree ? null : (data.ticketPrice?.toString() || null),
       };
       
-      const res = await apiRequest('POST', '/api/events', payload);
-      return await res.json();
+      return await apiRequest('POST', '/api/events', payload);
     },
     onSuccess: (event: any) => {
       toast({ title: 'Evento creato!', description: 'Il tuo evento è stato pubblicato con successo' });

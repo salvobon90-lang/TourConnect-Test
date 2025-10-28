@@ -37,8 +37,7 @@ export default function RoleSelection() {
 
   const mutation = useMutation({
     mutationFn: async (role: UserRole) => {
-      const response = await apiRequest('POST', '/api/auth/set-role', { role });
-      return response.json();
+      return await apiRequest('POST', '/api/auth/set-role', { role });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });

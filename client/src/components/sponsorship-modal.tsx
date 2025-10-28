@@ -29,12 +29,11 @@ export function SponsorshipModal({ tourId, serviceId, itemTitle, onClose }: Spon
 
   const createCheckoutMutation = useMutation({
     mutationFn: async (duration: 'weekly' | 'monthly') => {
-      const response = await apiRequest('POST', '/api/sponsorships/create-checkout', {
+      return await apiRequest('POST', '/api/sponsorships/create-checkout', {
         tourId,
         serviceId,
         duration,
       });
-      return response.json();
     },
     onSuccess: (data: { url: string }) => {
       window.location.href = data.url;

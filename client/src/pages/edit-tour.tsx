@@ -75,8 +75,7 @@ export default function EditTour() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: InsertTour) => {
-      const response = await apiRequest('PUT', `/api/tours/${id}`, data);
-      return response.json();
+      return await apiRequest('PUT', `/api/tours/${id}`, data);
     },
     onSuccess: () => {
       toast({

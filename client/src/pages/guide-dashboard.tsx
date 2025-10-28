@@ -56,8 +56,7 @@ export default function GuideDashboard() {
 
   const deleteTourMutation = useMutation({
     mutationFn: async (tourId: string) => {
-      const response = await apiRequest('DELETE', `/api/tours/${tourId}`);
-      return response.json();
+      return await apiRequest('DELETE', `/api/tours/${tourId}`);
     },
     onSuccess: (_, tourId) => {
       toast({

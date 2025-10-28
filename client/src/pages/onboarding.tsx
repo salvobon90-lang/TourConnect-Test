@@ -31,8 +31,7 @@ export default function Onboarding() {
 
   const mutation = useMutation({
     mutationFn: async (role: UserRole) => {
-      const response = await apiRequest('POST', '/api/auth/set-role', { role });
-      return response.json();
+      return await apiRequest('POST', '/api/auth/set-role', { role });
     },
     onSuccess: () => {
       localStorage.setItem('onboardingCompleted', 'true');

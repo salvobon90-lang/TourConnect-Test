@@ -108,8 +108,7 @@ export default function Profile() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('PATCH', '/api/auth/update-profile', data);
-      return await res.json();
+      return await apiRequest('PATCH', '/api/auth/update-profile', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
@@ -129,8 +128,7 @@ export default function Profile() {
 
   const uploadImageMutation = useMutation({
     mutationFn: async ({ imageData, fileName }: { imageData: string; fileName: string }) => {
-      const res = await apiRequest('POST', '/api/auth/upload-profile-image', { imageData, fileName });
-      return await res.json();
+      return await apiRequest('POST', '/api/auth/upload-profile-image', { imageData, fileName });
     },
     onSuccess: (data: any) => {
       setProfileImageUrl(data.imageUrl);

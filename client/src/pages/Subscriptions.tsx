@@ -88,8 +88,7 @@ export default function Subscriptions() {
   const createCheckoutMutation = useMutation({
     mutationFn: async (tier: string) => {
       setLoading(tier);
-      const response = await apiRequest('POST', '/api/subscriptions/create-checkout', { tier });
-      return response.json();
+      return await apiRequest('POST', '/api/subscriptions/create-checkout', { tier });
     },
     onSuccess: async (data: { url: string }) => {
       // Redirect to Stripe Checkout
@@ -111,8 +110,7 @@ export default function Subscriptions() {
   // Cancel subscription
   const cancelMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/subscriptions/cancel', {});
-      return response.json();
+      return await apiRequest('POST', '/api/subscriptions/cancel', {});
     },
     onSuccess: () => {
       toast({ title: 'Subscription cancelled' });
