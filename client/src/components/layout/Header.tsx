@@ -18,13 +18,18 @@ import {
   Settings,
   LogOut,
   Crown,
-  ShieldCheck
+  ShieldCheck,
+  Globe
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { queryClient } from '@/lib/queryClient';
-import { Logo } from '@/components/logo';
+import { prefersReducedMotion } from '@/lib/animations';
+import navbarAnimation from '@assets/animations/navbar-logo.json';
+
+// Lazy load Lottie for performance
+const Lottie = lazy(() => import('lottie-react'));
 
 export function Header() {
   const { user, isAuthenticated } = useAuth();
@@ -82,7 +87,21 @@ export function Header() {
           onClick={() => setLocation('/')}
           data-testid="header-logo"
         >
-          <Logo className="h-8" />
+          {/* Lottie animation with reduced motion support */}
+          {!prefersReducedMotion() ? (
+            <Suspense fallback={<Globe className="h-8 w-8 text-primary" />}>
+              <div className="w-10 h-10" data-testid="navbar-animation">
+                <Lottie 
+                  animationData={navbarAnimation}
+                  loop={true}
+                  autoplay={true}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              </div>
+            </Suspense>
+          ) : (
+            <Globe className="h-8 w-8 text-primary" />
+          )}
           <span className="font-bold text-xl hidden md:inline">TourConnect</span>
         </div>
         

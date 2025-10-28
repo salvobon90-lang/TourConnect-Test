@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AnimatedCard } from '@/components/ui/animated-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -200,11 +201,12 @@ export default function Events() {
             {!isLoading && filteredEvents && filteredEvents.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredEvents.map((event) => (
-                  <Card 
+                  <AnimatedCard 
                     key={event.id} 
                     className="overflow-hidden hover-elevate cursor-pointer" 
                     onClick={() => setLocation(`/events/${event.id}`)}
                     data-testid={`card-event-${event.id}`}
+                    enableTilt
                   >
                     <div className="relative h-48 overflow-hidden">
                       <img
@@ -262,7 +264,7 @@ export default function Events() {
                         )}
                       </div>
                     </CardContent>
-                  </Card>
+                  </AnimatedCard>
                 ))}
               </div>
             )}

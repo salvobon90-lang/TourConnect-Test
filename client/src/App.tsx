@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from 'react-helmet-async';
@@ -8,6 +8,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { useTranslation } from "react-i18next";
+import { AnimatePresence, motion } from 'framer-motion';
+import { pageVariants } from '@/lib/animations';
 import NotFound from "@/pages/not-found";
 import LanguageSelection from "@/pages/language-selection";
 import Landing from "@/pages/landing";
@@ -50,6 +52,7 @@ import "./i18n";
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { t } = useTranslation();
+  const [location] = useLocation();
   const [languageSelected, setLanguageSelected] = useState(
     !!localStorage.getItem('language')
   );
@@ -67,13 +70,23 @@ function Router() {
   // Show landing page for non-authenticated users
   if (!isAuthenticated) {
     return (
-      <Switch>
-        <Route path="/" component={Landing} />
-        <Route path="/tours" component={Tours} />
-        <Route path="/tours/:id/3d" component={Tour3DPage} />
-        <Route path="/tours/:id" component={TourDetail} />
-        <Route component={NotFound} />
-      </Switch>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={location}
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+        >
+          <Switch location={location}>
+            <Route path="/" component={Landing} />
+            <Route path="/tours" component={Tours} />
+            <Route path="/tours/:id/3d" component={Tour3DPage} />
+            <Route path="/tours/:id" component={TourDetail} />
+            <Route component={NotFound} />
+          </Switch>
+        </motion.div>
+      </AnimatePresence>
     );
   }
 
@@ -94,72 +107,82 @@ function Router() {
 
   // Route based on user role
   return (
-    <Switch>
-      {/* Shared routes for all authenticated users */}
-      <Route path="/profile" component={Profile} />
-      <Route path="/messages" component={Messages} />
-      <Route path="/subscriptions" component={Subscriptions} />
-      <Route path="/subscriptions/success" component={SubscriptionSuccess} />
-      <Route path="/subscriptions/cancel" component={SubscriptionCancel} />
-      <Route path="/tours/:id/3d" component={Tour3DPage} />
-      <Route path="/tours/:id" component={TourDetail} />
-      <Route path="/book/:id" component={BookTour} />
-      <Route path="/booking-success" component={BookingSuccess} />
-      <Route path="/sponsorship-success" component={SponsorshipSuccess} />
-      <Route path="/edit-tour/:id" component={EditTour} />
-      
-      {/* Event routes */}
-      <Route path="/events" component={Events} />
-      <Route path="/events/new" component={CreateEvent} />
-      <Route path="/events/my-events" component={MyEvents} />
-      <Route path="/events/:id" component={EventDetails} />
-      
-      {/* Feed routes */}
-      <Route path="/feed" component={Feed} />
-      <Route path="/feed/new" component={Feed} />
-      <Route path="/feed/:id" component={PostDetails} />
-      
-      {/* AI Itinerary Builder */}
-      <Route path="/itinerary-builder" component={ItineraryBuilder} />
-      
-      {/* 3D Globe Explorer */}
-      <Route path="/esplora-mondo" component={EsploraMondo} />
-      
-      {user.role === 'tourist' && (
-        <>
-          <Route path="/" component={TouristDashboard} />
-          <Route path="/bookings" component={Bookings} />
-          <Route path="/saved" component={() => <div>Saved Page - Coming Soon</div>} />
-          <Route path="/map" component={MapView} />
-          <Route path="/map-3d" component={MapboxMap3D} />
-        </>
-      )}
-      {user.role === 'guide' && (
-        <>
-          <Route path="/" component={GuideDashboard} />
-          <Route path="/bookings" component={Bookings} />
-          <Route path="/analytics" component={Analytics} />
-          <Route path="/create-tour" component={CreateTour} />
-          <Route path="/map-3d" component={MapboxMap3D} />
-        </>
-      )}
-      {user.role === 'provider' && (
-        <>
-          <Route path="/" component={ProviderDashboard} />
-          <Route path="/analytics" component={Analytics} />
-          <Route path="/offers" component={() => <div>Offers - Coming Soon</div>} />
-          <Route path="/create-service" component={CreateService} />
-          <Route path="/map-3d" component={MapboxMap3D} />
-        </>
-      )}
-      {user.role === 'supervisor' && (
-        <>
-          <Route path="/" component={SupervisorDashboard} />
-          <Route path="/map-3d" component={MapboxMap3D} />
-        </>
-      )}
-      <Route component={NotFound} />
-    </Switch>
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location}
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+      >
+        <Switch location={location}>
+          {/* Shared routes for all authenticated users */}
+          <Route path="/profile" component={Profile} />
+          <Route path="/messages" component={Messages} />
+          <Route path="/subscriptions" component={Subscriptions} />
+          <Route path="/subscriptions/success" component={SubscriptionSuccess} />
+          <Route path="/subscriptions/cancel" component={SubscriptionCancel} />
+          <Route path="/tours/:id/3d" component={Tour3DPage} />
+          <Route path="/tours/:id" component={TourDetail} />
+          <Route path="/book/:id" component={BookTour} />
+          <Route path="/booking-success" component={BookingSuccess} />
+          <Route path="/sponsorship-success" component={SponsorshipSuccess} />
+          <Route path="/edit-tour/:id" component={EditTour} />
+          
+          {/* Event routes */}
+          <Route path="/events" component={Events} />
+          <Route path="/events/new" component={CreateEvent} />
+          <Route path="/events/my-events" component={MyEvents} />
+          <Route path="/events/:id" component={EventDetails} />
+          
+          {/* Feed routes */}
+          <Route path="/feed" component={Feed} />
+          <Route path="/feed/new" component={Feed} />
+          <Route path="/feed/:id" component={PostDetails} />
+          
+          {/* AI Itinerary Builder */}
+          <Route path="/itinerary-builder" component={ItineraryBuilder} />
+          
+          {/* 3D Globe Explorer */}
+          <Route path="/esplora-mondo" component={EsploraMondo} />
+          
+          {user.role === 'tourist' && (
+            <>
+              <Route path="/" component={TouristDashboard} />
+              <Route path="/bookings" component={Bookings} />
+              <Route path="/saved" component={() => <div>Saved Page - Coming Soon</div>} />
+              <Route path="/map" component={MapView} />
+              <Route path="/map-3d" component={MapboxMap3D} />
+            </>
+          )}
+          {user.role === 'guide' && (
+            <>
+              <Route path="/" component={GuideDashboard} />
+              <Route path="/bookings" component={Bookings} />
+              <Route path="/analytics" component={Analytics} />
+              <Route path="/create-tour" component={CreateTour} />
+              <Route path="/map-3d" component={MapboxMap3D} />
+            </>
+          )}
+          {user.role === 'provider' && (
+            <>
+              <Route path="/" component={ProviderDashboard} />
+              <Route path="/analytics" component={Analytics} />
+              <Route path="/offers" component={() => <div>Offers - Coming Soon</div>} />
+              <Route path="/create-service" component={CreateService} />
+              <Route path="/map-3d" component={MapboxMap3D} />
+            </>
+          )}
+          {user.role === 'supervisor' && (
+            <>
+              <Route path="/" component={SupervisorDashboard} />
+              <Route path="/map-3d" component={MapboxMap3D} />
+            </>
+          )}
+          <Route component={NotFound} />
+        </Switch>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 

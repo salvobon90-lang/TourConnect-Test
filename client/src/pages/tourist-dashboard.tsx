@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
+import { AnimatedCard } from '@/components/ui/animated-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -346,7 +347,7 @@ export default function TouristDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {featuredTours.map((tour) => (
                 <Link key={tour.id} href={`/tours/${tour.id}`}>
-                  <Card className="overflow-hidden hover-elevate cursor-pointer border-amber-200 dark:border-amber-800 shadow-md shadow-amber-100/50 dark:shadow-amber-900/20" data-testid={`featured-tour-card-${tour.id}`}>
+                  <AnimatedCard className="overflow-hidden hover-elevate cursor-pointer border-amber-200 dark:border-amber-800 shadow-md shadow-amber-100/50 dark:shadow-amber-900/20" data-testid={`featured-tour-card-${tour.id}`} enableTilt>
                     <div className="relative h-48 overflow-hidden">
                       <img
                         src={tour.images[0] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021'}
@@ -397,7 +398,7 @@ export default function TouristDashboard() {
                         {t('book')}
                       </Button>
                     </div>
-                  </Card>
+                  </AnimatedCard>
                 </Link>
               ))}
             </div>
@@ -419,7 +420,7 @@ export default function TouristDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {nearbyTours.map((tour) => (
                 <Link key={tour.id} href={`/tours/${tour.id}`}>
-                  <Card className={`overflow-hidden hover-elevate cursor-pointer ${isSponsoredTour(tour.id) ? 'border-amber-200 dark:border-amber-800 shadow-md shadow-amber-100/50 dark:shadow-amber-900/20' : ''}`} data-testid={`nearby-tour-card-${tour.id}`}>
+                  <AnimatedCard className={`overflow-hidden hover-elevate cursor-pointer ${isSponsoredTour(tour.id) ? 'border-amber-200 dark:border-amber-800 shadow-md shadow-amber-100/50 dark:shadow-amber-900/20' : ''}`} data-testid={`nearby-tour-card-${tour.id}`} enableTilt>
                     <div className="relative h-48 overflow-hidden">
                       <img
                         src={tour.images[0] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021'}
@@ -472,7 +473,7 @@ export default function TouristDashboard() {
                         {t('book')}
                       </Button>
                     </div>
-                  </Card>
+                  </AnimatedCard>
                 </Link>
               ))}
             </div>
@@ -505,7 +506,7 @@ export default function TouristDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredTours.slice(0, 6).map((tour) => (
                 <Link key={tour.id} href={`/tours/${tour.id}`}>
-                  <Card className={`overflow-hidden hover-elevate cursor-pointer ${isSponsoredTour(tour.id) ? 'border-amber-200 dark:border-amber-800 shadow-md shadow-amber-100/50 dark:shadow-amber-900/20' : ''}`} data-testid={`tour-card-${tour.id}`}>
+                  <AnimatedCard className={`overflow-hidden hover-elevate cursor-pointer ${isSponsoredTour(tour.id) ? 'border-amber-200 dark:border-amber-800 shadow-md shadow-amber-100/50 dark:shadow-amber-900/20' : ''}`} data-testid={`tour-card-${tour.id}`} enableTilt>
                     <div className="relative h-48 overflow-hidden">
                       <img
                         src={tour.images[0] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021'}
@@ -558,7 +559,7 @@ export default function TouristDashboard() {
                         {t('book')}
                       </Button>
                     </div>
-                  </Card>
+                  </AnimatedCard>
                 </Link>
               ))}
             </div>

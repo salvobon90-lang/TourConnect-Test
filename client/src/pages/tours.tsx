@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
+import { AnimatedCard } from '@/components/ui/animated-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -200,7 +201,7 @@ export default function Tours() {
           {!isLoading && tours && tours.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {tours.map((tour) => (
-                <Card key={tour.id} className="overflow-hidden hover-elevate" data-testid={`tour-card-${tour.id}`}>
+                <AnimatedCard key={tour.id} className="overflow-hidden hover-elevate" data-testid={`tour-card-${tour.id}`} enableTilt>
                   <div className="relative h-48 overflow-hidden">
                     <img
                       src={tour.images[0] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021'}
@@ -267,7 +268,7 @@ export default function Tours() {
                       </Button>
                     </Link>
                   </div>
-                </Card>
+                </AnimatedCard>
               ))}
             </div>
           )}
