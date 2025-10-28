@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema } from "@shared/schema";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, events, eventParticipants, type InsertEventParticipant } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { chatWithAssistant, chatWithAssistantStream, getTourRecommendations } from "./openai";
@@ -18,6 +18,8 @@ import {
   bookingLimiter 
 } from './middleware/rateLimiter';
 import { sanitizeBody, sanitizeHtml } from './middleware/sanitize';
+import { db } from "./db";
+import { sql, eq, and, ne } from "drizzle-orm";
 
 // Try production key first, then testing key
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || process.env.TESTING_STRIPE_SECRET_KEY;
@@ -31,6 +33,14 @@ if (stripe && stripeSecretKey) {
   console.log('[Stripe] Initialized with key starting with:', stripeSecretKey.substring(0, 7));
 } else {
   console.warn('[Stripe] No valid secret key found. Stripe checkout will be unavailable.');
+}
+
+// Helper function to get Stripe instance
+function getStripe(): Stripe {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
+  return stripe;
 }
 
 // Image validation constants and helpers
@@ -1820,6 +1830,358 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== EVENTS API ==========
+
+  // Create Event (Guide/Provider only)
+  app.post("/api/events", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      // Only guides and providers can create events
+      if (user.role !== "guide" && user.role !== "provider") {
+        return res.status(403).json({ message: "Only guides and providers can create events" });
+      }
+      
+      // Validate input
+      const eventData = insertEventSchema.parse({
+        ...req.body,
+        createdBy: user.id
+      });
+      
+      // If paid event, create Stripe product and price
+      let stripeProductId: string | undefined;
+      let stripePriceId: string | undefined;
+      
+      if (!eventData.isFree && eventData.ticketPrice) {
+        const stripe = getStripe();
+        
+        // Create product
+        const product = await stripe.products.create({
+          name: eventData.title,
+          description: eventData.description.substring(0, 500),
+          metadata: {
+            eventId: "pending", // Will update after event creation
+            type: "event_ticket"
+          }
+        });
+        
+        // Create price
+        const price = await stripe.prices.create({
+          product: product.id,
+          unit_amount: Math.round(parseFloat(eventData.ticketPrice) * 100),
+          currency: eventData.currency || "eur",
+          metadata: {
+            eventId: "pending"
+          }
+        });
+        
+        stripeProductId = product.id;
+        stripePriceId = price.id;
+      }
+      
+      // Create event
+      const event = await storage.createEvent({
+        ...eventData,
+        stripeProductId,
+        stripePriceId
+      });
+      
+      // Update Stripe metadata with actual eventId
+      if (stripeProductId) {
+        const stripe = getStripe();
+        await stripe.products.update(stripeProductId, {
+          metadata: { eventId: event.id }
+        });
+        await stripe.prices.update(stripePriceId!, {
+          metadata: { eventId: event.id }
+        });
+      }
+      
+      res.status(201).json(event);
+    } catch (error: any) {
+      console.error("Error creating event:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // List Events
+  app.get("/api/events", async (req, res) => {
+    try {
+      const filters = {
+        category: req.query.category as string | undefined,
+        createdBy: req.query.createdBy as string | undefined,
+        isFree: req.query.isFree === "true" ? true : req.query.isFree === "false" ? false : undefined,
+        isPrivate: req.query.isPrivate === "true" ? true : req.query.isPrivate === "false" ? false : undefined,
+        startAfter: req.query.startAfter ? new Date(req.query.startAfter as string) : new Date(),
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0
+      };
+      
+      const eventsList = await storage.listEvents(filters);
+      
+      res.json(eventsList);
+    } catch (error: any) {
+      console.error("Error listing events:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get Event by ID
+  app.get("/api/events/:id", async (req, res) => {
+    try {
+      const event = await storage.getEventById(req.params.id);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // Get participants count
+      const participants = await storage.getEventParticipants(event.id);
+      
+      res.json({
+        ...event,
+        participantsCount: participants.length,
+        spotsLeft: event.maxParticipants ? event.maxParticipants - participants.length : null
+      });
+    } catch (error: any) {
+      console.error("Error getting event:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // RSVP to Event (Free or create Stripe checkout for paid) - WITH TRANSACTION
+  app.post("/api/events/:id/rsvp", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user!;
+      const eventId = req.params.id;
+      const { ticketsCount = 1 } = req.body;
+      
+      // Validate tickets count
+      if (ticketsCount < 1 || ticketsCount > 10) {
+        return res.status(400).json({ message: "Invalid tickets count (1-10)" });
+      }
+      
+      // ATOMIC TRANSACTION: Lock event, check capacity, insert participant
+      const result = await db.transaction(async (tx) => {
+        // 1. Lock the event row for this transaction (prevents concurrent modifications)
+        const [event] = await tx
+          .select()
+          .from(events)
+          .where(eq(events.id, eventId))
+          .for("update");
+        
+        if (!event) {
+          throw new Error("Event not found");
+        }
+        
+        if (event.status !== "active") {
+          throw new Error("Event is not active");
+        }
+        
+        // 2. Check if user already registered (within transaction)
+        const [existing] = await tx
+          .select()
+          .from(eventParticipants)
+          .where(and(
+            eq(eventParticipants.eventId, eventId),
+            eq(eventParticipants.userId, user.id),
+            ne(eventParticipants.status, "cancelled")
+          ))
+          .limit(1);
+        
+        if (existing) {
+          throw new Error("Already registered for this event");
+        }
+        
+        // 3. Check capacity (within transaction, with locked event row)
+        if (event.maxParticipants) {
+          const participantsResult = await tx
+            .select({ count: sql<number>`count(*)` })
+            .from(eventParticipants)
+            .where(and(
+              eq(eventParticipants.eventId, eventId),
+              ne(eventParticipants.status, "cancelled")
+            ));
+          
+          const currentParticipants = Number(participantsResult[0]?.count || 0);
+          
+          if (currentParticipants + ticketsCount > event.maxParticipants) {
+            throw new Error("Event is full");
+          }
+        }
+        
+        // 4. Create participant entry (still within transaction)
+        const participantData: InsertEventParticipant = {
+          eventId,
+          userId: user.id,
+          ticketsPurchased: ticketsCount,
+          totalAmount: event.isFree ? "0" : (parseFloat(event.ticketPrice!) * ticketsCount).toFixed(2),
+          paymentStatus: event.isFree ? "paid" : "pending",
+          status: "confirmed"
+        };
+        
+        const [participant] = await tx
+          .insert(eventParticipants)
+          .values(participantData)
+          .returning();
+        
+        return { event, participant };
+      });
+      
+      // Transaction completed successfully
+      const { event, participant } = result;
+      
+      // Free event - return success immediately (already committed in transaction)
+      if (event.isFree) {
+        return res.json({ 
+          participant,
+          requiresPayment: false 
+        });
+      }
+      
+      // Paid event - create Stripe checkout (outside transaction)
+      if (!event.stripePriceId) {
+        // Rollback participant if Stripe not configured
+        await storage.updateEventParticipant(participant.id, { status: "cancelled" });
+        return res.status(500).json({ message: "Stripe price not configured for this event" });
+      }
+      
+      try {
+        const stripe = getStripe();
+        const session = await stripe.checkout.sessions.create({
+          mode: "payment",
+          line_items: [{
+            price: event.stripePriceId,
+            quantity: ticketsCount
+          }],
+          success_url: `${process.env.VITE_REPLIT_DOMAINS}/?payment=success&eventId=${eventId}`,
+          cancel_url: `${process.env.VITE_REPLIT_DOMAINS}/events/${eventId}?payment=cancelled`,
+          customer_email: user.email || undefined,
+          metadata: {
+            eventId,
+            userId: user.id,
+            ticketsCount: ticketsCount.toString(),
+            participantId: participant.id,
+            type: "event_ticket"
+          }
+        });
+        
+        // Update participant with Stripe session ID
+        await storage.updateEventParticipant(participant.id, {
+          stripeSessionId: session.id
+        });
+        
+        res.json({
+          participant,
+          requiresPayment: true,
+          checkoutUrl: session.url
+        });
+      } catch (stripeError: any) {
+        console.error("Stripe checkout creation failed:", stripeError);
+        
+        // Cancel participant if Stripe fails
+        await storage.updateEventParticipant(participant.id, { status: "cancelled" });
+        
+        res.status(500).json({ message: "Payment setup failed. Please try again." });
+      }
+    } catch (error: any) {
+      console.error("Error RSVP to event:", error);
+      res.status(400).json({ message: error.message || "Failed to RSVP" });
+    }
+  });
+
+  // Cancel RSVP
+  app.delete("/api/events/:id/rsvp", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      const eventId = req.params.id;
+      
+      const participant = await storage.getEventParticipant(eventId, user.id);
+      if (!participant) {
+        return res.status(404).json({ message: "RSVP not found" });
+      }
+      
+      // Update status to cancelled
+      await storage.updateEventParticipant(participant.id, {
+        status: "cancelled"
+      });
+      
+      res.json({ message: "RSVP cancelled successfully" });
+    } catch (error: any) {
+      console.error("Error cancelling RSVP:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Delete Event (Owner only)
+  app.delete("/api/events/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      const eventId = req.params.id;
+      
+      const event = await storage.getEventById(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // Check ownership
+      if (event.createdBy !== user.id) {
+        return res.status(403).json({ message: "You can only delete your own events" });
+      }
+      
+      await storage.deleteEvent(eventId);
+      
+      res.json({ message: "Event deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting event:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update Event Status (Owner only)
+  app.patch("/api/events/:id/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      const eventId = req.params.id;
+      const { status } = req.body;
+      
+      if (!["active", "cancelled", "completed"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      
+      const event = await storage.getEventById(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      if (event.createdBy !== user.id) {
+        return res.status(403).json({ message: "You can only update your own events" });
+      }
+      
+      const updated = await storage.updateEvent(eventId, { status });
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating event status:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post('/api/webhooks/stripe', async (req: any, res) => {
     if (!stripe) {
       return res.status(500).json({ message: "Stripe is not configured" });
@@ -1908,6 +2270,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
               invoice.subscription,
               'active'
             );
+          }
+          break;
+        }
+        
+        case 'checkout.session.completed': {
+          const session = event.data.object as Stripe.Checkout.Session;
+          
+          // Event ticket payment - WITH CAPACITY RECHECK
+          if (session.metadata?.type === "event_ticket") {
+            const { eventId, userId, participantId } = session.metadata;
+            
+            try {
+              // Get event to check capacity
+              const event = await storage.getEventById(eventId);
+              if (!event) {
+                console.error(`[Stripe Webhook] Event ${eventId} not found`);
+                // Refund payment if event doesn't exist
+                await stripe.refunds.create({
+                  payment_intent: session.payment_intent as string,
+                  reason: "requested_by_customer",
+                  metadata: {
+                    reason: "event_not_found",
+                    eventId
+                  }
+                });
+                return;
+              }
+              
+              // Double-check capacity before confirming payment
+              if (event.maxParticipants) {
+                const participants = await storage.getEventParticipants(eventId);
+                const confirmedCount = participants.filter(p => 
+                  p.paymentStatus === "paid" && p.status !== "cancelled"
+                ).length;
+                
+                const requestedTickets = parseInt(session.metadata.ticketsCount || "1");
+                
+                if (confirmedCount + requestedTickets > event.maxParticipants) {
+                  console.error(`[Stripe Webhook] Event ${eventId} is full - refunding payment`);
+                  
+                  // Refund payment
+                  await stripe.refunds.create({
+                    payment_intent: session.payment_intent as string,
+                    reason: "requested_by_customer",
+                    metadata: {
+                      reason: "event_full",
+                      eventId,
+                      userId
+                    }
+                  });
+                  
+                  // Cancel participant
+                  if (participantId) {
+                    await storage.updateEventParticipant(participantId, {
+                      paymentStatus: "refunded",
+                      status: "cancelled"
+                    });
+                  }
+                  
+                  console.log(`[Stripe Webhook] Refunded payment for user ${userId} - event ${eventId} is full`);
+                  return;
+                }
+              }
+              
+              // Capacity OK - confirm payment
+              if (participantId) {
+                await storage.updateEventParticipant(participantId, {
+                  paymentStatus: "paid"
+                });
+                
+                console.log(`[Stripe Webhook] Event ticket payment confirmed for user ${userId}, event ${eventId}`);
+              }
+            } catch (error) {
+              console.error(`[Stripe Webhook] Error processing event ticket:`, error);
+            }
           }
           break;
         }

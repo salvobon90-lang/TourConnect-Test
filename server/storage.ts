@@ -51,7 +51,7 @@ import {
   type UserRole,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, gt, or, inArray, ne } from "drizzle-orm";
+import { eq, and, desc, asc, sql, gt, or, inArray, ne } from "drizzle-orm";
 import { BADGES, type UserStats } from "@shared/badges";
 import { calculateTrustLevel } from "@shared/trustLevel";
 
@@ -210,6 +210,8 @@ export interface IStorage {
   // Event Participants operations
   addEventParticipant(participant: InsertEventParticipant): Promise<EventParticipant>;
   getEventParticipants(eventId: string): Promise<EventParticipant[]>;
+  getEventParticipant(eventId: string, userId: string): Promise<EventParticipant | null>;
+  updateEventParticipant(id: string, updates: Partial<EventParticipant>): Promise<EventParticipant>;
   
   // Posts operations
   createPost(post: InsertPost): Promise<Post>;
@@ -1286,34 +1288,89 @@ export class DatabaseStorage implements IStorage {
       .where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId));
   }
 
-  // Events operations (to be implemented in next task)
+  // ========== EVENTS ==========
   async createEvent(event: InsertEvent): Promise<Event> {
-    throw new Error("Not implemented yet");
+    const [newEvent] = await db.insert(events).values(event).returning();
+    return newEvent;
   }
 
   async getEventById(id: string): Promise<Event | null> {
-    throw new Error("Not implemented yet");
+    const result = await db.select().from(events).where(eq(events.id, id)).limit(1);
+    return result[0] || null;
   }
 
-  async listEvents(filters?: any): Promise<Event[]> {
-    throw new Error("Not implemented yet");
+  async listEvents(filters?: {
+    category?: string;
+    createdBy?: string;
+    isFree?: boolean;
+    isPrivate?: boolean;
+    startAfter?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<Event[]> {
+    let query = db.select().from(events);
+    
+    const conditions = [];
+    if (filters?.category) conditions.push(eq(events.category, filters.category));
+    if (filters?.createdBy) conditions.push(eq(events.createdBy, filters.createdBy));
+    if (filters?.isFree !== undefined) conditions.push(eq(events.isFree, filters.isFree));
+    if (filters?.isPrivate !== undefined) conditions.push(eq(events.isPrivate, filters.isPrivate));
+    if (filters?.startAfter) conditions.push(gt(events.startDate, filters.startAfter));
+    
+    // Status active by default
+    conditions.push(eq(events.status, "active"));
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    // Order by start date ascending
+    query = query.orderBy(asc(events.startDate));
+    
+    if (filters?.limit) query = query.limit(filters.limit);
+    if (filters?.offset) query = query.offset(filters.offset);
+    
+    return await query;
   }
 
   async updateEvent(id: string, updates: Partial<Event>): Promise<Event> {
-    throw new Error("Not implemented yet");
+    const [updated] = await db.update(events)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(events.id, id))
+      .returning();
+    return updated;
   }
 
   async deleteEvent(id: string): Promise<void> {
-    throw new Error("Not implemented yet");
+    await db.delete(events).where(eq(events.id, id));
   }
 
-  // Event Participants operations (to be implemented in next task)
+  // ========== EVENT PARTICIPANTS ==========
   async addEventParticipant(participant: InsertEventParticipant): Promise<EventParticipant> {
-    throw new Error("Not implemented yet");
+    const [newParticipant] = await db.insert(eventParticipants).values(participant).returning();
+    return newParticipant;
   }
 
   async getEventParticipants(eventId: string): Promise<EventParticipant[]> {
-    throw new Error("Not implemented yet");
+    return await db.select().from(eventParticipants).where(eq(eventParticipants.eventId, eventId));
+  }
+
+  async getEventParticipant(eventId: string, userId: string): Promise<EventParticipant | null> {
+    const result = await db.select().from(eventParticipants)
+      .where(and(
+        eq(eventParticipants.eventId, eventId),
+        eq(eventParticipants.userId, userId)
+      ))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async updateEventParticipant(id: string, updates: Partial<EventParticipant>): Promise<EventParticipant> {
+    const [updated] = await db.update(eventParticipants)
+      .set(updates)
+      .where(eq(eventParticipants.id, id))
+      .returning();
+    return updated;
   }
 
   // Posts operations (to be implemented in next task)
