@@ -41,6 +41,7 @@ import CreateEvent from "@/pages/create-event";
 import MyEvents from "@/pages/my-events";
 import Feed from "@/pages/feed";
 import PostDetails from "@/pages/post-details";
+import Analytics from "@/pages/analytics";
 import { AIChatWidget } from "@/components/ai/AIChatWidget";
 import "./i18n";
 
@@ -129,7 +130,7 @@ function Router() {
         <>
           <Route path="/" component={GuideDashboard} />
           <Route path="/bookings" component={Bookings} />
-          <Route path="/analytics" component={() => <div>Analytics - Coming Soon</div>} />
+          <Route path="/analytics" component={Analytics} />
           <Route path="/create-tour" component={CreateTour} />
           <Route path="/map-3d" component={MapboxMap3D} />
         </>
@@ -137,8 +138,8 @@ function Router() {
       {user.role === 'provider' && (
         <>
           <Route path="/" component={ProviderDashboard} />
+          <Route path="/analytics" component={Analytics} />
           <Route path="/offers" component={() => <div>Offers - Coming Soon</div>} />
-          <Route path="/insights" component={() => <div>Insights - Coming Soon</div>} />
           <Route path="/create-service" component={CreateService} />
           <Route path="/map-3d" component={MapboxMap3D} />
         </>
