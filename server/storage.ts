@@ -13,6 +13,8 @@ import {
   posts,
   postLikes,
   postComments,
+  apiKeys,
+  analyticsEvents,
   type User,
   type UpsertUser,
   type Tour,
@@ -39,6 +41,10 @@ import {
   type InsertPostLike,
   type PostComment,
   type InsertPostComment,
+  type ApiKey,
+  type InsertApiKey,
+  type AnalyticsEvent,
+  type InsertAnalyticsEvent,
   type TourWithGuide,
   type ServiceWithProvider,
   type BookingWithDetails,
@@ -48,6 +54,51 @@ import { db } from "./db";
 import { eq, and, desc, sql, gt, or, inArray, ne } from "drizzle-orm";
 import { BADGES, type UserStats } from "@shared/badges";
 import { calculateTrustLevel } from "@shared/trustLevel";
+
+// Placeholder types for Analytics
+export interface AnalyticsFilters {
+  userId?: string;
+  targetId?: string;
+  targetType?: string;
+  eventType?: string;
+  eventCategory?: string;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AnalyticsData {
+  events: AnalyticsEvent[];
+  total: number;
+  summary?: {
+    totalViews?: number;
+    totalClicks?: number;
+    totalConversions?: number;
+    topSources?: Array<{ source: string; count: number }>;
+  };
+}
+
+export interface TourAnalytics {
+  tourId: string;
+  views: number;
+  clicks: number;
+  bookingAttempts: number;
+  conversions: number;
+  conversionRate: number;
+  viewsByDate: Array<{ date: string; count: number }>;
+  topSources: Array<{ source: string; count: number }>;
+}
+
+export interface UserAnalytics {
+  userId: string;
+  totalViews: number;
+  totalClicks: number;
+  totalBookings: number;
+  engagementRate: number;
+  activityByDate: Array<{ date: string; count: number }>;
+  topCategories: Array<{ category: string; count: number }>;
+}
 
 export interface IStorage {
   // User operations
@@ -171,6 +222,20 @@ export interface IStorage {
   // Post Comments operations
   addComment(comment: InsertPostComment): Promise<PostComment>;
   getPostComments(postId: string): Promise<PostComment[]>;
+  
+  // API Keys operations
+  createApiKey(apiKey: InsertApiKey): Promise<ApiKey>;
+  getApiKeyByHash(keyHash: string): Promise<ApiKey | null>;
+  listApiKeys(partnerId: string): Promise<ApiKey[]>;
+  updateApiKey(id: string, updates: Partial<ApiKey>): Promise<ApiKey>;
+  deleteApiKey(id: string): Promise<void>;
+  incrementApiKeyUsage(id: string): Promise<void>;
+  
+  // Analytics operations
+  trackEvent(event: InsertAnalyticsEvent): Promise<void>;
+  getAnalytics(filters: AnalyticsFilters): Promise<AnalyticsData>;
+  getTourAnalytics(tourId: string, timeframe: string): Promise<TourAnalytics>;
+  getUserAnalytics(userId: string, timeframe: string): Promise<UserAnalytics>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1275,6 +1340,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPostComments(postId: string): Promise<PostComment[]> {
+    throw new Error("Not implemented yet");
+  }
+
+  // API Keys operations (to be implemented in next task)
+  async createApiKey(apiKey: InsertApiKey): Promise<ApiKey> {
+    throw new Error("Not implemented yet");
+  }
+
+  async getApiKeyByHash(keyHash: string): Promise<ApiKey | null> {
+    throw new Error("Not implemented yet");
+  }
+
+  async listApiKeys(partnerId: string): Promise<ApiKey[]> {
+    throw new Error("Not implemented yet");
+  }
+
+  async updateApiKey(id: string, updates: Partial<ApiKey>): Promise<ApiKey> {
+    throw new Error("Not implemented yet");
+  }
+
+  async deleteApiKey(id: string): Promise<void> {
+    throw new Error("Not implemented yet");
+  }
+
+  async incrementApiKeyUsage(id: string): Promise<void> {
+    throw new Error("Not implemented yet");
+  }
+
+  // Analytics operations (to be implemented in next task)
+  async trackEvent(event: InsertAnalyticsEvent): Promise<void> {
+    throw new Error("Not implemented yet");
+  }
+
+  async getAnalytics(filters: AnalyticsFilters): Promise<AnalyticsData> {
+    throw new Error("Not implemented yet");
+  }
+
+  async getTourAnalytics(tourId: string, timeframe: string): Promise<TourAnalytics> {
+    throw new Error("Not implemented yet");
+  }
+
+  async getUserAnalytics(userId: string, timeframe: string): Promise<UserAnalytics> {
     throw new Error("Not implemented yet");
   }
 }

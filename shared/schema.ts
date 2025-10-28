@@ -128,6 +128,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   posts: many(posts),
   postLikes: many(postLikes),
   postComments: many(postComments),
+  apiKeys: many(apiKeys),
 }));
 
 // Tours table - created by guides
@@ -559,6 +560,79 @@ export const postCommentsRelations = relations(postComments, ({ one, many }) => 
   }),
 }));
 
+// API Keys table - for external partner authentication
+export const apiKeys = pgTable("api_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Partner info
+  partnerId: varchar("partner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 200 }).notNull(), // Friendly name: "Acme Travel Agency API Key"
+  
+  // Key
+  keyHash: varchar("key_hash", { length: 255 }).notNull().unique(), // SHA-256 hash of actual key
+  keyPrefix: varchar("key_prefix", { length: 10 }).notNull(), // First 8 chars visible: "tc_live_abc123..."
+  
+  // Permissions & Limits
+  permissions: text("permissions").array().notNull(), // ["read:tours", "write:bookings", "read:reviews"]
+  rateLimit: integer("rate_limit").default(1000), // Requests per hour
+  
+  // Usage tracking
+  requestsToday: integer("requests_today").default(0),
+  lastUsedAt: timestamp("last_used_at"),
+  
+  // Status
+  isActive: boolean("is_active").default(true),
+  expiresAt: timestamp("expires_at"), // Optional expiration
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
+  partner: one(users, {
+    fields: [apiKeys.partnerId],
+    references: [users.id],
+  }),
+}));
+
+// Analytics Events table - for tracking user behavior and insights
+export const analyticsEvents = pgTable("analytics_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Event info
+  eventType: varchar("event_type", { length: 50 }).notNull(), // view, click, conversion, booking_attempt, etc.
+  eventCategory: varchar("event_category", { length: 50 }).notNull(), // tour, service, event, post, profile
+  
+  // Context
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }), // Can be null for anonymous
+  sessionId: varchar("session_id", { length: 100 }),
+  
+  // Target (cosa è stato visualizzato/cliccato)
+  targetId: varchar("target_id"), // ID del tour/service/event/post
+  targetType: varchar("target_type", { length: 50 }), // tour, service, event, post
+  
+  // Metadata
+  metadata: text("metadata"), // JSON string con extra data: {"source": "homepage", "position": 3}
+  
+  // Location & Device
+  ipAddress: varchar("ip_address", { length: 45 }), // IPv4 or IPv6
+  userAgent: text("user_agent"),
+  referrer: varchar("referrer", { length: 500 }),
+  
+  // Geographic
+  country: varchar("country", { length: 2 }), // ISO country code
+  city: varchar("city", { length: 100 }),
+  
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const analyticsEventsRelations = relations(analyticsEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [analyticsEvents.userId],
+    references: [users.id],
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -701,6 +775,21 @@ export const insertPostCommentSchema = createInsertSchema(postComments).omit({
   updatedAt: true,
 });
 
+// API Keys
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
+  id: true,
+  requestsToday: true,
+  lastUsedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Analytics Events
+export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
 // TypeScript types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -730,6 +819,10 @@ export type InsertPostLike = z.infer<typeof insertPostLikeSchema>;
 export type PostLike = typeof postLikes.$inferSelect;
 export type InsertPostComment = z.infer<typeof insertPostCommentSchema>;
 export type PostComment = typeof postComments.$inferSelect;
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {
