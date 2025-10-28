@@ -8,7 +8,7 @@ import Stripe from "stripe";
 import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey } from "@shared/schema";
 import { randomUUID, createHash, randomBytes } from "crypto";
 import { z } from "zod";
-import { chatWithAssistant, chatWithAssistantStream, getTourRecommendations } from "./openai";
+import { chatWithAssistant, chatWithAssistantStream, getTourRecommendations, generateItinerary, translateText, summarizeReviews, moderateContent } from "./openai";
 import { 
   apiLimiter, 
   authLimiter, 
@@ -206,6 +206,26 @@ function requirePermission(...permissions: string[]) {
     next();
   };
 }
+
+// AI Validation Schemas
+const itinerarySchema = z.object({
+  destination: z.string().min(2, "Destination required"),
+  days: z.number().int().min(1).max(30),
+  interests: z.array(z.string()).optional().default([]),
+  budget: z.enum(["low", "medium", "high"]).optional().default("medium"),
+  language: z.enum(["it", "en", "de", "fr", "es"]).optional().default("en")
+});
+
+const translationSchema = z.object({
+  text: z.string().min(1, "Text required"),
+  targetLanguage: z.enum(["it", "en", "de", "fr", "es"]),
+  context: z.enum(["tourism", "service", "event", "general"]).optional().default("tourism")
+});
+
+const moderationSchema = z.object({
+  content: z.string().min(1, "Content required"),
+  contentType: z.enum(["post", "review", "comment", "general"]).optional().default("general")
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -1117,6 +1137,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!hasBooking) {
           return res.status(403).json({ 
             message: 'You must book this tour to leave a review' 
+          });
+        }
+      }
+      
+      // Auto-moderate if comment provided
+      if (data.comment) {
+        const moderation = await moderateContent(data.comment, "review");
+        
+        // Log medium severity for review
+        if (moderation.severity === "medium") {
+          console.warn(`[Moderation] Medium severity content allowed:`, {
+            userId,
+            contentType: "review",
+            categories: moderation.categories,
+            reason: moderation.reason
+          });
+        }
+        
+        // Block only high severity
+        if (moderation.severity === "high") {
+          return res.status(400).json({ 
+            message: "Review flagged for inappropriate content",
+            reason: moderation.reason
           });
         }
       }
@@ -2343,6 +2386,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         authorId: user.id
       });
       
+      // Auto-moderate content
+      const moderation = await moderateContent(
+        `${postData.title}\n\n${postData.content}`,
+        "post"
+      );
+      
+      // Log medium severity for review
+      if (moderation.severity === "medium") {
+        console.warn(`[Moderation] Medium severity content allowed:`, {
+          userId: user.id,
+          contentType: "post",
+          categories: moderation.categories,
+          reason: moderation.reason
+        });
+      }
+      
+      // Block only high severity
+      if (moderation.severity === "high") {
+        return res.status(400).json({ 
+          message: "Content flagged for inappropriate content",
+          reason: moderation.reason,
+          categories: moderation.categories
+        });
+      }
+      
       const post = await storage.createPost(postData);
       
       // Broadcast to WebSocket ONLY if post is public (privacy fix)
@@ -2926,6 +2994,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ];
     
     res.json(suggestions);
+  });
+
+  // ========== AI ITINERARY BUILDER ==========
+
+  app.post("/api/ai/itinerary", isAuthenticated, aiLimiter, async (req: any, res) => {
+    try {
+      // ✅ VALIDATE with Zod
+      const validated = itinerarySchema.parse({
+        ...req.body,
+        days: parseInt(req.body.days)  // Parse to number for validation
+      });
+      
+      const itinerary = await generateItinerary(validated);
+      
+      res.json(itinerary);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error",
+          errors: error.errors 
+        });
+      }
+      console.error("Error generating itinerary:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ========== AI LANGUAGE TRANSLATION ==========
+
+  app.post("/api/ai/translate", isAuthenticated, aiLimiter, async (req: any, res) => {
+    try {
+      // ✅ VALIDATE with Zod
+      const validated = translationSchema.parse(req.body);
+      
+      const translated = await translateText(validated);
+      
+      res.json({ translatedText: translated });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error",
+          errors: error.errors 
+        });
+      }
+      console.error("Error translating text:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ========== AI REVIEW SUMMARIES ==========
+
+  app.get("/api/ai/review-summary/:entityType/:entityId", async (req, res) => {
+    try {
+      const { entityType, entityId } = req.params;
+      
+      if (entityType !== "tour" && entityType !== "service") {
+        return res.status(400).json({ message: "Invalid entity type" });
+      }
+      
+      // Get reviews
+      const reviews = entityType === "tour"
+        ? await storage.getReviewsByTour(entityId)
+        : await storage.getReviewsByService(entityId);
+      
+      if (reviews.length === 0) {
+        return res.json({ 
+          summary: "No reviews yet.",
+          highlights: [],
+          concerns: [],
+          averageRating: 0
+        });
+      }
+      
+      const summary = await summarizeReviews(reviews);
+      
+      res.json(summary);
+    } catch (error: any) {
+      console.error("Error generating review summary:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ========== AI CONTENT MODERATION ==========
+
+  app.post("/api/ai/moderate", aiLimiter, async (req, res) => {
+    try {
+      // ✅ VALIDATE with Zod
+      const validated = moderationSchema.parse(req.body);
+      
+      const moderation = await moderateContent(validated.content, validated.contentType);
+      
+      res.json(moderation);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error",
+          errors: error.errors 
+        });
+      }
+      console.error("Error moderating content:", error);
+      res.status(500).json({ message: error.message });
+    }
   });
 
   // ========== PARTNER API (Public with API Key) ==========
