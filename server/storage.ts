@@ -237,7 +237,16 @@ export interface IStorage {
   listApiKeys(partnerId: string): Promise<ApiKey[]>;
   updateApiKey(id: string, updates: Partial<ApiKey>): Promise<ApiKey>;
   deleteApiKey(id: string): Promise<void>;
-  incrementApiKeyUsage(id: string): Promise<void>;
+  incrementApiKeyUsage(id: string): Promise<{ success: boolean; current: number }>;
+  
+  // Partner API helper methods
+  searchTours(filters: any): Promise<TourWithGuide[]>;
+  searchServices(filters: any): Promise<ServiceWithProvider[]>;
+  countTours(): Promise<number>;
+  countServices(): Promise<number>;
+  getTourCategories(): Promise<string[]>;
+  getAvailableCities(): Promise<string[]>;
+  getTourById(id: string): Promise<TourWithGuide | undefined>;
   
   // Analytics operations
   trackEvent(event: InsertAnalyticsEvent): Promise<void>;
@@ -1550,29 +1559,188 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  // API Keys operations (to be implemented in next task)
+  // API Keys operations
   async createApiKey(apiKey: InsertApiKey): Promise<ApiKey> {
-    throw new Error("Not implemented yet");
+    const [newKey] = await db.insert(apiKeys).values(apiKey).returning();
+    return newKey;
   }
 
   async getApiKeyByHash(keyHash: string): Promise<ApiKey | null> {
-    throw new Error("Not implemented yet");
+    const result = await db.select().from(apiKeys)
+      .where(eq(apiKeys.keyHash, keyHash))
+      .limit(1);
+    return result[0] || null;
   }
 
   async listApiKeys(partnerId: string): Promise<ApiKey[]> {
-    throw new Error("Not implemented yet");
+    return await db.select().from(apiKeys)
+      .where(eq(apiKeys.partnerId, partnerId))
+      .orderBy(desc(apiKeys.createdAt));
   }
 
   async updateApiKey(id: string, updates: Partial<ApiKey>): Promise<ApiKey> {
-    throw new Error("Not implemented yet");
+    const [updated] = await db.update(apiKeys)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(apiKeys.id, id))
+      .returning();
+    return updated;
   }
 
   async deleteApiKey(id: string): Promise<void> {
-    throw new Error("Not implemented yet");
+    await db.delete(apiKeys).where(eq(apiKeys.id, id));
   }
 
-  async incrementApiKeyUsage(id: string): Promise<void> {
-    throw new Error("Not implemented yet");
+  async incrementApiKeyUsage(id: string): Promise<{ success: boolean; current: number }> {
+    // Atomic increment: only increment if below rate limit
+    const result = await db.transaction(async (tx) => {
+      // Lock and get current API key
+      const [key] = await tx
+        .select()
+        .from(apiKeys)
+        .where(eq(apiKeys.id, id))
+        .for("update"); // Row-level lock
+      
+      if (!key) {
+        throw new Error("API key not found");
+      }
+      
+      // Check if below limit
+      if (key.requestsToday >= key.rateLimit) {
+        return { success: false, current: key.requestsToday };
+      }
+      
+      // Increment counter atomically
+      const [updated] = await tx
+        .update(apiKeys)
+        .set({
+          requestsToday: sql`${apiKeys.requestsToday} + 1`,
+          lastUsedAt: new Date()
+        })
+        .where(eq(apiKeys.id, id))
+        .returning();
+      
+      return { success: true, current: updated.requestsToday };
+    });
+    
+    return result;
+  }
+
+  // Partner API helper methods
+  async searchTours(filters: any): Promise<TourWithGuide[]> {
+    let query = db.select().from(tours)
+      .leftJoin(users, eq(tours.guideId, users.id))
+      .where(and(
+        eq(tours.isActive, true),
+        eq(tours.approvalStatus, 'approved')
+      ));
+
+    const conditions: any[] = [
+      eq(tours.isActive, true),
+      eq(tours.approvalStatus, 'approved')
+    ];
+
+    if (filters.category) {
+      conditions.push(eq(tours.category, filters.category));
+    }
+
+    if (filters.language) {
+      conditions.push(sql`${filters.language} = ANY(${tours.languages})`);
+    }
+
+    if (filters.city) {
+      conditions.push(sql`LOWER(${tours.meetingPoint}) LIKE LOWER(${'%' + filters.city + '%'})`);
+    }
+
+    if (filters.minPrice) {
+      conditions.push(sql`${tours.price}::numeric >= ${filters.minPrice}`);
+    }
+
+    if (filters.maxPrice) {
+      conditions.push(sql`${tours.price}::numeric <= ${filters.maxPrice}`);
+    }
+
+    const results = await db.select().from(tours)
+      .leftJoin(users, eq(tours.guideId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(tours.createdAt))
+      .limit(filters.limit || 50)
+      .offset(filters.offset || 0);
+
+    return results.map(row => ({
+      ...row.tours,
+      guide: row.users || undefined
+    }));
+  }
+
+  async searchServices(filters: any): Promise<ServiceWithProvider[]> {
+    const conditions: any[] = [eq(services.isActive, true)];
+
+    if (filters.category) {
+      conditions.push(eq(services.type, filters.category));
+    }
+
+    if (filters.city) {
+      conditions.push(sql`LOWER(${services.address}) LIKE LOWER(${'%' + filters.city + '%'})`);
+    }
+
+    const results = await db.select().from(services)
+      .leftJoin(users, eq(services.providerId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(services.createdAt))
+      .limit(filters.limit || 50)
+      .offset(filters.offset || 0);
+
+    return results.map(row => ({
+      ...row.services,
+      provider: row.users || undefined
+    }));
+  }
+
+  async countTours(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(tours)
+      .where(and(
+        eq(tours.isActive, true),
+        eq(tours.approvalStatus, 'approved')
+      ));
+    return Number(result[0]?.count || 0);
+  }
+
+  async countServices(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(services)
+      .where(eq(services.isActive, true));
+    return Number(result[0]?.count || 0);
+  }
+
+  async getTourCategories(): Promise<string[]> {
+    const result = await db.selectDistinct({ category: tours.category })
+      .from(tours)
+      .where(and(
+        eq(tours.isActive, true),
+        eq(tours.approvalStatus, 'approved')
+      ));
+    return result.map(r => r.category);
+  }
+
+  async getAvailableCities(): Promise<string[]> {
+    const tourCities = await db.selectDistinct({ city: sql<string>`split_part(${tours.meetingPoint}, ',', 1)` })
+      .from(tours)
+      .where(and(
+        eq(tours.isActive, true),
+        eq(tours.approvalStatus, 'approved')
+      ));
+    
+    const serviceCities = await db.selectDistinct({ city: sql<string>`split_part(${services.address}, ',', 1)` })
+      .from(services)
+      .where(eq(services.isActive, true));
+
+    const allCities = [...tourCities.map(r => r.city), ...serviceCities.map(r => r.city)];
+    return [...new Set(allCities)].filter(city => city && city.trim().length > 0);
+  }
+
+  async getTourById(id: string): Promise<TourWithGuide | undefined> {
+    return this.getTour(id);
   }
 
   // Analytics operations (to be implemented in next task)

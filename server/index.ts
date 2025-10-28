@@ -102,4 +102,20 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
   });
+
+  // Reset API key rate limits every day at midnight UTC
+  setInterval(async () => {
+    const now = new Date();
+    if (now.getUTCHours() === 0 && now.getUTCMinutes() === 0) {
+      try {
+        const { db } = await import("./db");
+        const { apiKeys } = await import("@shared/schema");
+        console.log("[Cron] Resetting API key rate limits");
+        await db.update(apiKeys).set({ requestsToday: 0 });
+        console.log("[Cron] API key rate limits reset successfully");
+      } catch (error) {
+        console.error("[Cron] Error resetting API key rate limits:", error);
+      }
+    }
+  }, 60000); // Check every minute
 })();

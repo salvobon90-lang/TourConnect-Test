@@ -5,8 +5,8 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, events, eventParticipants, type InsertEventParticipant } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey } from "@shared/schema";
+import { randomUUID, createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { chatWithAssistant, chatWithAssistantStream, getTourRecommendations } from "./openai";
 import { 
@@ -21,6 +21,16 @@ import { sanitizeBody, sanitizeHtml } from './middleware/sanitize';
 import { db } from "./db";
 import { sql, eq, and, ne } from "drizzle-orm";
 import { broadcastToUser, broadcastToAll } from "./websocket";
+import express from "express";
+
+// Global type declaration for API Key in Express Request
+declare global {
+  namespace Express {
+    interface Request {
+      apiKey?: ApiKey;
+    }
+  }
+}
 
 // Try production key first, then testing key
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || process.env.TESTING_STRIPE_SECRET_KEY;
@@ -103,6 +113,98 @@ function sanitizeFilename(filename: string): string {
     .replace(/\.\./g, '')
     .replace(/[\/\\]/g, '')
     .replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+// API Key Generation Helpers
+export function generateApiKey(env: "live" | "test" = "live"): { key: string; hash: string; prefix: string } {
+  const randomPart = randomBytes(16).toString("hex"); // 32 hex chars
+  const key = `tc_${env}_${randomPart}`;
+  const hash = createHash("sha256").update(key).digest("hex");
+  const prefix = key.substring(0, 12); // "tc_live_abc1" - first 12 chars visible
+  
+  return { key, hash, prefix };
+}
+
+export function hashApiKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
+}
+
+// API Key Authentication Middleware - WITH ATOMIC RATE LIMITING
+async function apiKeyAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  try {
+    // Get API key from header: Authorization: Bearer tc_live_...
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "API key required" });
+    }
+    
+    const apiKey = authHeader.substring(7); // Remove "Bearer "
+    
+    if (!apiKey.startsWith("tc_live_") && !apiKey.startsWith("tc_test_")) {
+      return res.status(401).json({ message: "Invalid API key format" });
+    }
+    
+    // Hash and lookup
+    const keyHash = hashApiKey(apiKey);
+    const keyRecord = await storage.getApiKeyByHash(keyHash);
+    
+    if (!keyRecord) {
+      return res.status(401).json({ message: "Invalid API key" });
+    }
+    
+    // Check if active
+    if (!keyRecord.isActive) {
+      return res.status(403).json({ message: "API key is inactive" });
+    }
+    
+    // Check expiration
+    if (keyRecord.expiresAt && new Date(keyRecord.expiresAt) < new Date()) {
+      return res.status(403).json({ message: "API key expired" });
+    }
+    
+    // ATOMIC RATE LIMITING: Try to increment (only succeeds if below limit)
+    const incrementResult = await storage.incrementApiKeyUsage(keyRecord.id);
+    
+    if (!incrementResult.success) {
+      return res.status(429).json({ 
+        message: "Rate limit exceeded",
+        limit: keyRecord.rateLimit,
+        current: incrementResult.current,
+        resetAt: "midnight UTC"
+      });
+    }
+    
+    // Success - attach to request
+    req.apiKey = keyRecord;
+    next();
+  } catch (error: any) {
+    console.error("API key auth error:", error);
+    res.status(500).json({ message: "Authentication failed" });
+  }
+}
+
+// Permission check helper
+function requirePermission(...permissions: string[]) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (!req.apiKey) {
+      return res.status(401).json({ message: "API key required" });
+    }
+    
+    const hasPermission = permissions.every(perm => 
+      req.apiKey!.permissions.includes(perm)
+    );
+    
+    if (!hasPermission) {
+      return res.status(403).json({ 
+        message: "Insufficient permissions",
+        required: permissions,
+        granted: req.apiKey!.permissions
+      });
+    }
+    
+    next();
+  };
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -2778,6 +2880,399 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ];
     
     res.json(suggestions);
+  });
+
+  // ========== PARTNER API (Public with API Key) ==========
+  
+  // Search Tours
+  app.get("/api/partner/tours", apiKeyAuth, requirePermission("read:tours"), async (req, res) => {
+    try {
+      const filters = {
+        category: req.query.category as string | undefined,
+        minPrice: req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined,
+        maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
+        language: req.query.language as string | undefined,
+        city: req.query.city as string | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0
+      };
+      
+      const tours = await storage.searchTours(filters);
+      
+      res.json({
+        tours,
+        meta: {
+          limit: filters.limit,
+          offset: filters.offset,
+          count: tours.length
+        }
+      });
+    } catch (error: any) {
+      console.error("Partner API - search tours error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Get Tour Details
+  app.get("/api/partner/tours/:id", apiKeyAuth, requirePermission("read:tours"), async (req, res) => {
+    try {
+      const tour = await storage.getTourById(req.params.id);
+      
+      if (!tour) {
+        return res.status(404).json({ message: "Tour not found" });
+      }
+      
+      // Get guide info
+      const guide = tour.guide;
+      
+      res.json({
+        ...tour,
+        guide: guide ? {
+          id: guide.id,
+          firstName: guide.firstName,
+          lastName: guide.lastName,
+          trustLevel: guide.trustLevel,
+          verified: guide.verified
+        } : null
+      });
+    } catch (error: any) {
+      console.error("Partner API - get tour error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Search Services
+  app.get("/api/partner/services", apiKeyAuth, requirePermission("read:services"), async (req, res) => {
+    try {
+      const filters = {
+        category: req.query.category as string | undefined,
+        city: req.query.city as string | undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0
+      };
+      
+      const services = await storage.searchServices(filters);
+      
+      res.json({
+        services,
+        meta: {
+          limit: filters.limit,
+          offset: filters.offset,
+          count: services.length
+        }
+      });
+    } catch (error: any) {
+      console.error("Partner API - search services error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Create Booking (authorized partners only)
+  app.post("/api/partner/bookings", apiKeyAuth, requirePermission("write:bookings"), async (req, res) => {
+    try {
+      const { tourId, touristEmail, touristName, numberOfPeople, totalPrice, bookingDate } = req.body;
+      
+      if (!tourId || !touristEmail || !touristName || !numberOfPeople) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      const tour = await storage.getTourById(tourId);
+      if (!tour) {
+        return res.status(404).json({ message: "Tour not found" });
+      }
+      
+      // For partner API bookings, we need to create a temporary user or handle differently
+      // For now, we'll require the partner to have a userId in the request or use the partnerId
+      const booking = await storage.createBooking({
+        userId: req.apiKey!.partnerId, // Use partner as the booking user
+        tourId,
+        bookingDate: bookingDate ? new Date(bookingDate) : new Date(),
+        participants: numberOfPeople,
+        totalAmount: totalPrice?.toString() || tour.price?.toString() || "0",
+        status: "pending",
+        paymentStatus: "pending",
+        specialRequests: JSON.stringify({
+          source: "partner_api",
+          partnerId: req.apiKey!.partnerId,
+          touristEmail,
+          touristName
+        })
+      });
+      
+      res.status(201).json(booking);
+    } catch (error: any) {
+      console.error("Partner API - create booking error:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+  
+  // Get Statistics (aggregated data for marketing)
+  app.get("/api/partner/stats", apiKeyAuth, requirePermission("read:stats"), async (req, res) => {
+    try {
+      const stats = {
+        totalTours: await storage.countTours(),
+        totalServices: await storage.countServices(),
+        categories: await storage.getTourCategories(),
+        cities: await storage.getAvailableCities()
+      };
+      
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Partner API - stats error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // ========== API KEY MANAGEMENT (User's own keys) ==========
+  
+  // Create API Key (Guide/Provider only)
+  app.post("/api/my/api-keys", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Only guides and providers can create API keys
+      if (user.role !== "guide" && user.role !== "provider") {
+        return res.status(403).json({ message: "Only guides and providers can create API keys" });
+      }
+      
+      const { name, permissions, rateLimit } = req.body;
+      
+      if (!name || !permissions || !Array.isArray(permissions)) {
+        return res.status(400).json({ message: "Name and permissions required" });
+      }
+      
+      // Generate key
+      const { key, hash, prefix } = generateApiKey("live");
+      
+      // Create in database
+      const apiKey = await storage.createApiKey({
+        partnerId: userId,
+        name,
+        keyHash: hash,
+        keyPrefix: prefix,
+        permissions,
+        rateLimit: rateLimit || 1000,
+        isActive: true
+      });
+      
+      // Return key ONLY ONCE (never shown again)
+      res.status(201).json({
+        ...apiKey,
+        key, // IMPORTANT: Only returned on creation
+        warning: "Save this key securely. You won't be able to see it again."
+      });
+    } catch (error: any) {
+      console.error("Error creating API key:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+  
+  // List Own API Keys
+  app.get("/api/my/api-keys", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const keys = await storage.listApiKeys(userId);
+      
+      // Don't return keyHash (security)
+      const sanitized = keys.map(k => ({
+        id: k.id,
+        name: k.name,
+        keyPrefix: k.keyPrefix,
+        permissions: k.permissions,
+        rateLimit: k.rateLimit,
+        requestsToday: k.requestsToday,
+        lastUsedAt: k.lastUsedAt,
+        isActive: k.isActive,
+        expiresAt: k.expiresAt,
+        createdAt: k.createdAt
+      }));
+      
+      res.json(sanitized);
+    } catch (error: any) {
+      console.error("Error listing API keys:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Delete API Key
+  app.delete("/api/my/api-keys/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const keyId = req.params.id;
+      
+      const keys = await storage.listApiKeys(userId);
+      const key = keys.find(k => k.id === keyId);
+      
+      if (!key) {
+        return res.status(404).json({ message: "API key not found" });
+      }
+      
+      await storage.deleteApiKey(keyId);
+      
+      res.json({ message: "API key deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting API key:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // ========== SWAGGER DOCUMENTATION ==========
+  
+  // Swagger/OpenAPI Documentation
+  app.get("/api/docs", (req, res) => {
+    const swaggerDoc = {
+      openapi: "3.0.0",
+      info: {
+        title: "TourConnect Partner API",
+        version: "4.0.0",
+        description: "Public API for TourConnect partners (travel agencies, portals, influencers)",
+        contact: {
+          name: "TourConnect API Support",
+          email: "api@tourconnect.com"
+        }
+      },
+      servers: [
+        {
+          url: `${req.protocol}://${req.get('host')}/api/partner`,
+          description: "Production server"
+        }
+      ],
+      components: {
+        securitySchemes: {
+          ApiKeyAuth: {
+            type: "apiKey",
+            in: "header",
+            name: "Authorization",
+            description: "Use 'Bearer tc_live_YOUR_API_KEY'"
+          }
+        }
+      },
+      security: [{ ApiKeyAuth: [] }],
+      paths: {
+        "/tours": {
+          get: {
+            summary: "Search tours",
+            parameters: [
+              { name: "category", in: "query", schema: { type: "string" } },
+              { name: "minPrice", in: "query", schema: { type: "number" } },
+              { name: "maxPrice", in: "query", schema: { type: "number" } },
+              { name: "language", in: "query", schema: { type: "string" } },
+              { name: "city", in: "query", schema: { type: "string" } },
+              { name: "limit", in: "query", schema: { type: "integer", default: 50 } },
+              { name: "offset", in: "query", schema: { type: "integer", default: 0 } }
+            ],
+            responses: {
+              "200": {
+                description: "List of tours",
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        tours: { type: "array" },
+                        meta: { type: "object" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/tours/{id}": {
+          get: {
+            summary: "Get tour details",
+            parameters: [
+              { name: "id", in: "path", required: true, schema: { type: "string" } }
+            ],
+            responses: {
+              "200": { description: "Tour details" },
+              "404": { description: "Tour not found" }
+            }
+          }
+        },
+        "/services": {
+          get: {
+            summary: "Search services",
+            parameters: [
+              { name: "category", in: "query", schema: { type: "string" } },
+              { name: "city", in: "query", schema: { type: "string" } },
+              { name: "limit", in: "query", schema: { type: "integer" } },
+              { name: "offset", in: "query", schema: { type: "integer" } }
+            ],
+            responses: {
+              "200": { description: "List of services" }
+            }
+          }
+        },
+        "/bookings": {
+          post: {
+            summary: "Create booking (requires write:bookings permission)",
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      tourId: { type: "string" },
+                      touristEmail: { type: "string" },
+                      touristName: { type: "string" },
+                      numberOfPeople: { type: "integer" },
+                      totalPrice: { type: "number" },
+                      bookingDate: { type: "string", format: "date-time" }
+                    },
+                    required: ["tourId", "touristEmail", "touristName", "numberOfPeople"]
+                  }
+                }
+              }
+            },
+            responses: {
+              "201": { description: "Booking created" },
+              "403": { description: "Insufficient permissions" }
+            }
+          }
+        },
+        "/stats": {
+          get: {
+            summary: "Get platform statistics",
+            responses: {
+              "200": { description: "Platform statistics" }
+            }
+          }
+        }
+      }
+    };
+    
+    res.json(swaggerDoc);
+  });
+  
+  // Swagger UI (HTML visualization)
+  app.get("/api/docs/ui", (req, res) => {
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>TourConnect Partner API Docs</title>
+        <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+      </head>
+      <body>
+        <div id="swagger-ui"></div>
+        <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+        <script>
+          SwaggerUIBundle({
+            url: '/api/docs',
+            dom_id: '#swagger-ui'
+          });
+        </script>
+      </body>
+      </html>
+    `);
   });
 
   const httpServer = createServer(app);
