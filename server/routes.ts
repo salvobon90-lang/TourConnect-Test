@@ -598,6 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Auto-track tour view (fire-and-forget)
       const userId = (req as any).user?.claims?.sub || null;
       storage.trackEvent({
+        eventType: "view",
         eventCategory: "tour_view",
         targetId: tour.id,
         targetType: "tour",
@@ -723,6 +724,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Auto-track service view (fire-and-forget)
       const userId = req.user?.claims?.sub || null;
       storage.trackEvent({
+        eventType: "view",
         eventCategory: "service_view",
         targetId: service.id,
         targetType: "service",
@@ -841,6 +843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Track booking creation (fire-and-forget)
       storage.trackEvent({
+        eventType: "conversion",
         eventCategory: "booking_created",
         targetId: booking.tourId,
         targetType: "tour",
@@ -967,6 +970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Track payment (fire-and-forget)
         if (booking) {
           storage.trackEvent({
+            eventType: "conversion",
             eventCategory: "booking_paid",
             targetId: booking.tourId,
             targetType: "tour",
@@ -2133,13 +2137,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get participants count
       const participants = await storage.getEventParticipants(event.id);
       
+      // Get creator info
+      const creator = await storage.getUser(event.createdBy);
+      
       res.json({
         ...event,
+        creator,
         participantsCount: participants.length,
         spotsLeft: event.maxParticipants ? event.maxParticipants - participants.length : null
       });
     } catch (error: any) {
       console.error("Error getting event:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get Event Participants with User Data
+  app.get("/api/events/:id/participants", async (req, res) => {
+    try {
+      const eventId = req.params.id;
+      
+      // Check if event exists
+      const event = await storage.getEventById(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // Get participants
+      const participants = await storage.getEventParticipants(eventId);
+      
+      // Fetch user data for each participant
+      const participantsWithUsers = await Promise.all(
+        participants.map(async (participant) => {
+          const user = await storage.getUser(participant.userId);
+          return {
+            ...participant,
+            user
+          };
+        })
+      );
+      
+      res.json(participantsWithUsers);
+    } catch (error: any) {
+      console.error("Error getting event participants:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get Current User's Events (Events they RSVP'd to)
+  app.get("/api/users/me/events", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Get all user's event participations
+      const participations = await storage.getEventParticipationsByUser(userId);
+      
+      // Fetch full event data for each participation
+      const eventsWithDetails = await Promise.all(
+        participations.map(async (participation) => {
+          const event = await storage.getEventById(participation.eventId);
+          if (!event) return null;
+          
+          // Get creator info
+          const creator = await storage.getUser(event.createdBy);
+          
+          // Get participants count
+          const participants = await storage.getEventParticipants(event.id);
+          
+          return {
+            ...event,
+            creator,
+            participantsCount: participants.length,
+            spotsLeft: event.maxParticipants ? event.maxParticipants - participants.length : null
+          };
+        })
+      );
+      
+      // Filter out null values (deleted events)
+      const events = eventsWithDetails.filter(Boolean);
+      
+      res.json(events);
+    } catch (error: any) {
+      console.error("Error fetching user events:", error);
       res.status(500).json({ message: error.message });
     }
   });
@@ -2388,7 +2467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Auto-moderate content
       const moderation = await moderateContent(
-        `${postData.title}\n\n${postData.content}`,
+        postData.content,
         "post"
       );
       
@@ -2453,7 +2532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const postsList = await storage.getFeedPosts(filters);
       
       // OPTIMIZED: Batch author lookup instead of N+1 queries
-      const authorIds = [...new Set(postsList.map(p => p.authorId))];
+      const authorIds = Array.from(new Set(postsList.map(p => p.authorId)));
       const authorsMap = await storage.getUsersByIds(authorIds);
       
       const enrichedPosts = postsList.map((post) => {
@@ -2642,7 +2721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const comments = await storage.getPostComments(postId);
       
       // OPTIMIZED: Batch author lookup
-      const authorIds = [...new Set(comments.map(c => c.authorId))];
+      const authorIds = Array.from(new Set(comments.map(c => c.authorId)));
       const authorsMap = await storage.getUsersByIds(authorIds);
       
       const enrichedComments = comments.map((comment) => {
@@ -3351,6 +3430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req as any).user?.claims?.sub || null;
       
       const event = await storage.trackEvent({
+        eventType: "click",
         eventCategory,
         targetId,
         targetType,

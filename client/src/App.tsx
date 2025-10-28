@@ -35,6 +35,10 @@ import SubscriptionSuccess from "@/pages/SubscriptionSuccess";
 import SubscriptionCancel from "@/pages/SubscriptionCancel";
 import Tour3DPage from "@/pages/Tour3DPage";
 import MapboxMap3D from "@/pages/mapbox-3d";
+import Events from "@/pages/events";
+import EventDetails from "@/pages/event-details";
+import CreateEvent from "@/pages/create-event";
+import MyEvents from "@/pages/my-events";
 import { AIChatWidget } from "@/components/ai/AIChatWidget";
 import "./i18n";
 
@@ -98,6 +102,12 @@ function Router() {
       <Route path="/booking-success" component={BookingSuccess} />
       <Route path="/sponsorship-success" component={SponsorshipSuccess} />
       <Route path="/edit-tour/:id" component={EditTour} />
+      
+      {/* Event routes */}
+      <Route path="/events" component={Events} />
+      <Route path="/events/new" component={CreateEvent} />
+      <Route path="/events/my-events" component={MyEvents} />
+      <Route path="/events/:id" component={EventDetails} />
       
       {user.role === 'tourist' && (
         <>
