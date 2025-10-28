@@ -33,6 +33,7 @@ import Messages from "@/pages/Messages";
 import Subscriptions from "@/pages/Subscriptions";
 import SubscriptionSuccess from "@/pages/SubscriptionSuccess";
 import SubscriptionCancel from "@/pages/SubscriptionCancel";
+import Tour3DPage from "@/pages/Tour3DPage";
 import { AIChatWidget } from "@/components/ai/AIChatWidget";
 import "./i18n";
 
@@ -59,6 +60,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Landing} />
         <Route path="/tours" component={Tours} />
+        <Route path="/tours/:id/3d" component={Tour3DPage} />
         <Route path="/tours/:id" component={TourDetail} />
         <Route component={NotFound} />
       </Switch>
@@ -89,6 +91,7 @@ function Router() {
       <Route path="/subscriptions" component={Subscriptions} />
       <Route path="/subscriptions/success" component={SubscriptionSuccess} />
       <Route path="/subscriptions/cancel" component={SubscriptionCancel} />
+      <Route path="/tours/:id/3d" component={Tour3DPage} />
       <Route path="/tours/:id" component={TourDetail} />
       <Route path="/book/:id" component={BookTour} />
       <Route path="/booking-success" component={BookingSuccess} />

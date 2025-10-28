@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Clock, Users, MapPin, Calendar } from 'lucide-react';
+import { ArrowLeft, Clock, Users, MapPin, Calendar, Maximize2 } from 'lucide-react';
 import type { TourWithGuide } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
@@ -199,6 +199,17 @@ export default function TourDetail() {
                     <span>{t('tourDetail.availableDaily')}</span>
                   </div>
                 </div>
+
+                <Link href={`/tours/${tour.id}/3d`}>
+                  <Button 
+                    className="w-full" 
+                    variant="outline"
+                    data-testid="button-view-3d"
+                  >
+                    <Maximize2 className="w-4 h-4 mr-2" />
+                    View in 3D
+                  </Button>
+                </Link>
 
                 {user ? (
                   <Button 
