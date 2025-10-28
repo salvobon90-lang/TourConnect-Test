@@ -574,6 +574,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tour) {
         return res.status(404).json({ message: "Tour not found" });
       }
+      
+      // Auto-track tour view (fire-and-forget)
+      const userId = (req as any).user?.claims?.sub || null;
+      storage.trackEvent({
+        eventCategory: "tour_view",
+        targetId: tour.id,
+        targetType: "tour",
+        userId
+      }).catch(err => console.error("Failed to track tour view:", err));
+      
       res.json(tour);
     } catch (error) {
       console.error("Error fetching tour:", error);
@@ -683,12 +693,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/services/:id', async (req, res) => {
+  app.get('/api/services/:id', async (req: any, res) => {
     try {
       const service = await storage.getService(req.params.id);
       if (!service) {
         return res.status(404).json({ message: "Service not found" });
       }
+      
+      // Auto-track service view (fire-and-forget)
+      const userId = req.user?.claims?.sub || null;
+      storage.trackEvent({
+        eventCategory: "service_view",
+        targetId: service.id,
+        targetType: "service",
+        userId
+      }).catch(err => console.error("Failed to track service view:", err));
+      
       res.json(service);
     } catch (error) {
       console.error("Error fetching service:", error);
@@ -798,6 +818,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const validatedData = insertBookingSchema.parse({ ...req.body, userId });
       const booking = await storage.createBooking(validatedData);
+      
+      // Track booking creation (fire-and-forget)
+      storage.trackEvent({
+        eventCategory: "booking_created",
+        targetId: booking.tourId,
+        targetType: "tour",
+        userId,
+        metadata: JSON.stringify({ bookingId: booking.id })
+      }).catch(err => console.error("Failed to track booking:", err));
+      
       res.json(booking);
     } catch (error: any) {
       console.error("Error creating booking:", error);
@@ -907,10 +937,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bookingId = session.metadata?.bookingId;
 
       if (bookingId) {
+        const booking = await storage.getBookingById(bookingId);
+        
         await storage.updateBooking(bookingId, {
           status: 'confirmed',
           paymentStatus: 'paid',
         });
+        
+        // Track payment (fire-and-forget)
+        if (booking) {
+          storage.trackEvent({
+            eventCategory: "booking_paid",
+            targetId: booking.tourId,
+            targetType: "tour",
+            userId: booking.userId,
+            metadata: JSON.stringify({ 
+              bookingId: booking.id,
+              amount: session.amount_total ? session.amount_total / 100 : 0
+            })
+          }).catch(err => console.error("Failed to track payment:", err));
+        }
       }
     }
 
@@ -3117,6 +3163,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "API key deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting API key:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  // ========== ANALYTICS TRACKING ==========
+
+  // Track Event (public - can be called on tour view, booking, etc)
+  app.post("/api/analytics/track", async (req, res) => {
+    try {
+      const { eventCategory, targetId, targetType, metadata } = req.body;
+      
+      if (!eventCategory || !targetId || !targetType) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Get userId if authenticated
+      const userId = (req as any).user?.claims?.sub || null;
+      
+      const event = await storage.trackEvent({
+        eventCategory,
+        targetId,
+        targetType,
+        userId,
+        metadata: metadata ? JSON.stringify(metadata) : null
+      });
+      
+      res.json(event);
+    } catch (error: any) {
+      console.error("Error tracking event:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ========== ANALYTICS DASHBOARD ==========
+
+  // Get Entity Analytics (tour/service specific)
+  app.get("/api/analytics/:entityType/:entityId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { entityType, entityId } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership
+      if (entityType === "tour") {
+        const tour = await storage.getTourById(entityId);
+        if (!tour || tour.guideId !== userId) {
+          return res.status(403).json({ message: "Not authorized to view these analytics" });
+        }
+      } else if (entityType === "service") {
+        const service = await storage.getService(entityId);
+        if (!service || service.providerId !== userId) {
+          return res.status(403).json({ message: "Not authorized to view these analytics" });
+        }
+      } else {
+        return res.status(400).json({ message: "Invalid entity type" });
+      }
+      
+      // Get date range from query
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      const analytics = await storage.getEntityAnalytics(entityId, entityType, startDate, endDate);
+      
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("Error getting entity analytics:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get Guide Dashboard Analytics
+  app.get("/api/analytics/dashboard/guide", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "guide") {
+        return res.status(403).json({ message: "Only guides can access this endpoint" });
+      }
+      
+      // Get date range
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      const analytics = await storage.getGuideAnalytics(userId, startDate, endDate);
+      
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("Error getting guide analytics:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get Provider Dashboard Analytics
+  app.get("/api/analytics/dashboard/provider", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "provider") {
+        return res.status(403).json({ message: "Only providers can access this endpoint" });
+      }
+      
+      // Get date range
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      const analytics = await storage.getProviderAnalytics(userId, startDate, endDate);
+      
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("Error getting provider analytics:", error);
       res.status(500).json({ message: error.message });
     }
   });

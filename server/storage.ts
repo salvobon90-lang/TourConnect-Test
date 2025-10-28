@@ -51,7 +51,7 @@ import {
   type UserRole,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, sql, gt, or, inArray, ne } from "drizzle-orm";
+import { eq, and, desc, asc, sql, gt, or, inArray, ne, gte, lte } from "drizzle-orm";
 import { BADGES, type UserStats } from "@shared/badges";
 import { calculateTrustLevel } from "@shared/trustLevel";
 
@@ -249,10 +249,15 @@ export interface IStorage {
   getTourById(id: string): Promise<TourWithGuide | undefined>;
   
   // Analytics operations
-  trackEvent(event: InsertAnalyticsEvent): Promise<void>;
-  getAnalytics(filters: AnalyticsFilters): Promise<AnalyticsData>;
-  getTourAnalytics(tourId: string, timeframe: string): Promise<TourAnalytics>;
-  getUserAnalytics(userId: string, timeframe: string): Promise<UserAnalytics>;
+  trackEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent>;
+  getEntityAnalytics(entityId: string, entityType: string, startDate?: Date, endDate?: Date): Promise<any>;
+  getGuideAnalytics(guideId: string, startDate?: Date, endDate?: Date): Promise<any>;
+  getProviderAnalytics(providerId: string, startDate?: Date, endDate?: Date): Promise<{
+    totalViews: number;
+    totalClicks: number;
+    topServices: Array<{ serviceId: string; name: string; views: number; clicks: number }>;
+    dailyStats: Array<{ date: string; views: number; clicks: number }>;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1743,21 +1748,287 @@ export class DatabaseStorage implements IStorage {
     return this.getTour(id);
   }
 
-  // Analytics operations (to be implemented in next task)
-  async trackEvent(event: InsertAnalyticsEvent): Promise<void> {
-    throw new Error("Not implemented yet");
+  // ========== ANALYTICS ==========
+  
+  async trackEvent(event: InsertAnalyticsEvent): Promise<AnalyticsEvent> {
+    const [tracked] = await db.insert(analyticsEvents).values(event).returning();
+    return tracked;
   }
 
-  async getAnalytics(filters: AnalyticsFilters): Promise<AnalyticsData> {
-    throw new Error("Not implemented yet");
+  async getEntityAnalytics(
+    entityId: string,
+    entityType: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<{
+    totalViews: number;
+    totalClicks: number;
+    totalBookings: number;
+    totalRevenue: number;
+    conversionRate: number;
+    eventsByType: Record<string, number>;
+  }> {
+    const conditions = [
+      eq(analyticsEvents.targetId, entityId),
+      eq(analyticsEvents.targetType, entityType)
+    ];
+    
+    if (startDate) {
+      conditions.push(gte(analyticsEvents.createdAt, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(analyticsEvents.createdAt, endDate));
+    }
+    
+    const events = await db
+      .select()
+      .from(analyticsEvents)
+      .where(and(...conditions));
+    
+    const eventsByType: Record<string, number> = {};
+    let totalRevenue = 0;
+    
+    for (const event of events) {
+      eventsByType[event.eventCategory] = (eventsByType[event.eventCategory] || 0) + 1;
+      
+      if (event.eventCategory === "booking_paid" && event.metadata) {
+        const metadata = typeof event.metadata === 'string' 
+          ? JSON.parse(event.metadata) 
+          : event.metadata;
+        totalRevenue += (metadata as any)?.amount || 0;
+      }
+    }
+    
+    // ✅ FIX: Support both tour and service event types
+    const totalViews = (eventsByType.tour_view || 0) + (eventsByType.service_view || 0);
+    const totalClicks = (eventsByType.tour_click || 0) + (eventsByType.service_click || 0);
+    const totalBookings = eventsByType.booking_created || 0;
+    const conversionRate = totalViews > 0 ? (totalBookings / totalViews) * 100 : 0;
+    
+    return {
+      totalViews,
+      totalClicks,
+      totalBookings,
+      totalRevenue,
+      conversionRate: Math.round(conversionRate * 100) / 100,
+      eventsByType
+    };
   }
 
-  async getTourAnalytics(tourId: string, timeframe: string): Promise<TourAnalytics> {
-    throw new Error("Not implemented yet");
+  async getGuideAnalytics(
+    guideId: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<{
+    totalViews: number;
+    totalBookings: number;
+    totalRevenue: number;
+    topTours: Array<{ tourId: string; title: string; views: number; bookings: number; revenue: number }>;
+    dailyStats: Array<{ date: string; views: number; bookings: number }>;
+  }> {
+    const guideTours = await db
+      .select()
+      .from(tours)
+      .where(eq(tours.guideId, guideId));
+    
+    const tourIds = guideTours.map(t => t.id);
+    
+    if (tourIds.length === 0) {
+      return {
+        totalViews: 0,
+        totalBookings: 0,
+        totalRevenue: 0,
+        topTours: [],
+        dailyStats: []
+      };
+    }
+    
+    const conditions = [
+      inArray(analyticsEvents.targetId, tourIds),
+      eq(analyticsEvents.targetType, "tour")
+    ];
+    
+    if (startDate) {
+      conditions.push(gte(analyticsEvents.createdAt, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(analyticsEvents.createdAt, endDate));
+    }
+    
+    const events = await db
+      .select()
+      .from(analyticsEvents)
+      .where(and(...conditions))
+      .orderBy(analyticsEvents.createdAt);
+    
+    let totalViews = 0;
+    let totalBookings = 0;
+    let totalRevenue = 0;
+    
+    const tourStats: Record<string, { views: number; bookings: number; revenue: number }> = {};
+    const dailyStatsMap: Record<string, { views: number; bookings: number }> = {};
+    
+    for (const event of events) {
+      if (!tourStats[event.targetId]) {
+        tourStats[event.targetId] = { views: 0, bookings: 0, revenue: 0 };
+      }
+      
+      if (event.eventCategory === "tour_view") {
+        totalViews++;
+        tourStats[event.targetId].views++;
+      }
+      
+      if (event.eventCategory === "booking_created") {
+        totalBookings++;
+        tourStats[event.targetId].bookings++;
+      }
+      
+      if (event.eventCategory === "booking_paid") {
+        const metadata = typeof event.metadata === 'string' 
+          ? JSON.parse(event.metadata) 
+          : event.metadata;
+        const amount = (metadata as any)?.amount || 0;
+        totalRevenue += amount;
+        tourStats[event.targetId].revenue += amount;
+      }
+      
+      const dateKey = event.createdAt.toISOString().split('T')[0];
+      if (!dailyStatsMap[dateKey]) {
+        dailyStatsMap[dateKey] = { views: 0, bookings: 0 };
+      }
+      
+      if (event.eventCategory === "tour_view") {
+        dailyStatsMap[dateKey].views++;
+      }
+      if (event.eventCategory === "booking_created") {
+        dailyStatsMap[dateKey].bookings++;
+      }
+    }
+    
+    const topTours = guideTours
+      .map(tour => ({
+        tourId: tour.id,
+        title: tour.title,
+        views: tourStats[tour.id]?.views || 0,
+        bookings: tourStats[tour.id]?.bookings || 0,
+        revenue: tourStats[tour.id]?.revenue || 0
+      }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 5);
+    
+    const dailyStats = Object.entries(dailyStatsMap)
+      .map(([date, stats]) => ({ date, ...stats }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    
+    return {
+      totalViews,
+      totalBookings,
+      totalRevenue,
+      topTours,
+      dailyStats
+    };
   }
 
-  async getUserAnalytics(userId: string, timeframe: string): Promise<UserAnalytics> {
-    throw new Error("Not implemented yet");
+  async getProviderAnalytics(
+    providerId: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<{
+    totalViews: number;
+    totalClicks: number;
+    topServices: Array<{ serviceId: string; name: string; views: number; clicks: number }>;
+    dailyStats: Array<{ date: string; views: number; clicks: number }>;
+  }> {
+    const providerServices = await db
+      .select()
+      .from(services)
+      .where(eq(services.providerId, providerId));
+    
+    const serviceIds = providerServices.map(s => s.id);
+    
+    if (serviceIds.length === 0) {
+      return {
+        totalViews: 0,
+        totalClicks: 0,
+        topServices: [],
+        dailyStats: []
+      };
+    }
+    
+    const conditions = [
+      inArray(analyticsEvents.targetId, serviceIds),
+      eq(analyticsEvents.targetType, "service")
+    ];
+    
+    if (startDate) {
+      conditions.push(gte(analyticsEvents.createdAt, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(analyticsEvents.createdAt, endDate));
+    }
+    
+    const events = await db
+      .select()
+      .from(analyticsEvents)
+      .where(and(...conditions))
+      .orderBy(analyticsEvents.createdAt);
+    
+    let totalViews = 0;
+    let totalClicks = 0;
+    const serviceStats: Record<string, { views: number; clicks: number }> = {};
+    const dailyStatsMap: Record<string, { views: number; clicks: number }> = {};
+    
+    for (const event of events) {
+      // Initialize service stats if not exists
+      if (!serviceStats[event.targetId]) {
+        serviceStats[event.targetId] = { views: 0, clicks: 0 };
+      }
+      
+      // Track views - ✅ FIXED: eventCategory not eventType
+      if (event.eventCategory === "service_view") {
+        totalViews++;
+        serviceStats[event.targetId].views++;
+        
+        const dateKey = event.createdAt.toISOString().split('T')[0];
+        if (!dailyStatsMap[dateKey]) {
+          dailyStatsMap[dateKey] = { views: 0, clicks: 0 };
+        }
+        dailyStatsMap[dateKey].views++;
+      }
+      
+      // Track clicks - ✅ FIXED: eventCategory not eventType
+      if (event.eventCategory === "service_click") {
+        totalClicks++;
+        serviceStats[event.targetId].clicks++;
+        
+        const dateKey = event.createdAt.toISOString().split('T')[0];
+        if (!dailyStatsMap[dateKey]) {
+          dailyStatsMap[dateKey] = { views: 0, clicks: 0 };
+        }
+        dailyStatsMap[dateKey].clicks++;
+      }
+    }
+    
+    const topServices = providerServices
+      .map(service => ({
+        serviceId: service.id,
+        name: service.name,
+        views: serviceStats[service.id]?.views || 0,
+        clicks: serviceStats[service.id]?.clicks || 0
+      }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 5);
+    
+    const dailyStats = Object.entries(dailyStatsMap)
+      .map(([date, stats]) => ({ date, views: stats.views, clicks: stats.clicks }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    
+    return {
+      totalViews,
+      totalClicks,
+      topServices,
+      dailyStats
+    };
   }
 }
 
