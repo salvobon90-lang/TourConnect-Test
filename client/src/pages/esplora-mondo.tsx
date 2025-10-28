@@ -1,17 +1,29 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useLocation } from 'wouter';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Globe, Markers } from '@/components/3d/GlobeScene';
 import { useGlobeData } from '@/hooks/useGlobeData';
 import type { GlobeMarker } from '@/lib/geolocation';
 import { Globe as GlobeIcon, MapPin, UtensilsCrossed, Calendar, Loader2 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
+
+// Lazy load heavy 3D components (Three.js - ~700KB)
+const GlobeCanvas = lazy(() => import('@/components/3d/GlobeCanvasWrapper'));
+
+// Loading component for 3D globe
+function GlobeLoader() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+        <p className="text-muted-foreground">Caricamento globo 3D...</p>
+      </div>
+    </div>
+  );
+}
 
 export default function EsploraMondo() {
   const [, navigate] = useLocation();
@@ -75,33 +87,17 @@ export default function EsploraMondo() {
           </div>
         )}
         
-        {/* Globe Canvas */}
+        {/* Globe Canvas - Lazy Loaded */}
         {!isLoading && (
           <div className="absolute inset-0" data-testid="globe-canvas">
-            <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
-              {/* Lighting */}
-              <ambientLight intensity={0.5} />
-              <pointLight position={[10, 10, 10]} intensity={1} />
-              
-              {/* Globe */}
-              <Globe />
-              
-              {/* Markers */}
-              <Markers 
+            <Suspense fallback={<GlobeLoader />}>
+              <GlobeCanvas
                 markers={filteredMarkers}
                 onMarkerClick={handleMarkerClick}
                 selectedMarkerId={selectedMarker?.id}
                 visibleTypes={visibleTypes}
               />
-              
-              {/* Controls */}
-              <OrbitControls 
-                enablePan={false}
-                minDistance={3}
-                maxDistance={10}
-                autoRotate={false}
-              />
-            </Canvas>
+            </Suspense>
           </div>
         )}
         
@@ -183,6 +179,7 @@ export default function EsploraMondo() {
                     src={selectedMarker.images[0]} 
                     alt={selectedMarker.title}
                     className="w-full h-48 object-cover rounded"
+                    loading="lazy"
                   />
                 )}
                 {selectedMarker.price && (

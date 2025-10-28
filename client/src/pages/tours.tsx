@@ -207,6 +207,7 @@ export default function Tours() {
                       src={tour.images[0] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021'}
                       alt={tour.title}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                     <div className="absolute top-3 right-3">
                       <Badge className="bg-white/90 text-foreground">

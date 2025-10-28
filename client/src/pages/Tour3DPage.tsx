@@ -1,10 +1,15 @@
+import { lazy, Suspense } from "react";
 import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { TourViewer3D } from "@/components/3d/TourViewer3D";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import type { Tour } from "@shared/schema";
+
+// Lazy load heavy 3D viewer component (Three.js + WebXR)
+const TourViewer3D = lazy(() => import("@/components/3d/TourViewer3D").then(module => ({
+  default: module.TourViewer3D
+})));
 
 export default function Tour3DPage() {
   const [, params] = useRoute("/tours/:id/3d");
@@ -60,7 +65,16 @@ export default function Tour3DPage() {
         </h1>
       </div>
       
-      <TourViewer3D panoramaUrl={panoramaUrl} />
+      <Suspense fallback={
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Caricamento vista 3D...</p>
+          </div>
+        </div>
+      }>
+        <TourViewer3D panoramaUrl={panoramaUrl} />
+      </Suspense>
     </div>
   );
 }

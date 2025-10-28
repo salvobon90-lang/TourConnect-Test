@@ -37,6 +37,9 @@ import {
   Bar
 } from 'recharts';
 
+// Note: Analytics page is already lazy loaded in App.tsx, so Recharts
+// will only load when users navigate to the analytics page
+
 // Period type
 type Period = '7d' | '30d' | '90d' | 'all';
 

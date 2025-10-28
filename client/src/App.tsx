@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -11,44 +11,57 @@ import { LoadingSpinner } from "@/components/loading-spinner";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from 'framer-motion';
 import { pageVariants } from '@/lib/animations';
+import { AIChatWidget } from "@/components/ai/AIChatWidget";
+import "./i18n";
+
+// Critical routes - loaded eagerly (always needed)
 import NotFound from "@/pages/not-found";
 import LanguageSelection from "@/pages/language-selection";
 import Landing from "@/pages/landing";
-import Tours from "@/pages/tours";
-import RoleSelection from "@/pages/role-selection";
-import TouristDashboard from "@/pages/tourist-dashboard";
-import GuideDashboard from "@/pages/guide-dashboard";
-import ProviderDashboard from "@/pages/provider-dashboard";
-import SupervisorDashboard from "@/pages/supervisor-dashboard";
-import PendingApproval from "@/pages/pending-approval";
-import Bookings from "@/pages/bookings";
-import MapView from "@/pages/interactive-map";
-import CreateTour from "@/pages/create-tour";
-import CreateService from "@/pages/create-service";
-import TourDetail from "@/pages/tour-detail";
-import BookTour from "@/pages/book-tour";
-import BookingSuccess from "@/pages/booking-success";
-import EditTour from "@/pages/edit-tour";
-import Profile from "@/pages/profile";
-import SponsorshipSuccess from "@/pages/sponsorship-success";
-import Onboarding from "@/pages/onboarding";
-import Messages from "@/pages/Messages";
-import Subscriptions from "@/pages/Subscriptions";
-import SubscriptionSuccess from "@/pages/SubscriptionSuccess";
-import SubscriptionCancel from "@/pages/SubscriptionCancel";
-import Tour3DPage from "@/pages/Tour3DPage";
-import MapboxMap3D from "@/pages/mapbox-3d";
-import Events from "@/pages/events";
-import EventDetails from "@/pages/event-details";
-import CreateEvent from "@/pages/create-event";
-import MyEvents from "@/pages/my-events";
-import Feed from "@/pages/feed";
-import PostDetails from "@/pages/post-details";
-import Analytics from "@/pages/analytics";
-import ItineraryBuilder from "@/pages/itinerary-builder";
-import EsploraMondo from "@/pages/esplora-mondo";
-import { AIChatWidget } from "@/components/ai/AIChatWidget";
-import "./i18n";
+
+// All other routes - loaded lazily (on-demand)
+const Tours = lazy(() => import("@/pages/tours"));
+const RoleSelection = lazy(() => import("@/pages/role-selection"));
+const TouristDashboard = lazy(() => import("@/pages/tourist-dashboard"));
+const GuideDashboard = lazy(() => import("@/pages/guide-dashboard"));
+const ProviderDashboard = lazy(() => import("@/pages/provider-dashboard"));
+const SupervisorDashboard = lazy(() => import("@/pages/supervisor-dashboard"));
+const PendingApproval = lazy(() => import("@/pages/pending-approval"));
+const Bookings = lazy(() => import("@/pages/bookings"));
+const MapView = lazy(() => import("@/pages/interactive-map"));
+const CreateTour = lazy(() => import("@/pages/create-tour"));
+const CreateService = lazy(() => import("@/pages/create-service"));
+const TourDetail = lazy(() => import("@/pages/tour-detail"));
+const BookTour = lazy(() => import("@/pages/book-tour"));
+const BookingSuccess = lazy(() => import("@/pages/booking-success"));
+const EditTour = lazy(() => import("@/pages/edit-tour"));
+const Profile = lazy(() => import("@/pages/profile"));
+const SponsorshipSuccess = lazy(() => import("@/pages/sponsorship-success"));
+const Onboarding = lazy(() => import("@/pages/onboarding"));
+const Messages = lazy(() => import("@/pages/Messages"));
+const Subscriptions = lazy(() => import("@/pages/Subscriptions"));
+const SubscriptionSuccess = lazy(() => import("@/pages/SubscriptionSuccess"));
+const SubscriptionCancel = lazy(() => import("@/pages/SubscriptionCancel"));
+const Tour3DPage = lazy(() => import("@/pages/Tour3DPage"));
+const MapboxMap3D = lazy(() => import("@/pages/mapbox-3d"));
+const Events = lazy(() => import("@/pages/events"));
+const EventDetails = lazy(() => import("@/pages/event-details"));
+const CreateEvent = lazy(() => import("@/pages/create-event"));
+const MyEvents = lazy(() => import("@/pages/my-events"));
+const Feed = lazy(() => import("@/pages/feed"));
+const PostDetails = lazy(() => import("@/pages/post-details"));
+const Analytics = lazy(() => import("@/pages/analytics"));
+const ItineraryBuilder = lazy(() => import("@/pages/itinerary-builder"));
+const EsploraMondo = lazy(() => import("@/pages/esplora-mondo"));
+
+// Loading fallback component
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen" data-testid="page-loader">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+    </div>
+  );
+}
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -79,13 +92,15 @@ function Router() {
           animate="animate"
           exit="exit"
         >
-          <Switch location={location}>
-            <Route path="/" component={Landing} />
-            <Route path="/tours" component={Tours} />
-            <Route path="/tours/:id/3d" component={Tour3DPage} />
-            <Route path="/tours/:id" component={TourDetail} />
-            <Route component={NotFound} />
-          </Switch>
+          <Suspense fallback={<PageLoader />}>
+            <Switch location={location}>
+              <Route path="/" component={Landing} />
+              <Route path="/tours" component={Tours} />
+              <Route path="/tours/:id/3d" component={Tour3DPage} />
+              <Route path="/tours/:id" component={TourDetail} />
+              <Route component={NotFound} />
+            </Switch>
+          </Suspense>
         </motion.div>
       </AnimatePresence>
     );
@@ -93,20 +108,32 @@ function Router() {
 
   // Show onboarding for new authenticated users (only once)
   if (!localStorage.getItem('onboardingCompleted')) {
-    return <Onboarding />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Onboarding />
+      </Suspense>
+    );
   }
 
   // Show role selection if user hasn't selected a role
   if (!user?.role) {
-    return <RoleSelection />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <RoleSelection />
+      </Suspense>
+    );
   }
 
   // Show pending approval page if user is guide/provider and not approved
   if ((user.role === 'guide' || user.role === 'provider') && user.approvalStatus !== 'approved') {
-    return <PendingApproval />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <PendingApproval />
+      </Suspense>
+    );
   }
 
-  // Route based on user role
+  // Route based on user role - all wrapped in Suspense
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -116,72 +143,74 @@ function Router() {
         animate="animate"
         exit="exit"
       >
-        <Switch location={location}>
-          {/* Shared routes for all authenticated users */}
-          <Route path="/profile" component={Profile} />
-          <Route path="/messages" component={Messages} />
-          <Route path="/subscriptions" component={Subscriptions} />
-          <Route path="/subscriptions/success" component={SubscriptionSuccess} />
-          <Route path="/subscriptions/cancel" component={SubscriptionCancel} />
-          <Route path="/tours/:id/3d" component={Tour3DPage} />
-          <Route path="/tours/:id" component={TourDetail} />
-          <Route path="/book/:id" component={BookTour} />
-          <Route path="/booking-success" component={BookingSuccess} />
-          <Route path="/sponsorship-success" component={SponsorshipSuccess} />
-          <Route path="/edit-tour/:id" component={EditTour} />
-          
-          {/* Event routes */}
-          <Route path="/events" component={Events} />
-          <Route path="/events/new" component={CreateEvent} />
-          <Route path="/events/my-events" component={MyEvents} />
-          <Route path="/events/:id" component={EventDetails} />
-          
-          {/* Feed routes */}
-          <Route path="/feed" component={Feed} />
-          <Route path="/feed/new" component={Feed} />
-          <Route path="/feed/:id" component={PostDetails} />
-          
-          {/* AI Itinerary Builder */}
-          <Route path="/itinerary-builder" component={ItineraryBuilder} />
-          
-          {/* 3D Globe Explorer */}
-          <Route path="/esplora-mondo" component={EsploraMondo} />
-          
-          {user.role === 'tourist' && (
-            <>
-              <Route path="/" component={TouristDashboard} />
-              <Route path="/bookings" component={Bookings} />
-              <Route path="/saved" component={() => <div>Saved Page - Coming Soon</div>} />
-              <Route path="/map" component={MapView} />
-              <Route path="/map-3d" component={MapboxMap3D} />
-            </>
-          )}
-          {user.role === 'guide' && (
-            <>
-              <Route path="/" component={GuideDashboard} />
-              <Route path="/bookings" component={Bookings} />
-              <Route path="/analytics" component={Analytics} />
-              <Route path="/create-tour" component={CreateTour} />
-              <Route path="/map-3d" component={MapboxMap3D} />
-            </>
-          )}
-          {user.role === 'provider' && (
-            <>
-              <Route path="/" component={ProviderDashboard} />
-              <Route path="/analytics" component={Analytics} />
-              <Route path="/offers" component={() => <div>Offers - Coming Soon</div>} />
-              <Route path="/create-service" component={CreateService} />
-              <Route path="/map-3d" component={MapboxMap3D} />
-            </>
-          )}
-          {user.role === 'supervisor' && (
-            <>
-              <Route path="/" component={SupervisorDashboard} />
-              <Route path="/map-3d" component={MapboxMap3D} />
-            </>
-          )}
-          <Route component={NotFound} />
-        </Switch>
+        <Suspense fallback={<PageLoader />}>
+          <Switch location={location}>
+            {/* Shared routes for all authenticated users */}
+            <Route path="/profile" component={Profile} />
+            <Route path="/messages" component={Messages} />
+            <Route path="/subscriptions" component={Subscriptions} />
+            <Route path="/subscriptions/success" component={SubscriptionSuccess} />
+            <Route path="/subscriptions/cancel" component={SubscriptionCancel} />
+            <Route path="/tours/:id/3d" component={Tour3DPage} />
+            <Route path="/tours/:id" component={TourDetail} />
+            <Route path="/book/:id" component={BookTour} />
+            <Route path="/booking-success" component={BookingSuccess} />
+            <Route path="/sponsorship-success" component={SponsorshipSuccess} />
+            <Route path="/edit-tour/:id" component={EditTour} />
+            
+            {/* Event routes */}
+            <Route path="/events" component={Events} />
+            <Route path="/events/new" component={CreateEvent} />
+            <Route path="/events/my-events" component={MyEvents} />
+            <Route path="/events/:id" component={EventDetails} />
+            
+            {/* Feed routes */}
+            <Route path="/feed" component={Feed} />
+            <Route path="/feed/new" component={Feed} />
+            <Route path="/feed/:id" component={PostDetails} />
+            
+            {/* AI Itinerary Builder */}
+            <Route path="/itinerary-builder" component={ItineraryBuilder} />
+            
+            {/* 3D Globe Explorer */}
+            <Route path="/esplora-mondo" component={EsploraMondo} />
+            
+            {user.role === 'tourist' && (
+              <>
+                <Route path="/" component={TouristDashboard} />
+                <Route path="/bookings" component={Bookings} />
+                <Route path="/saved" component={() => <div>Saved Page - Coming Soon</div>} />
+                <Route path="/map" component={MapView} />
+                <Route path="/map-3d" component={MapboxMap3D} />
+              </>
+            )}
+            {user.role === 'guide' && (
+              <>
+                <Route path="/" component={GuideDashboard} />
+                <Route path="/bookings" component={Bookings} />
+                <Route path="/analytics" component={Analytics} />
+                <Route path="/create-tour" component={CreateTour} />
+                <Route path="/map-3d" component={MapboxMap3D} />
+              </>
+            )}
+            {user.role === 'provider' && (
+              <>
+                <Route path="/" component={ProviderDashboard} />
+                <Route path="/analytics" component={Analytics} />
+                <Route path="/offers" component={() => <div>Offers - Coming Soon</div>} />
+                <Route path="/create-service" component={CreateService} />
+                <Route path="/map-3d" component={MapboxMap3D} />
+              </>
+            )}
+            {user.role === 'supervisor' && (
+              <>
+                <Route path="/" component={SupervisorDashboard} />
+                <Route path="/map-3d" component={MapboxMap3D} />
+              </>
+            )}
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
       </motion.div>
     </AnimatePresence>
   );
