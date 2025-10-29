@@ -16,6 +16,7 @@ import { Link } from 'wouter';
 import { useUserLocation } from '@/hooks/use-location';
 import { calculateDistance, formatDistance } from '@/lib/geolocation';
 import { Header } from '@/components/layout/Header';
+import { GroupBookingCard } from '@/components/GroupBookingCard';
 
 type TourWithDistance = TourWithGuide & { distance?: number };
 
@@ -62,6 +63,12 @@ export default function TouristDashboard() {
 
   const { data: bookingsCount } = useQuery<{ count: number }>({
     queryKey: ['/api/bookings/count'],
+    enabled: isAuthenticated,
+  });
+
+  // Fetch user's group bookings
+  const { data: myGroups } = useQuery<any[]>({
+    queryKey: ['/api/group-bookings/my-groups'],
     enabled: isAuthenticated,
   });
 
@@ -329,6 +336,36 @@ export default function TouristDashboard() {
           </Card>
         </div>
       </section>
+
+      {/* My Groups Section */}
+      {myGroups && myGroups.length > 0 && (
+        <section className="py-12 px-4 bg-background border-b" data-testid="section-my-groups">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-6 h-6 text-orange-600" />
+                  <h2 className="text-3xl font-serif font-semibold">{t('groupBooking.myGroups')}</h2>
+                </div>
+                <p className="text-muted-foreground">{t('groupBooking.joinGroupToSave')}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {myGroups.map((group: any) => (
+                <GroupBookingCard
+                  key={group.id}
+                  tourId={group.tourId}
+                  tourDate={new Date(group.tourDate)}
+                  tourName={group.tour?.title}
+                  showJoinButton={false}
+                  compact={true}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Featured Tours Section */}
       {featuredTours.length > 0 && (
