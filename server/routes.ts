@@ -851,6 +851,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: JSON.stringify({ bookingId: booking.id })
       }).catch(err => console.error("Failed to track booking:", err));
       
+      // Award points for booking (fire-and-forget)
+      const isFirstBooking = !(await storage.hasCompletedActionBefore(userId, 'booking'));
+      storage.awardPoints(userId, isFirstBooking ? 'first_booking' : 'booking', {
+        bookingId: booking.id,
+        tourId: booking.tourId,
+        description: isFirstBooking ? 'First booking bonus!' : 'Booking completed'
+      }).then(() => storage.updateStreak(userId))
+        .then(() => storage.checkAndAwardStreakBonus(userId))
+        .catch(err => console.error("Failed to award booking points:", err));
+      
       res.json(booking);
     } catch (error: any) {
       console.error("Error creating booking:", error);
@@ -867,6 +877,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           storage.updateUserBadges(booking.userId),
           storage.recalculateTrustLevel(booking.userId)
         ]);
+        
+        // Award tour completion points (fire-and-forget)
+        storage.awardPoints(booking.userId, 'tour_complete', {
+          bookingId: booking.id,
+          tourId: booking.tourId,
+          description: 'Tour completed'
+        }).catch(err => console.error("Failed to award completion points:", err));
         
         const tour = await storage.getTour(booking.tourId);
         if (tour?.guideId) {
@@ -1175,6 +1192,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       await storage.updateUserBadges(userId);
+      
+      // Award review points (fire-and-forget)
+      storage.awardPoints(userId, 'review', {
+        reviewId: review.id,
+        targetId: (review.tourId || review.serviceId) || undefined,
+        description: 'Review submitted'
+      }).catch(err => console.error("Failed to award review points:", err));
       
       if (review.tourId) {
         const tour = await storage.getTour(review.tourId);
@@ -3562,6 +3586,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Add like
         await storage.addLike(userId, targetId, targetType);
         const count = await storage.getLikesCount(targetId, targetType);
+        
+        // Award like points ONLY if this is the first time ever liking this target (prevents farming)
+        storage.hasCompletedActionBefore(userId, 'like').then(async (hasLikedBefore) => {
+          // For first-ever like OR check if they've liked THIS specific target before
+          // Only award if they haven't been rewarded for liking this exact target before
+          const logs = await storage.getRewardHistory(userId, 1000);
+          const hasRewardedThisTarget = logs.some(log => 
+            log.action === 'like' && log.metadata && (log.metadata as any).targetId === targetId
+          );
+          
+          if (!hasRewardedThisTarget) {
+            await storage.awardPoints(userId, 'like', {
+              targetId,
+              description: `Liked ${targetType}`
+            });
+          }
+        }).catch(err => console.error("Failed to award like points:", err));
+        
         res.json({ liked: true, count });
       }
     } catch (error: any) {
@@ -3649,6 +3691,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+
+  // ===== REWARDS SYSTEM API (Phase 6) =====
+
+  // Get current user's rewards
+  app.get("/api/rewards/me", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      let reward = await storage.getUserReward(userId);
+      
+      // Return zero state if no reward record yet (will be created on first action)
+      if (!reward) {
+        return res.json({
+          totalPoints: 0,
+          currentLevel: 'bronze',
+          currentStreak: 0,
+          longestStreak: 0,
+          nextLevel: 'silver',
+          pointsNeeded: 500
+        });
+      }
+      
+      const nextLevel = storage.calculatePointsToNextLevel(reward.totalPoints);
+      res.json({ ...reward, ...nextLevel });
+    } catch (error: any) {
+      console.error("Error getting user rewards:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // REMOVED: Award points endpoint is now internal-only
+  // Points are automatically awarded by server when users complete verified actions
+  // (bookings, reviews, likes, etc.)
+
+  // Get user's reward history
+  app.get("/api/rewards/history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const history = await storage.getRewardHistory(userId, limit);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error getting reward history:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get rewards leaderboard
+  app.get("/api/rewards/leaderboard", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const leaderboard = await storage.getRewardsLeaderboard(limit);
+      res.json(leaderboard);
+    } catch (error: any) {
+      console.error("Error getting leaderboard:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // REMOVED: Public user rewards endpoint removed for privacy
+  // Users can only view their own rewards via GET /api/rewards/me
 
   // ========== GROUP BOOKINGS (Phase 5) ==========
 

@@ -17,6 +17,7 @@ import { useUserLocation } from '@/hooks/use-location';
 import { calculateDistance, formatDistance } from '@/lib/geolocation';
 import { Header } from '@/components/layout/Header';
 import { GroupBookingCard } from '@/components/GroupBookingCard';
+import { RewardsCard } from '@/components/RewardsCard';
 
 type TourWithDistance = TourWithGuide & { distance?: number };
 
@@ -284,6 +285,13 @@ export default function TouristDashboard() {
               </Button>
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* Rewards Section */}
+      <section className="py-8 px-4 bg-card border-b">
+        <div className="max-w-7xl mx-auto">
+          <RewardsCard />
         </div>
       </section>
 

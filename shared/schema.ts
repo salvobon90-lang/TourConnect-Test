@@ -72,6 +72,36 @@ export type LikeTargetType = typeof likeTargetTypes[number];
 export const trustLevels = ["explorer", "pathfinder", "trailblazer", "navigator", "legend"] as const;
 export type TrustLevel = typeof trustLevels[number];
 
+// Reward action types enum (Phase 6)
+export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus"] as const;
+export type RewardActionType = typeof rewardActionTypes[number];
+
+// Reward level tiers enum (Phase 6)
+export const rewardLevels = ["bronze", "silver", "gold", "platinum", "diamond"] as const;
+export type RewardLevel = typeof rewardLevels[number];
+
+// Points awarded for each action
+export const rewardPoints = {
+  booking: 50,
+  review: 25,
+  like: 5,
+  group_join: 30,
+  referral: 100,
+  tour_complete: 75,
+  profile_complete: 20,
+  first_booking: 100,
+  streak_bonus: 50,
+} as const;
+
+// Points required for each level
+export const levelThresholds = {
+  bronze: 0,
+  silver: 500,
+  gold: 1500,
+  platinum: 3500,
+  diamond: 7500,
+} as const;
+
 // User storage table - Required for Replit Auth with role extension
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -735,6 +765,77 @@ export const groupBookingsRelations = relations(groupBookings, ({ one, many }) =
   bookings: many(bookings),
 }));
 
+// User Rewards table - for gamification points and levels (Phase 6)
+export const userRewards = pgTable("user_rewards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // User reference
+  userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Points and level tracking
+  totalPoints: integer("total_points").notNull().default(0),
+  currentLevel: varchar("current_level", { length: 20 }).notNull().default("bronze"), // bronze, silver, gold, platinum, diamond
+  
+  // Streak tracking for consecutive activity
+  currentStreak: integer("current_streak").notNull().default(0), // consecutive days
+  longestStreak: integer("longest_streak").notNull().default(0),
+  lastActivityDate: timestamp("last_activity_date"),
+  
+  // Achievement tracking
+  achievementsUnlocked: text("achievements_unlocked").array().default(sql`ARRAY[]::text[]`),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_user_rewards_user").on(table.userId),
+  index("idx_user_rewards_level").on(table.currentLevel),
+  index("idx_user_rewards_points").on(table.totalPoints),
+]);
+
+export const userRewardsRelations = relations(userRewards, ({ one, many }) => ({
+  user: one(users, {
+    fields: [userRewards.userId],
+    references: [users.id],
+  }),
+  logs: many(rewardLogs),
+}));
+
+// Reward Logs table - for tracking point transactions (Phase 6)
+export const rewardLogs = pgTable("reward_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // User reference
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Transaction details
+  points: integer("points").notNull(), // can be positive or negative
+  action: varchar("action", { length: 50 }).notNull(), // booking, review, like, group_join, referral, etc.
+  
+  // Context metadata
+  metadata: jsonb("metadata").$type<{
+    tourId?: string;
+    bookingId?: string;
+    reviewId?: string;
+    targetId?: string;
+    description?: string;
+  }>(),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_reward_logs_user").on(table.userId),
+  index("idx_reward_logs_action").on(table.action),
+  index("idx_reward_logs_created").on(table.createdAt),
+]);
+
+export const rewardLogsRelations = relations(rewardLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [rewardLogs.userId],
+    references: [users.id],
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -923,6 +1024,30 @@ export const insertGroupBookingSchema = createInsertSchema(groupBookings).omit({
   }, { message: "Discount step must be between 0 and 1000" }).optional(),
 });
 
+// User Rewards (Phase 6)
+export const insertUserRewardSchema = createInsertSchema(userRewards).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Reward Logs (Phase 6)
+export const insertRewardLogSchema = createInsertSchema(rewardLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const awardPointsSchema = z.object({
+  action: z.enum(['booking', 'review', 'like', 'group_join', 'referral', 'tour_complete', 'profile_complete', 'first_booking', 'streak_bonus']),
+  metadata: z.object({
+    tourId: z.string().optional(),
+    bookingId: z.string().optional(),
+    reviewId: z.string().optional(),
+    targetId: z.string().optional(),
+    description: z.string().optional(),
+  }).optional(),
+});
+
 // Group Booking API validation schemas
 export const joinGroupBookingSchema = z.object({
   participants: z.number().int().min(1).max(20).default(1)
@@ -975,6 +1100,10 @@ export type InsertTrustLevel = z.infer<typeof insertTrustLevelSchema>;
 export type TrustLevelData = typeof trustLevelsTable.$inferSelect;
 export type InsertGroupBooking = z.infer<typeof insertGroupBookingSchema>;
 export type GroupBooking = typeof groupBookings.$inferSelect;
+export type InsertUserReward = z.infer<typeof insertUserRewardSchema>;
+export type UserReward = typeof userRewards.$inferSelect;
+export type InsertRewardLog = z.infer<typeof insertRewardLogSchema>;
+export type RewardLog = typeof rewardLogs.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {

@@ -18,6 +18,10 @@ import {
   likes,
   trustLevelsTable,
   groupBookings,
+  userRewards,
+  rewardLogs,
+  rewardPoints,
+  levelThresholds,
   type User,
   type UpsertUser,
   type Tour,
@@ -54,6 +58,12 @@ import {
   type InsertTrustLevel,
   type GroupBooking,
   type InsertGroupBooking,
+  type UserReward,
+  type InsertUserReward,
+  type RewardLog,
+  type InsertRewardLog,
+  type RewardActionType,
+  type RewardLevel,
   type TourWithGuide,
   type ServiceWithProvider,
   type BookingWithDetails,
@@ -2512,6 +2522,222 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(groupBookings.tourDate));
 
     return result;
+  }
+
+  // ===== REWARDS SYSTEM (Phase 6) =====
+
+  // Calculate level from total points
+  calculateLevel(totalPoints: number): RewardLevel {
+    if (totalPoints >= levelThresholds.diamond) return 'diamond';
+    if (totalPoints >= levelThresholds.platinum) return 'platinum';
+    if (totalPoints >= levelThresholds.gold) return 'gold';
+    if (totalPoints >= levelThresholds.silver) return 'silver';
+    return 'bronze';
+  }
+
+  // Calculate points to next level
+  calculatePointsToNextLevel(totalPoints: number): { nextLevel: RewardLevel | null; pointsNeeded: number } {
+    const currentLevel = this.calculateLevel(totalPoints);
+    
+    const levels: RewardLevel[] = ['bronze', 'silver', 'gold', 'platinum', 'diamond'];
+    const currentIndex = levels.indexOf(currentLevel);
+    
+    if (currentIndex === levels.length - 1) {
+      return { nextLevel: null, pointsNeeded: 0 }; // Max level
+    }
+    
+    const nextLevel = levels[currentIndex + 1];
+    const pointsNeeded = levelThresholds[nextLevel] - totalPoints;
+    
+    return { nextLevel, pointsNeeded };
+  }
+
+  // Update or create daily streak
+  async updateStreak(userId: string): Promise<{ streakUpdated: boolean; currentStreak: number }> {
+    const reward = await this.getUserRewardOrCreate(userId);
+    
+    const now = new Date();
+    const lastActivity = reward.lastActivityDate ? new Date(reward.lastActivityDate) : null;
+    
+    // Check if activity is today
+    if (lastActivity) {
+      const daysSinceLastActivity = Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysSinceLastActivity === 0) {
+        // Same day - no streak update
+        return { streakUpdated: false, currentStreak: reward.currentStreak };
+      } else if (daysSinceLastActivity === 1) {
+        // Consecutive day - increment streak
+        const newStreak = reward.currentStreak + 1;
+        await db
+          .update(userRewards)
+          .set({
+            currentStreak: newStreak,
+            longestStreak: Math.max(newStreak, reward.longestStreak),
+            lastActivityDate: now,
+            updatedAt: now
+          })
+          .where(eq(userRewards.userId, userId));
+        
+        return { streakUpdated: true, currentStreak: newStreak };
+      } else {
+        // Streak broken - reset to 1
+        await db
+          .update(userRewards)
+          .set({
+            currentStreak: 1,
+            lastActivityDate: now,
+            updatedAt: now
+          })
+          .where(eq(userRewards.userId, userId));
+        
+        return { streakUpdated: true, currentStreak: 1 };
+      }
+    } else {
+      // First activity
+      await db
+        .update(userRewards)
+        .set({
+          currentStreak: 1,
+          lastActivityDate: now,
+          updatedAt: now
+        })
+        .where(eq(userRewards.userId, userId));
+      
+      return { streakUpdated: true, currentStreak: 1 };
+    }
+  }
+
+  // Get or create user reward record
+  async getUserRewardOrCreate(userId: string): Promise<UserReward> {
+    const existing = await db.select().from(userRewards).where(eq(userRewards.userId, userId)).limit(1);
+    
+    if (existing.length > 0) {
+      return existing[0];
+    }
+    
+    // Create new reward record
+    const [newReward] = await db.insert(userRewards).values({
+      userId,
+      totalPoints: 0,
+      currentLevel: 'bronze',
+      currentStreak: 0,
+      longestStreak: 0,
+      achievementsUnlocked: []
+    }).returning();
+    
+    return newReward;
+  }
+
+  // Award points to user
+  async awardPoints(
+    userId: string,
+    action: RewardActionType,
+    metadata?: {
+      tourId?: string;
+      bookingId?: string;
+      reviewId?: string;
+      targetId?: string;
+      description?: string;
+    }
+  ): Promise<{ reward: UserReward; log: RewardLog; leveledUp: boolean; newLevel?: RewardLevel }> {
+    return await db.transaction(async (tx) => {
+      // Get current reward record
+      const reward = await this.getUserRewardOrCreate(userId);
+      const oldLevel = reward.currentLevel as RewardLevel;
+      
+      // Get points for this action
+      const pointsAwarded = rewardPoints[action];
+      const newTotalPoints = reward.totalPoints + pointsAwarded;
+      const newLevel = this.calculateLevel(newTotalPoints);
+      const leveledUp = newLevel !== oldLevel;
+      
+      // Update user reward
+      const [updatedReward] = await tx
+        .update(userRewards)
+        .set({
+          totalPoints: newTotalPoints,
+          currentLevel: newLevel,
+          updatedAt: new Date()
+        })
+        .where(eq(userRewards.userId, userId))
+        .returning();
+      
+      // Create log entry
+      const [log] = await tx.insert(rewardLogs).values({
+        userId,
+        points: pointsAwarded,
+        action,
+        metadata: metadata || {}
+      }).returning();
+      
+      return {
+        reward: updatedReward,
+        log,
+        leveledUp,
+        newLevel: leveledUp ? newLevel : undefined
+      };
+    });
+  }
+
+  // Get user reward with stats
+  async getUserReward(userId: string): Promise<UserReward | null> {
+    const result = await db.select().from(userRewards).where(eq(userRewards.userId, userId)).limit(1);
+    return result.length > 0 ? result[0] : null;
+  }
+
+  // Get reward history for user
+  async getRewardHistory(userId: string, limit: number = 50): Promise<RewardLog[]> {
+    return await db
+      .select()
+      .from(rewardLogs)
+      .where(eq(rewardLogs.userId, userId))
+      .orderBy(desc(rewardLogs.createdAt))
+      .limit(limit);
+  }
+
+  // Get leaderboard
+  async getRewardsLeaderboard(limit: number = 100): Promise<Array<UserReward & { user: User }>> {
+    const result = await db
+      .select({
+        reward: userRewards,
+        user: users
+      })
+      .from(userRewards)
+      .innerJoin(users, eq(userRewards.userId, users.id))
+      .orderBy(desc(userRewards.totalPoints))
+      .limit(limit);
+    
+    return result.map(r => ({ ...r.reward, user: r.user }));
+  }
+
+  // Check if user has completed specific action before (for first-time bonuses)
+  async hasCompletedActionBefore(userId: string, action: RewardActionType): Promise<boolean> {
+    const result = await db
+      .select()
+      .from(rewardLogs)
+      .where(and(
+        eq(rewardLogs.userId, userId),
+        eq(rewardLogs.action, action)
+      ))
+      .limit(1);
+    
+    return result.length > 0;
+  }
+
+  // Award streak bonus if eligible (7 day streak)
+  async checkAndAwardStreakBonus(userId: string): Promise<boolean> {
+    const reward = await this.getUserRewardOrCreate(userId);
+    
+    // Award bonus every 7 days of streak
+    if (reward.currentStreak > 0 && reward.currentStreak % 7 === 0) {
+      await this.awardPoints(userId, 'streak_bonus', {
+        description: `${reward.currentStreak} day streak!`
+      });
+      return true;
+    }
+    
+    return false;
   }
 }
 
