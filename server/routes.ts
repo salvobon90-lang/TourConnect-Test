@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey } from "@shared/schema";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey } from "@shared/schema";
 import { randomUUID, createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { chatWithAssistant, chatWithAssistantStream, getTourRecommendations, generateItinerary, translateText, summarizeReviews, moderateContent } from "./openai";
@@ -3646,6 +3646,264 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(trustLevel);
     } catch (error: any) {
       console.error("Error recalculating trust level:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ========== GROUP BOOKINGS (Phase 5) ==========
+
+  // Create a new group booking for a tour
+  app.post("/api/group-bookings/create", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUserById(userId);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only guides can create group bookings for their tours
+      if (user.role !== 'guide') {
+        return res.status(403).json({ message: "Only guides can create group bookings" });
+      }
+
+      // Validate request body
+      const validationResult = insertGroupBookingSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const { tourId, tourDate, maxParticipants, minParticipants, basePricePerPerson, discountStep } = validationResult.data;
+
+      // Verify tour belongs to this guide
+      const tour = await storage.getTourById(tourId);
+      if (!tour || tour.guideId !== userId) {
+        return res.status(403).json({ message: "You can only create groups for your own tours" });
+      }
+
+      const group = await storage.createGroupBooking({
+        tourId,
+        tourDate: new Date(tourDate),
+        maxParticipants,
+        minParticipants,
+        basePricePerPerson,
+        discountStep
+      });
+
+      res.status(201).json(group);
+    } catch (error: any) {
+      console.error("Error creating group booking:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get group booking by tour ID and date
+  app.get("/api/group-bookings/tour/:tourId/:date", async (req, res) => {
+    try {
+      const { tourId, date } = req.params;
+      const tourDate = new Date(date);
+      
+      const group = await storage.getGroupByTourAndDate(tourId, tourDate);
+      
+      if (!group) {
+        return res.status(404).json({ message: "No open group found for this tour and date" });
+      }
+
+      res.json(group);
+    } catch (error: any) {
+      console.error("Error getting group booking:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get group booking by ID
+  app.get("/api/group-bookings/:groupId", async (req, res) => {
+    try {
+      const { groupId } = req.params;
+      const group = await storage.getGroupById(groupId);
+      
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+
+      res.json(group);
+    } catch (error: any) {
+      console.error("Error getting group booking:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get group booking by invite code
+  app.get("/api/group-bookings/code/:code", async (req, res) => {
+    try {
+      const { code } = req.params;
+      const group = await storage.getGroupByCode(code);
+      
+      if (!group) {
+        return res.status(404).json({ message: "Group not found with this code" });
+      }
+
+      res.json(group);
+    } catch (error: any) {
+      console.error("Error getting group booking by code:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Join a group booking
+  app.post("/api/group-bookings/:groupId/join", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { groupId } = req.params;
+
+      // Validate request body
+      const validationResult = joinGroupBookingSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const { participants } = validationResult.data;
+
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only tourists can join group bookings
+      if (user.role !== 'tourist') {
+        return res.status(403).json({ message: "Only tourists can join group bookings" });
+      }
+
+      const result = await storage.joinGroupBooking(groupId, userId, participants);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error joining group booking:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Leave a group booking
+  app.post("/api/group-bookings/:groupId/leave", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { groupId } = req.params;
+
+      // Validate request body
+      const validationResult = leaveGroupBookingSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const { participants } = validationResult.data;
+
+      const result = await storage.leaveGroupBooking(groupId, userId, participants);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error leaving group booking:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get all group bookings for a user
+  app.get("/api/group-bookings/user/:userId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const requestingUserId = req.user.claims.sub;
+
+      // Users can only see their own group bookings
+      if (userId !== requestingUserId) {
+        return res.status(403).json({ message: "You can only view your own group bookings" });
+      }
+
+      const groups = await storage.getUserGroupBookings(userId);
+      res.json(groups);
+    } catch (error: any) {
+      console.error("Error getting user group bookings:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get participants in a group
+  app.get("/api/group-bookings/:groupId/participants", async (req, res) => {
+    try {
+      const { groupId } = req.params;
+      const participants = await storage.getGroupParticipants(groupId);
+      res.json(participants);
+    } catch (error: any) {
+      console.error("Error getting group participants:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get all group bookings for a tour (for guides)
+  app.get("/api/group-bookings/tour/:tourId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { tourId } = req.params;
+
+      const user = await storage.getUserById(userId);
+      if (!user || user.role !== 'guide') {
+        return res.status(403).json({ message: "Only guides can view tour group bookings" });
+      }
+
+      const tour = await storage.getTourById(tourId);
+      if (!tour || tour.guideId !== userId) {
+        return res.status(403).json({ message: "You can only view groups for your own tours" });
+      }
+
+      const groups = await storage.getTourGroupBookings(tourId);
+      res.json(groups);
+    } catch (error: any) {
+      console.error("Error getting tour group bookings:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Update group status (for guides only)
+  app.patch("/api/group-bookings/:groupId/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { groupId } = req.params;
+
+      // Validate request body
+      const validationResult = updateGroupStatusSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const { status } = validationResult.data;
+
+      const user = await storage.getUserById(userId);
+      if (!user || user.role !== 'guide') {
+        return res.status(403).json({ message: "Only guides can update group status" });
+      }
+
+      const group = await storage.getGroupById(groupId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+
+      const tour = await storage.getTourById(group.tourId);
+      if (!tour || tour.guideId !== userId) {
+        return res.status(403).json({ message: "You can only update groups for your own tours" });
+      }
+
+      const updatedGroup = await storage.updateGroupStatus(groupId, status);
+      res.json(updatedGroup);
+    } catch (error: any) {
+      console.error("Error updating group status:", error);
       res.status(500).json({ message: error.message });
     }
   });

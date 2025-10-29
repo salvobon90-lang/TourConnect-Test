@@ -1,0 +1,151 @@
+Implementazione Fase 5 – Smart Tour Completion System (Group Sharing & Dynamic Pricing)
+
+Introduci in TourConnect un sistema intelligente che permette ai turisti di aggregarsi per completare i tour e condividere i costi, incrementando le prenotazioni e riducendo i prezzi unitari.
+Mantieni il design coerente con il tema dark grey + arancione #FF6600 e le traduzioni multilingua (IT, EN, FR, DE, ES).
+
+🎯 OBIETTIVO
+
+Rendere ogni tour “collaborativo”: se non viene prenotato completamente, altri utenti possono aggregarsi finché si raggiunge la capienza minima.
+Quando il tour è completo → il prezzo si stabilizza e tutti ricevono conferma automatica.
+
+🧩 1️⃣ Nuovo sistema “Group Booking”
+
+Aggiungi nel database una nuova tabella group_bookings con i campi:
+
+id
+
+tour_id
+
+max_participants
+
+min_participants
+
+current_participants
+
+price_per_person
+
+status (enum: open, full, closed, cancelled)
+
+created_at, updated_at
+
+Quando un turista prenota un tour:
+
+Se esiste un gruppo aperto → si aggrega automaticamente.
+
+Se non esiste → crea un nuovo gruppo con stato open.
+
+Ogni nuovo partecipante abbassa automaticamente il costo unitario (regola dinamica).
+
+💰 2️⃣ Prezzo dinamico (Dynamic Pricing Engine)
+
+Implementa una logica di prezzo inversamente proporzionale al numero di partecipanti:
+
+new_price = base_price - ((current_participants - 1) * discount_step)
+
+
+discount_step = 5–10% del prezzo base (configurabile)
+
+Non può scendere sotto una soglia minima (es. 60% del prezzo base)
+
+Mostra sempre in tempo reale:
+
+Prezzo corrente
+
+Partecipanti attuali / massimi
+
+“Ti mancano X persone per ottenere il prezzo minimo!”
+
+Quando il gruppo raggiunge min_participants, mostra badge “Confermato”.
+
+🤝 3️⃣ Sistema di aggregazione sociale (“Join & Share”)
+
+Aggiungi un pulsante “Unisciti al gruppo” nella scheda del tour.
+
+Una volta prenotato, mostra:
+
+Numero di posti rimanenti
+
+Nome e foto (opzionale) degli altri partecipanti
+
+Pulsante per condividere il link del gruppo su social o via chat (“Invita amici e riduci il costo!”).
+
+Aggiungi un codice di invito univoco per ogni gruppo (group_code), che permette ad altri utenti di unirsi.
+
+💬 4️⃣ Sistema notifiche e aggiornamenti
+
+WebSocket o API push per aggiornare in tempo reale:
+
+Numero partecipanti
+
+Prezzo aggiornato
+
+Stato gruppo (“Open”, “Confermato”, “Completo”)
+
+Notifiche automatiche:
+
+Quando il gruppo si completa → messaggio “Tour confermato 🎉”
+
+Quando il prezzo scende → messaggio “Il tuo prezzo è stato aggiornato 💰”
+
+Quando mancano pochi posti → “Ancora 2 posti per completare il gruppo!”
+
+📊 5️⃣ Dashboard aggiornate
+
+Turista:
+
+Sezione “I miei gruppi” con stato, prezzo, e pulsante “Invita”.
+
+Guida / Provider:
+
+Dashboard “Tour in completamento” con:
+
+Numero di gruppi attivi
+
+Percentuale di riempimento
+
+Entrate previste e confermate
+
+Admin:
+
+Sezione “Analytics” con tasso medio di completamento tour, prezzo medio per persona, e incremento conversioni.
+
+🧭 6️⃣ Interfaccia Discover e Tour
+
+Nelle schede tour mostra:
+
+Stato gruppo (es. “4/8 partecipanti”, “In completamento”)
+
+Prezzo attuale aggiornato dinamicamente
+
+Barra di progresso visiva (es. 60% riempito).
+
+Aggiungi un filtro “Tour collaborativi” nella pagina Discover.
+
+Ordina i tour per “più vicini al completamento”.
+
+⚙️ Requisiti tecnici
+
+Aggiornare backend (API + DB) per gestire logica di gruppo e pricing.
+
+Aggiornare frontend (React) per UI dinamica e progressiva.
+
+Aggiungere controlli di sicurezza (autenticazione, limiti utenti per gruppo).
+
+Traduzioni per tutti i nuovi testi in 5 lingue.
+
+Aggiornare changelog e documentazione nel file replit.md.
+
+✅ Testing
+
+Crea tour demo con 6 posti massimi.
+
+Prenota da più account turistici per verificare aggregazione automatica.
+
+Testa aggiornamento prezzo in tempo reale.
+
+Verifica notifiche e stato gruppo.
+
+Simula tour completato e chiusura gruppo.
+
+Al termine marca il progetto come:
+Fase 5 – Smart Tour Completion System (Dynamic Group Booking) ✅ completata.

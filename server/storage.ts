@@ -17,6 +17,7 @@ import {
   analyticsEvents,
   likes,
   trustLevelsTable,
+  groupBookings,
   type User,
   type UpsertUser,
   type Tour,
@@ -51,6 +52,8 @@ import {
   type InsertLike,
   type TrustLevelData,
   type InsertTrustLevel,
+  type GroupBooking,
+  type InsertGroupBooking,
   type TourWithGuide,
   type ServiceWithProvider,
   type BookingWithDetails,
@@ -2222,6 +2225,293 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.getTrustLevel(userId);
     if (existing) return existing;
     return await this.calculateAndUpdateTrustLevel(userId);
+  }
+
+  // ============== Group Bookings (Phase 5) ==============
+
+  // Helper: Generate unique group code
+  private generateGroupCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid confusing chars like I, O, 0, 1
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  // Helper: Calculate dynamic price
+  private calculateDynamicPrice(
+    basePrice: number,
+    currentParticipants: number,
+    discountStep: number,
+    minFloor: number
+  ): number {
+    const discount = (currentParticipants - 1) * discountStep;
+    const newPrice = basePrice - discount;
+    return Math.max(newPrice, minFloor);
+  }
+
+  // Create a new group booking for a tour
+  async createGroupBooking(data: {
+    tourId: string;
+    tourDate: Date;
+    maxParticipants: number;
+    minParticipants?: number;
+    basePricePerPerson: string;
+    discountStep?: string;
+  }) {
+    const basePrice = parseFloat(data.basePricePerPerson);
+    const discount = data.discountStep ? parseFloat(data.discountStep) : 5.00;
+    const minFloor = basePrice * 0.6; // 60% of base price
+
+    const groupCode = this.generateGroupCode();
+
+    const [group] = await db.insert(groupBookings).values({
+      tourId: data.tourId,
+      tourDate: data.tourDate,
+      maxParticipants: data.maxParticipants,
+      minParticipants: data.minParticipants || 2,
+      currentParticipants: 0,
+      basePricePerPerson: data.basePricePerPerson,
+      currentPricePerPerson: data.basePricePerPerson,
+      discountStep: discount.toFixed(2),
+      minPriceFloor: minFloor.toFixed(2),
+      status: 'open',
+      groupCode
+    }).returning();
+
+    return group;
+  }
+
+  // Get group by tour ID and date (for finding open groups)
+  async getGroupByTourAndDate(tourId: string, tourDate: Date) {
+    const result = await db
+      .select()
+      .from(groupBookings)
+      .where(
+        and(
+          eq(groupBookings.tourId, tourId),
+          eq(groupBookings.tourDate, tourDate),
+          eq(groupBookings.status, 'open')
+        )
+      )
+      .limit(1);
+
+    return result[0] || null;
+  }
+
+  // Get group by ID
+  async getGroupById(groupId: string) {
+    const result = await db
+      .select()
+      .from(groupBookings)
+      .where(eq(groupBookings.id, groupId))
+      .limit(1);
+
+    return result[0] || null;
+  }
+
+  // Get group by invite code
+  async getGroupByCode(code: string) {
+    const result = await db
+      .select()
+      .from(groupBookings)
+      .where(eq(groupBookings.groupCode, code))
+      .limit(1);
+
+    return result[0] || null;
+  }
+
+  // Join a group booking (add participant and update pricing) - ATOMIC with transaction
+  async joinGroupBooking(groupId: string, userId: string, participants: number = 1) {
+    // Use transaction for atomicity
+    return await db.transaction(async (tx) => {
+      // Lock the group row for update to prevent concurrent modifications
+      const [group] = await tx
+        .select()
+        .from(groupBookings)
+        .where(eq(groupBookings.id, groupId))
+        .for('update')
+        .limit(1);
+
+      if (!group) throw new Error('Group not found');
+      
+      if (group.status !== 'open' && group.status !== 'confirmed') {
+        throw new Error('Group is not open for new participants');
+      }
+
+      const newParticipantCount = group.currentParticipants + participants;
+      if (newParticipantCount > group.maxParticipants) {
+        throw new Error('Group is full');
+      }
+
+      // Calculate new dynamic price
+      const basePrice = parseFloat(group.basePricePerPerson);
+      const discountStep = parseFloat(group.discountStep);
+      const minFloor = parseFloat(group.minPriceFloor);
+      const newPrice = this.calculateDynamicPrice(basePrice, newParticipantCount, discountStep, minFloor);
+
+      // Determine new status
+      let newStatus: 'open' | 'confirmed' | 'full' | 'closed' | 'cancelled' = 'open';
+      if (newParticipantCount >= group.minParticipants && newParticipantCount < group.maxParticipants) {
+        newStatus = 'confirmed'; // Minimum reached, tour confirmed
+      } else if (newParticipantCount >= group.maxParticipants) {
+        newStatus = 'full'; // Maximum reached
+      }
+
+      // Update group
+      const [updatedGroup] = await tx
+        .update(groupBookings)
+        .set({
+          currentParticipants: newParticipantCount,
+          currentPricePerPerson: newPrice.toFixed(2),
+          status: newStatus,
+          updatedAt: new Date()
+        })
+        .where(eq(groupBookings.id, groupId))
+        .returning();
+
+      // Create booking record for this participant
+      const totalAmount = (newPrice * participants).toFixed(2);
+      const [booking] = await tx.insert(bookings).values({
+        userId,
+        tourId: group.tourId,
+        groupBookingId: groupId,
+        bookingDate: group.tourDate,
+        participants,
+        totalAmount,
+        status: newStatus === 'confirmed' || newStatus === 'full' ? 'confirmed' : 'pending',
+        paymentStatus: 'pending'
+      }).returning();
+
+      return { group: updatedGroup, booking };
+    });
+  }
+
+  // Leave a group booking (remove participant and update pricing) - ATOMIC with transaction
+  async leaveGroupBooking(groupId: string, userId: string, participants: number = 1) {
+    return await db.transaction(async (tx) => {
+      // Lock the group row for update
+      const [group] = await tx
+        .select()
+        .from(groupBookings)
+        .where(eq(groupBookings.id, groupId))
+        .for('update')
+        .limit(1);
+
+      if (!group) throw new Error('Group not found');
+
+      // Find user's booking in this group
+      const [userBooking] = await tx
+        .select()
+        .from(bookings)
+        .where(and(
+          eq(bookings.groupBookingId, groupId),
+          eq(bookings.userId, userId)
+        ))
+        .limit(1);
+
+      if (!userBooking) {
+        throw new Error('You are not a participant in this group');
+      }
+
+      const newParticipantCount = Math.max(0, group.currentParticipants - participants);
+
+      // Calculate new dynamic price
+      const basePrice = parseFloat(group.basePricePerPerson);
+      const discountStep = parseFloat(group.discountStep);
+      const minFloor = parseFloat(group.minPriceFloor);
+      const newPrice = newParticipantCount > 0
+        ? this.calculateDynamicPrice(basePrice, newParticipantCount, discountStep, minFloor)
+        : basePrice;
+
+      // Determine new status
+      let newStatus: 'open' | 'confirmed' | 'full' | 'closed' | 'cancelled' = 'open';
+      if (newParticipantCount >= group.minParticipants && newParticipantCount < group.maxParticipants) {
+        newStatus = 'confirmed';
+      } else if (newParticipantCount >= group.maxParticipants) {
+        newStatus = 'full';
+      } else if (newParticipantCount === 0) {
+        newStatus = 'cancelled'; // No participants left
+      }
+
+      // Update group
+      const [updatedGroup] = await tx
+        .update(groupBookings)
+        .set({
+          currentParticipants: newParticipantCount,
+          currentPricePerPerson: newPrice.toFixed(2),
+          status: newStatus,
+          updatedAt: new Date()
+        })
+        .where(eq(groupBookings.id, groupId))
+        .returning();
+
+      // Cancel user's booking
+      await tx
+        .update(bookings)
+        .set({
+          status: 'cancelled',
+          updatedAt: new Date()
+        })
+        .where(eq(bookings.id, userBooking.id));
+
+      return { group: updatedGroup, cancelledBooking: userBooking };
+    });
+  }
+
+  // Update group status
+  async updateGroupStatus(groupId: string, status: 'open' | 'full' | 'confirmed' | 'closed' | 'cancelled') {
+    const [updated] = await db
+      .update(groupBookings)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(groupBookings.id, groupId))
+      .returning();
+
+    return updated;
+  }
+
+  // Get all group bookings for a user (via their bookings)
+  async getUserGroupBookings(userId: string) {
+    const result = await db
+      .select({
+        groupBooking: groupBookings,
+        booking: bookings,
+        tour: tours
+      })
+      .from(bookings)
+      .innerJoin(groupBookings, eq(bookings.groupBookingId, groupBookings.id))
+      .innerJoin(tours, eq(groupBookings.tourId, tours.id))
+      .where(eq(bookings.userId, userId))
+      .orderBy(desc(groupBookings.tourDate));
+
+    return result;
+  }
+
+  // Get all participants in a group
+  async getGroupParticipants(groupId: string) {
+    const result = await db
+      .select({
+        user: users,
+        booking: bookings
+      })
+      .from(bookings)
+      .innerJoin(users, eq(bookings.userId, users.id))
+      .where(eq(bookings.groupBookingId, groupId))
+      .orderBy(bookings.createdAt);
+
+    return result;
+  }
+
+  // Get all group bookings for a tour (for guides to see)
+  async getTourGroupBookings(tourId: string) {
+    const result = await db
+      .select()
+      .from(groupBookings)
+      .where(eq(groupBookings.tourId, tourId))
+      .orderBy(desc(groupBookings.tourDate));
+
+    return result;
   }
 }
 

@@ -6,6 +6,19 @@ TourConnect is a comprehensive tourism platform that connects four distinct user
 
 **Recent Upgrades (October 2025):**
 
+**v5.0 Smart Tour Completion System (October 29, 2025) - Backend Complete:**
+Production-ready collaborative booking system with dynamic pricing that allows tourists to aggregate into groups, reducing costs and increasing tour completion rates.
+
+**Phase 5 Backend Features:**
+- **Group Bookings:** New `group_bookings` table with tourId, tourDate, participant tracking (min/max/current), pricing fields (base/current/discount/floor), status (open/confirmed/full/closed/cancelled), unique groupCode for sharing
+- **Dynamic Pricing Engine:** Formula: `price = basePricePerPerson - ((currentParticipants - 1) * discountStep)` with 60% minimum floor protection, automatic recalculation on join/leave
+- **Atomic Transactions:** Row-level locks with `FOR UPDATE` on group_bookings, prevents concurrent join overbooking, creates/cancels booking records in same transaction
+- **Booking Integration:** Modified `bookings` table with optional `groupBookingId` field, automatic booking creation on join with correct pricing, automatic booking cancellation on leave
+- **Backend API:** 10 endpoints for group management - create (guides only), join (tourists only), leave, get by ID/code/tour/date, participants list, status updates with role-based access control
+- **Request Validation:** Zod schemas for all API inputs (`insertGroupBookingSchema`, `joinGroupBookingSchema`, `leaveGroupBookingSchema`, `updateGroupStatusSchema`), 400 errors with detailed validation messages
+- **Invite System:** 8-character unique codes (avoiding confusing chars I/O/0/1), shareable URLs for group discovery, code-based group lookup API
+- **Database Safety:** All operations use transactions, proper foreign keys and indexes, cascade deletions, timestamp tracking
+
 **v4.1 Social & Growth Upgrade (October 29, 2025):**
 Production-ready social engagement features that enhance user interaction and build trust through community feedback.
 

@@ -208,6 +208,7 @@ export const bookings = pgTable("bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   tourId: varchar("tour_id").notNull().references(() => tours.id, { onDelete: "cascade" }),
+  groupBookingId: varchar("group_booking_id").references(() => groupBookings.id, { onDelete: "set null" }), // Optional - links to group booking (Phase 5)
   bookingDate: timestamp("booking_date").notNull(),
   participants: integer("participants").notNull().default(1),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
@@ -227,6 +228,10 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
   tour: one(tours, {
     fields: [bookings.tourId],
     references: [tours.id],
+  }),
+  groupBooking: one(groupBookings, {
+    fields: [bookings.groupBookingId],
+    references: [groupBookings.id],
   }),
 }));
 
@@ -690,6 +695,46 @@ export const trustLevelsTableRelations = relations(trustLevelsTable, ({ one }) =
   }),
 }));
 
+// Group Bookings table - for collaborative tour booking with dynamic pricing (Phase 5)
+export const groupBookings = pgTable("group_bookings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Tour reference
+  tourId: varchar("tour_id").notNull().references(() => tours.id, { onDelete: "cascade" }),
+  tourDate: timestamp("tour_date").notNull(), // Specific date for this group
+  
+  // Participant tracking
+  maxParticipants: integer("max_participants").notNull(),
+  minParticipants: integer("min_participants").notNull().default(2),
+  currentParticipants: integer("current_participants").notNull().default(0),
+  
+  // Dynamic pricing
+  basePricePerPerson: decimal("base_price_per_person", { precision: 10, scale: 2 }).notNull(),
+  currentPricePerPerson: decimal("current_price_per_person", { precision: 10, scale: 2 }).notNull(),
+  discountStep: decimal("discount_step", { precision: 10, scale: 2 }).notNull().default("5.00"), // Amount to discount per additional participant
+  minPriceFloor: decimal("min_price_floor", { precision: 10, scale: 2 }).notNull(), // Minimum price (60% of base)
+  
+  // Status and sharing
+  status: varchar("status", { length: 20 }).notNull().default("open"), // open, full, confirmed, closed, cancelled
+  groupCode: varchar("group_code", { length: 12 }).notNull().unique(), // Unique invite code
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_group_bookings_tour").on(table.tourId),
+  index("idx_group_bookings_status").on(table.status),
+  index("idx_group_bookings_date").on(table.tourDate),
+]);
+
+export const groupBookingsRelations = relations(groupBookings, ({ one, many }) => ({
+  tour: one(tours, {
+    fields: [groupBookings.tourId],
+    references: [tours.id],
+  }),
+  bookings: many(bookings),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -860,6 +905,37 @@ export const insertTrustLevelSchema = createInsertSchema(trustLevelsTable).omit(
   updatedAt: true,
 });
 
+// Group Bookings (Phase 5)
+export const insertGroupBookingSchema = createInsertSchema(groupBookings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  currentParticipants: true, // Auto-calculated
+  currentPricePerPerson: true, // Auto-calculated
+}).extend({
+  basePricePerPerson: z.string().refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 100000;
+  }, { message: "Base price must be between 0 and 100000" }),
+  discountStep: z.string().refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 1000;
+  }, { message: "Discount step must be between 0 and 1000" }).optional(),
+});
+
+// Group Booking API validation schemas
+export const joinGroupBookingSchema = z.object({
+  participants: z.number().int().min(1).max(20).default(1)
+});
+
+export const leaveGroupBookingSchema = z.object({
+  participants: z.number().int().min(1).max(20).default(1)
+});
+
+export const updateGroupStatusSchema = z.object({
+  status: z.enum(['open', 'full', 'confirmed', 'closed', 'cancelled'])
+});
+
 // TypeScript types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -897,6 +973,8 @@ export type InsertLike = z.infer<typeof insertLikeSchema>;
 export type Like = typeof likes.$inferSelect;
 export type InsertTrustLevel = z.infer<typeof insertTrustLevelSchema>;
 export type TrustLevelData = typeof trustLevelsTable.$inferSelect;
+export type InsertGroupBooking = z.infer<typeof insertGroupBookingSchema>;
+export type GroupBooking = typeof groupBookings.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {
