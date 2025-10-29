@@ -2,57 +2,7 @@
 
 ## Overview
 
-TourConnect is a comprehensive tourism platform that connects four distinct user groups: tourists seeking authentic experiences, tour guides offering local expertise, service providers (restaurants, shops, transport), and supervisors who manage platform access. The application features role-based dashboards, supervisor approval workflow for guides/providers, interactive mapping with geolocation, booking management with Stripe payment integration, sponsorship system for promoting tours and services, and multi-language support (English, Italian, German, French, Spanish).
-
-**Recent Upgrades (October 2025):**
-
-**v5.0 Smart Tour Completion System (October 29, 2025) - Backend Complete:**
-Production-ready collaborative booking system with dynamic pricing that allows tourists to aggregate into groups, reducing costs and increasing tour completion rates.
-
-**Phase 5 Backend Features:**
-- **Group Bookings:** New `group_bookings` table with tourId, tourDate, participant tracking (min/max/current), pricing fields (base/current/discount/floor), status (open/confirmed/full/closed/cancelled), unique groupCode for sharing
-- **Dynamic Pricing Engine:** Formula: `price = basePricePerPerson - ((currentParticipants - 1) * discountStep)` with 60% minimum floor protection, automatic recalculation on join/leave
-- **Atomic Transactions:** Row-level locks with `FOR UPDATE` on group_bookings, prevents concurrent join overbooking, creates/cancels booking records in same transaction
-- **Booking Integration:** Modified `bookings` table with optional `groupBookingId` field, automatic booking creation on join with correct pricing, automatic booking cancellation on leave
-- **Backend API:** 10 endpoints for group management - create (guides only), join (tourists only), leave, get by ID/code/tour/date, participants list, status updates with role-based access control
-- **Request Validation:** Zod schemas for all API inputs (`insertGroupBookingSchema`, `joinGroupBookingSchema`, `leaveGroupBookingSchema`, `updateGroupStatusSchema`), 400 errors with detailed validation messages
-- **Invite System:** 8-character unique codes (avoiding confusing chars I/O/0/1), shareable URLs for group discovery, code-based group lookup API
-- **Database Safety:** All operations use transactions, proper foreign keys and indexes, cascade deletions, timestamp tracking
-
-**v4.1 Social & Growth Upgrade (October 29, 2025):**
-Production-ready social engagement features that enhance user interaction and build trust through community feedback.
-
-**Phase 4 Core Features:**
-- **Like System:** Tourists can like profiles, tours, and services with animated heart button (Framer Motion), toggle on/off functionality, real-time count updates via React Query, and role restriction (only tourists can like)
-- **Trust Levels:** 5-tier reputation system for guides/providers (Explorer 0-20, Pathfinder 21-50, Trailblazer 51-100, Navigator 101-200, Legend 200+ points), dynamic scoring formula: (likes × 2) + (avg_rating × 10), color-coded badges with orange-to-red gradient, progress bar showing advancement to next level
-- **Discover Page:** Geolocation-based content discovery within 50km radius using Haversine formula, real-time permission request for user location, filtered tour and service listings by proximity, responsive card layout with distance indicators, integrated Like buttons and Trust Level badges
-- **Database Schema:** New `likes` table with unique constraint on (userId, targetId, targetType) and indexes, new `trust_levels` table with calculated score, likes count, and average rating fields, automatic recalculation via API endpoint
-- **Backend API:** `/api/likes/toggle` POST endpoint for add/remove with tourist role validation, `/api/likes/:targetType/:targetId` GET for count retrieval, `/api/likes/:targetType/:targetId/check` GET for user's like status, `/api/trust-level/:userId` GET for fetching/creating trust level, `/api/trust-level/:userId/recalculate` POST for manual updates
-- **UI Components:** LikeButton with animation and optimistic updates, TrustLevelBadge with 5 levels and tooltip showing stats, TrustLevelProgress with visual progress bar, all following dark grey + orange (#FF6600) theme
-
-**v4.0 Immersive Experience System (95% Complete - October 28, 2025):**
-Production-ready multi-role tourism platform with cutting-edge 3D/VR experiences, advanced AI features, and community engagement systems. Built on completed v3.0 foundation (messaging, reviews, gamification, Stripe subscriptions, AI assistant).
-
-**Core Features:**
-- **3D/VR Tours:** WebXR-powered virtual reality tours compatible with Meta Quest/Vision Pro, Three.js 360° panorama viewer with interactive POIs
-- **Interactive 3D Globe:** Esplora Mondo page with rotating Earth visualization, clickable tour/service/event markers with geolocation
-- **Mapbox 3D Integration:** Advanced 3D maps with custom markers, dynamic filters (type, category, price, rating), heatmap visualization
-- **Community & Events:** Local events system with Stripe ticket payments, RSVP management, participant tracking with atomic transactions
-- **Social Feed:** Real-time posts with photos, likes, comments via WebSocket, hashtag support, privacy controls
-- **Partner API:** Public REST API with SHA-256 API key authentication, rate limiting (row-level locks), comprehensive error responses
-- **Analytics Dashboard:** Role-gated insights for guides/providers with Recharts visualizations, KPIs (views, clicks, conversions, revenue)
-- **AI Features:** OpenAI-powered itinerary builder, language translation, review summaries, content moderation with severity logging
-- **Performance:** 85% bundle reduction (192 KB initial vs 1.5 MB before), route-based lazy loading, code splitting (Three.js/Mapbox/Recharts isolated)
-- **Dark Mode:** ThemeProvider with localStorage persistence, system preference detection, deep grey gradients, animated orange accents
-- **Cinematic UX:** Framer Motion page transitions, 3D card tilt effects, Lottie navbar animation, reduced-motion support
-
-**Previous Upgrades (v3.0):**
-- Professional brand refresh with dark grey + orange (#FF6600) color scheme
-- TourConnect logo integration across all touchpoints (header, favicon, loading screens)
-- 3-screen onboarding flow for new users (welcome, role selection, feature showcase)
-- Extended user profiles with photo upload, bio, social links, and verified badges
-- Progressive Web App (PWA) capabilities with installable experience
-- Advanced SEO optimization with dynamic meta tags and Schema.org structured data in 5 languages
+TourConnect is a comprehensive tourism platform designed to connect tourists, tour guides, service providers, and supervisors. It offers role-based dashboards, a supervisor approval workflow for guides and providers, interactive mapping with geolocation, booking management with Stripe payments, a sponsorship system for promoting tours and services, and multi-language support. Recent significant additions include a secure gamified travel rewards system, a smart tour completion system with dynamic group pricing, and social engagement features like a "like" system and trust levels. The platform also features immersive experiences with 3D/VR tours, an interactive 3D globe, AI-powered tools, and robust community engagement features, all built on a foundation of professional branding and performance optimization.
 
 ## User Preferences
 
@@ -62,148 +12,25 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 
-**Technology Stack:**
-- React with TypeScript for type-safe component development
-- Vite as the build tool and development server
-- Wouter for lightweight client-side routing
-- TanStack Query (React Query) for server state management and caching
-- React Hook Form with Zod for form validation
-- Tailwind CSS with shadcn/ui component library following a "new-york" style variant
-- i18next for internationalization supporting 5 languages
-- Leaflet for interactive map visualization
-
-**Design System:**
-- Custom typography using Inter (UI) and Playfair Display (display headings)
-- Consistent spacing primitives using Tailwind's spacing scale
-- Theme system supporting light/dark modes via CSS custom properties
-- Component library based on Radix UI primitives with custom styling
-- Visual-first, discovery-driven UX inspired by Airbnb and Booking.com
-- **Brand Colors (October 2025)**: Primary orange #FF6600 (HSL 25 100% 50%) paired with dark grey backgrounds
-  - Light mode: Grey tones at 220° hue (background: 220 15% 96%)
-  - Dark mode: Darker greys at 220° hue (background: 220 15% 12%)
-  - Maintains WCAG AA accessibility standards for contrast
-  - See design_guidelines.md for complete color palette documentation
-
-**State Management Approach:**
-- Server state managed through React Query with optimistic updates
-- Local UI state managed through React hooks
-- Authentication state accessed via `useAuth` hook
-- Form state isolated using React Hook Form controllers
-- No global state management library (Redux/Zustand) - leveraging React Query cache
+The frontend is built with React and TypeScript, using Vite for development and Wouter for routing. TanStack Query manages server state, and React Hook Form with Zod handles form validation. Styling is achieved with Tailwind CSS and shadcn/ui, featuring a "new-york" style. i18next provides multi-language support for 5 languages. UI/UX is visual-first, discovery-driven, inspired by Airbnb and Booking.com, using a dark grey and orange (#FF6600) color scheme with consistent typography and theming for light/dark modes, adhering to WCAG AA accessibility standards. State management leverages React Query for server state and React hooks for local UI state, avoiding global state libraries.
 
 ### Backend Architecture
 
-**Technology Stack:**
-- Express.js server running on Node.js
-- Drizzle ORM for type-safe database operations
-- Neon serverless PostgreSQL as the database
-- WebSocket support via `ws` package for Neon connections
-- Passport.js with OpenID Connect for Replit-based authentication
-- Session management using PostgreSQL-backed session store
-- Stripe SDK for payment processing
-
-**API Design:**
-- RESTful API endpoints organized by resource type (tours, services, bookings, reviews, supervisor)
-- Role-based access control enforced at route level using `isAuthenticated` middleware
-- Approval status checks preventing unapproved guides/providers from creating content
-- Supervisor-only endpoints for user approval management
-- Request/response logging middleware for API calls
-- JSON-based communication with credential-based authentication
-
-**Authentication Flow:**
-- OpenID Connect integration with Replit's identity provider
-- Session-based authentication with PostgreSQL session storage
-- Multi-step onboarding flow (October 2025 upgrade):
-  1. Language selection (5 languages: it, en, de, fr, es)
-  2. 3-screen onboarding (welcome, role selection with features, how it works)
-  3. Dashboard access based on selected role
-- Role-based approval workflow: tourists auto-approved, guides/providers require supervisor approval
-- Supervisor approval system with approve/reject functionality
-- Protected routes requiring authentication and approval status checks
-- Token refresh handled automatically by OpenID client
+The backend utilizes Express.js on Node.js with Drizzle ORM for type-safe PostgreSQL operations (Neon serverless PostgreSQL). It supports WebSockets for real-time features. Authentication is handled by Passport.js with OpenID Connect for Replit-based authentication and PostgreSQL-backed session management. The API is RESTful, enforcing role-based access control and supervisor approval workflows. Key features include atomic transactions for critical operations (e.g., group bookings, reward points), Zod schemas for input validation, and secure server-side logic for all sensitive actions like awarding reward points.
 
 ### Database Schema Design
 
-**Core Tables:**
-- `users` - User accounts with role discrimination (tourist/guide/provider/supervisor) and approval status tracking
-  - Extended profiles (October 2025): profileImageUrl, bio, socialLinks (jsonb: facebook, instagram, twitter, website), verified badge
-- `tours` - Tour offerings created by approved guides with geolocation data
-- `services` - Services offered by approved providers (restaurants, shops, transport)
-- `bookings` - Tour bookings with Stripe payment tracking
-- `reviews` - User reviews for tours with ratings and images
-- `sponsorships` - Paid promotions for tours/services with Stripe payment tracking and expiration management
-- `sessions` - PostgreSQL-backed session storage for authentication
+Core tables include `users` (with roles, approval status, and extended profiles), `tours`, `services`, `bookings`, `reviews`, `sponsorships`, `likes`, `user_rewards`, `reward_logs`, and `group_bookings`. Relationships link tours to guides, services to providers, bookings to users and tours, and reviews to users and tours. The schema uses UUID primary keys, timestamp tracking, JSONB columns for flexible data storage (e.g., social links, images), decimal types for monetary values, and geolocation coordinates. Approval statuses, roles, and reward system details are carefully structured to support the platform's features and security.
 
-**Key Relationships:**
-- Tours belong to guides (one-to-many via `guideId`)
-- Services belong to providers (one-to-many via `providerId`)
-- Bookings reference both users and tours with payment metadata
-- Reviews reference users and tours with optional service reviews
-- Sponsorships reference either tours or services (mutually exclusive via `tourId` or `serviceId`) with user ownership tracking
+## External Dependencies
 
-**Schema Features:**
-- UUID primary keys with PostgreSQL's `gen_random_uuid()`
-- Timestamp tracking with `created_at` and `updated_at` columns
-- Nullable role and approval status fields (null until role selection)
-- Approval tracking with `approval_status` ('pending', 'approved', 'rejected'), `approved_by`, and `approved_at` fields
-- JSONB columns for flexible array storage (images, languages, included items)
-- Decimal type for precise monetary values
-- Geolocation coordinates stored as real numbers (latitude/longitude)
-- Enum-style fields using varchar with Zod validation
-
-### External Dependencies
-
-**Payment Processing:**
-- Stripe integration for secure payment handling (tour bookings and sponsorships)
-- Stripe Checkout Sessions for hosted payment pages
-- Webhook support for payment confirmation (prepared via `rawBody` middleware)
-- Client-side Stripe.js and React Stripe components
-- Payment verification with session ID validation and metadata checks
-- Test/production mode with automatic fallback to TESTING_STRIPE_SECRET_KEY
-
-**Object Storage:**
-- Google Cloud Storage for file uploads
-- Replit sidecar integration for credential management
-- Access control lists (ACL) for object permissions
-- Public/private object visibility policies
-
-**Geolocation Services:**
-- Browser Geolocation API for user location tracking
-- Leaflet mapping library with OpenStreetMap tiles
-- Haversine formula for distance calculations
-- Local storage caching of user location
-
-**Authentication Provider:**
-- Replit OpenID Connect (OIDC) provider
-- External account credentials via sidecar endpoint
-- Session management with `connect-pg-simple`
-- Memoized OIDC configuration with 1-hour cache
-
-**Development Tools:**
-- Replit-specific Vite plugins for cartographer and dev banner
-- Runtime error overlay for development debugging
-- Hot module replacement (HMR) via Vite
-
-**Progressive Web App (PWA) - October 2025:**
-- Web app manifest (manifest.json) for installability
-- Service worker with network-first cache strategy
-- Custom PWA icons (192x192, 512x512, maskable variants)
-- Standalone display mode (hides browser UI)
-- Theme colors matching brand (#FF6600 orange, dark grey)
-- Installable on desktop and mobile devices
-
-**SEO Optimization - October 2025:**
-- react-helmet-async for dynamic meta tag management
-- Unique titles and descriptions for all pages
-- Open Graph tags for social media sharing (Facebook, LinkedIn, Twitter)
-- Twitter Card support for enhanced sharing
-- Schema.org structured data (JSON-LD) for tour pages (TouristAttraction type)
-- Canonical URLs to prevent duplicate content
-- Multi-language SEO support (5 languages with localized meta tags)
-- Rich snippets potential in search results
-
-**Database Provider:**
-- Neon serverless PostgreSQL with connection pooling
-- WebSocket-based connections for serverless compatibility
-- Drizzle Kit for schema migrations
-- Environment-based connection string configuration
+**Payment Processing:** Stripe for secure payments, Stripe Checkout Sessions, and webhook support.
+**Object Storage:** Google Cloud Storage for file uploads.
+**Geolocation Services:** Browser Geolocation API, Leaflet with OpenStreetMap tiles, Haversine formula for distance calculations.
+**Authentication Provider:** Replit OpenID Connect (OIDC) provider.
+**Development Tools:** Replit-specific Vite plugins.
+**Progressive Web App (PWA):** Web app manifest, service worker with network-first caching, custom icons, and standalone display mode.
+**SEO Optimization:** `react-helmet-async` for dynamic meta tags, Open Graph tags, Twitter Card support, Schema.org structured data, and multi-language SEO.
+**Database Provider:** Neon serverless PostgreSQL with Drizzle ORM for migrations.
+**AI Features:** OpenAI (for itinerary builder, language translation, review summaries, content moderation).
+**3D/VR Integration:** WebXR for VR tours, Three.js for 360° panoramas, Mapbox GL JS for 3D maps.
