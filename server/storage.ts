@@ -15,6 +15,8 @@ import {
   postComments,
   apiKeys,
   analyticsEvents,
+  likes,
+  trustLevelsTable,
   type User,
   type UpsertUser,
   type Tour,
@@ -45,6 +47,10 @@ import {
   type InsertApiKey,
   type AnalyticsEvent,
   type InsertAnalyticsEvent,
+  type Like,
+  type InsertLike,
+  type TrustLevelData,
+  type InsertTrustLevel,
   type TourWithGuide,
   type ServiceWithProvider,
   type BookingWithDetails,
@@ -2065,6 +2071,157 @@ export class DatabaseStorage implements IStorage {
       topServices,
       dailyStats
     };
+  }
+
+  // ========== LIKES (Phase 4) ==========
+  
+  async addLike(userId: string, targetId: string, targetType: 'profile' | 'tour' | 'service'): Promise<Like> {
+    const [like] = await db.insert(likes).values({
+      userId,
+      targetId,
+      targetType
+    }).returning();
+    return like;
+  }
+
+  async removeLike(userId: string, targetId: string, targetType: 'profile' | 'tour' | 'service'): Promise<void> {
+    await db.delete(likes).where(
+      and(
+        eq(likes.userId, userId),
+        eq(likes.targetId, targetId),
+        eq(likes.targetType, targetType)
+      )
+    );
+  }
+
+  async getLikesCount(targetId: string, targetType: 'profile' | 'tour' | 'service'): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)::int` })
+      .from(likes)
+      .where(
+        and(
+          eq(likes.targetId, targetId),
+          eq(likes.targetType, targetType)
+        )
+      );
+    return result[0]?.count || 0;
+  }
+
+  async hasUserLiked(userId: string, targetId: string, targetType: 'profile' | 'tour' | 'service'): Promise<boolean> {
+    const result = await db.select()
+      .from(likes)
+      .where(
+        and(
+          eq(likes.userId, userId),
+          eq(likes.targetId, targetId),
+          eq(likes.targetType, targetType)
+        )
+      )
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async getUserTotalLikes(userId: string): Promise<number> {
+    // Count likes for user's profile + tours + services
+    const profileLikes = await db.select({ count: sql<number>`count(*)::int` })
+      .from(likes)
+      .where(
+        and(
+          eq(likes.targetId, userId),
+          eq(likes.targetType, 'profile')
+        )
+      );
+    
+    const tourLikes = await db.select({ count: sql<number>`count(*)::int` })
+      .from(likes)
+      .innerJoin(tours, eq(likes.targetId, tours.id))
+      .where(
+        and(
+          eq(tours.guideId, userId),
+          eq(likes.targetType, 'tour')
+        )
+      );
+    
+    const serviceLikes = await db.select({ count: sql<number>`count(*)::int` })
+      .from(likes)
+      .innerJoin(services, eq(likes.targetId, services.id))
+      .where(
+        and(
+          eq(services.providerId, userId),
+          eq(likes.targetType, 'service')
+        )
+      );
+    
+    return (profileLikes[0]?.count || 0) + (tourLikes[0]?.count || 0) + (serviceLikes[0]?.count || 0);
+  }
+
+  // ========== TRUST LEVELS (Phase 4) ==========
+
+  async calculateAndUpdateTrustLevel(userId: string): Promise<TrustLevelData> {
+    // Get user's total likes
+    const totalLikes = await this.getUserTotalLikes(userId);
+    
+    // Get user's average rating from reviews
+    const userReviews = await db.select()
+      .from(reviews)
+      .innerJoin(tours, eq(reviews.tourId, tours.id))
+      .where(eq(tours.guideId, userId));
+    
+    const serviceReviews = await db.select()
+      .from(reviews)
+      .innerJoin(services, eq(reviews.serviceId, services.id))
+      .where(eq(services.providerId, userId));
+    
+    const allReviews = [...userReviews, ...serviceReviews];
+    const avgRating = allReviews.length > 0
+      ? allReviews.reduce((sum, r) => sum + r.reviews.rating, 0) / allReviews.length
+      : 0;
+    
+    // Calculate score: (likes * 2) + (avg_rating * 10)
+    const score = (totalLikes * 2) + (avgRating * 10);
+    
+    // Determine level based on score
+    let level: 'explorer' | 'pathfinder' | 'trailblazer' | 'navigator' | 'legend' = 'explorer';
+    if (score > 200) level = 'legend';
+    else if (score > 100) level = 'navigator';
+    else if (score > 50) level = 'trailblazer';
+    else if (score > 20) level = 'pathfinder';
+    
+    // Upsert trust level
+    const existing = await db.select().from(trustLevelsTable).where(eq(trustLevelsTable.userId, userId)).limit(1);
+    
+    if (existing.length > 0) {
+      const [updated] = await db.update(trustLevelsTable)
+        .set({
+          level,
+          score: Math.round(score),
+          likesCount: totalLikes,
+          averageRating: avgRating.toFixed(2),
+          updatedAt: new Date()
+        })
+        .where(eq(trustLevelsTable.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(trustLevelsTable).values({
+        userId,
+        level,
+        score: Math.round(score),
+        likesCount: totalLikes,
+        averageRating: avgRating.toFixed(2)
+      }).returning();
+      return created;
+    }
+  }
+
+  async getTrustLevel(userId: string): Promise<TrustLevelData | null> {
+    const result = await db.select().from(trustLevelsTable).where(eq(trustLevelsTable.userId, userId)).limit(1);
+    return result[0] || null;
+  }
+
+  async getTrustLevelOrCreate(userId: string): Promise<TrustLevelData> {
+    const existing = await this.getTrustLevel(userId);
+    if (existing) return existing;
+    return await this.calculateAndUpdateTrustLevel(userId);
   }
 }
 

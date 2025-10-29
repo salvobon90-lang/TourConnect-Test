@@ -1,0 +1,111 @@
+🚀 Implementazione Fase 4 – Social & Growth Upgrade (TourConnect)
+
+Migliora TourConnect con un sistema di engagement e scoperta basato su like, fiducia e geolocalizzazione.
+Mantieni sempre il tema dark grey + arancione #FF6600, design coerente con il resto dell’app e supporto multilingua.
+
+🧩 1️⃣ Sistema “Likes” con ruoli e restrizioni
+
+Aggiungi un sistema di like per profili di guide e provider, tour e servizi.
+
+Solo utenti registrati con ruolo “turista” possono mettere o togliere un like.
+
+Ogni like viene salvato in una nuova tabella likes con questi campi:
+
+id
+
+user_id (solo turisti)
+
+target_id
+
+target_type (profile, tour, service)
+
+created_at
+
+Evita like doppi (toggle on/off).
+
+Mostra il conteggio aggiornato dei like in tempo reale (WebSocket o polling).
+
+Nelle dashboard di guide e provider mostra quanti like totali hanno ricevuto i propri contenuti.
+
+Quando un utente mette un like, mostra un’animazione morbida (icona cuore o pollice arancione con effetto glow).
+
+🧠 2️⃣ Sistema “Livelli di Fiducia” per guide e provider
+
+Implementa un sistema di livelli di fiducia dinamici basato su:
+
+Numero di like ricevuti ✅
+
+Media recensioni ⭐
+
+Crea 5 livelli di fiducia:
+
+Explorer – livello base (0–20 punti)
+
+Pathfinder – medio (21–50 punti)
+
+Trailblazer – avanzato (51–100 punti)
+
+Navigator – esperto (101–200 punti)
+
+Legend – top (oltre 200 punti)
+
+Calcola il punteggio complessivo con la formula:
+(like_count * 2) + (average_review * 10)
+
+I livelli si aggiornano ogni 24 ore tramite job automatico (background task).
+
+Mostra il badge del livello accanto al nome utente nei profili e nelle card di tour/servizi.
+
+Colore badge in gradazione arancione → dorato → rosso fuoco (più fiducia = più prestigio).
+
+📍 3️⃣ Discover Page geolocalizzata
+
+Crea una nuova pagina “Discover” accessibile dalla home.
+
+Quando un utente (turista) accede, chiedi il permesso di geolocalizzazione.
+
+Mostra tour e servizi entro un raggio di 50 km dalla posizione corrente.
+
+Layout:
+
+Sezione “Vicino a te” con card orizzontali (immagine, nome, distanza, pulsante “Prenota” o “Dettagli”).
+
+Sezione “Più amati” (ordinata per like e recensioni).
+
+Sezione “Guide popolari” con badge fiducia e pulsante per visualizzare il profilo.
+
+Le card devono rispettare il tema scuro con bordi arrotondati e icone arancioni.
+
+Implementa aggiornamento automatico quando l’utente cambia posizione.
+
+Tutti i testi e label multilingua (italiano, inglese, francese, tedesco, spagnolo).
+
+🧭 4️⃣ Aggiornamento Dashboard
+
+Aggiungi alla dashboard di guide e provider:
+
+Widget con conteggio totale like ricevuti
+
+Statistiche mensili (grafico likes / recensioni)
+
+Livello attuale di fiducia con progresso visivo (barra o anello).
+
+Aggiungi notifiche real-time per nuovi like o recensioni.
+
+⚙️ Requisiti tecnici
+
+Aggiorna il database con nuove tabelle e relazioni (likes, trust_levels).
+
+Aggiorna l’API backend per gestire i like e il calcolo dei livelli.
+
+Aggiorna le UI frontend corrispondenti mantenendo il design system esistente.
+
+Aggiorna il file replit.md con changelog e dettagli implementativi.
+
+Tutte le nuove feature devono rispettare sicurezza e ruoli utente.
+
+Al termine:
+✅ Testa i like da account turistico.
+✅ Verifica i badge nei profili di guide e provider.
+✅ Prova la pagina “Discover” con geolocalizzazione attiva.
+✅ Aggiorna documentazione e marca il task “Fase 4 – Social & Growth Upgrade” come completato.

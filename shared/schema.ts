@@ -64,6 +64,14 @@ export const subscriptionPrices = {
   "guide-pro": 19.99,
 } as const;
 
+// Like target types enum
+export const likeTargetTypes = ["profile", "tour", "service"] as const;
+export type LikeTargetType = typeof likeTargetTypes[number];
+
+// Trust levels enum (for guides and providers)
+export const trustLevels = ["explorer", "pathfinder", "trailblazer", "navigator", "legend"] as const;
+export type TrustLevel = typeof trustLevels[number];
+
 // User storage table - Required for Replit Auth with role extension
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -633,6 +641,55 @@ export const analyticsEventsRelations = relations(analyticsEvents, ({ one }) => 
   }),
 }));
 
+// Likes table - for liking profiles, tours, and services (Phase 4)
+export const likes = pgTable("likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // User who liked (must be tourist)
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Target (what was liked)
+  targetId: varchar("target_id").notNull(), // ID of profile/tour/service
+  targetType: varchar("target_type", { length: 20 }).notNull(), // profile, tour, service
+  
+  createdAt: timestamp("created_at").defaultNow().notNull()
+}, (table) => [
+  uniqueIndex("unique_like").on(table.userId, table.targetId, table.targetType),
+  index("idx_likes_target").on(table.targetId, table.targetType)
+]);
+
+export const likesRelations = relations(likes, ({ one }) => ({
+  user: one(users, {
+    fields: [likes.userId],
+    references: [users.id],
+  }),
+}));
+
+// Trust Levels table - for guide/provider reputation (Phase 4)
+export const trustLevelsTable = pgTable("trust_levels", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // User (guide or provider)
+  userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Trust level calculation
+  level: varchar("level", { length: 20 }).notNull().default("explorer"), // explorer, pathfinder, trailblazer, navigator, legend
+  score: integer("score").notNull().default(0), // (likes * 2) + (avg_rating * 10)
+  likesCount: integer("likes_count").notNull().default(0),
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }).default("0.00"),
+  
+  // Timestamps
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const trustLevelsTableRelations = relations(trustLevelsTable, ({ one }) => ({
+  user: one(users, {
+    fields: [trustLevelsTable.userId],
+    references: [users.id],
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -790,6 +847,19 @@ export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).om
   createdAt: true,
 });
 
+// Likes (Phase 4)
+export const insertLikeSchema = createInsertSchema(likes).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Trust Levels (Phase 4)
+export const insertTrustLevelSchema = createInsertSchema(trustLevelsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // TypeScript types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -823,6 +893,10 @@ export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertLike = z.infer<typeof insertLikeSchema>;
+export type Like = typeof likes.$inferSelect;
+export type InsertTrustLevel = z.infer<typeof insertTrustLevelSchema>;
+export type TrustLevelData = typeof trustLevelsTable.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {
