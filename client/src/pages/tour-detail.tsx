@@ -12,12 +12,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { SEO } from '@/components/seo';
 import { ReviewsList } from '@/components/reviews/ReviewsList';
 import { CreateReviewForm } from '@/components/reviews/CreateReviewForm';
+import { GroupBookingCard } from '@/components/GroupBookingCard';
+import { ParticipantsList } from '@/components/ParticipantsList';
+import { useState } from 'react';
 
 export default function TourDetail() {
   const { t } = useTranslation();
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const [selectedDate, setSelectedDate] = useState(new Date(Date.now() + 86400000)); // Tomorrow by default
 
   const { data: tour, isLoading } = useQuery<TourWithGuide>({
     queryKey: ['/api/tours', id],
@@ -211,7 +215,21 @@ export default function TourDetail() {
                   </Button>
                 </Link>
 
-                {user ? (
+                {/* Group Booking Option */}
+                <div className="border-t pt-4">
+                  <GroupBookingCard 
+                    tourId={tour.id} 
+                    tourDate={selectedDate}
+                    tourName={tour.title}
+                    showJoinButton={true}
+                  />
+                </div>
+
+                <div className="border-t pt-4">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('tourDetail.orBookIndividually')}
+                  </p>
+                  {user ? (
                   <Button 
                     className="w-full" 
                     size="lg"
@@ -233,9 +251,10 @@ export default function TourDetail() {
                   </Link>
                 )}
 
-                <p className="text-sm text-center text-muted-foreground">
-                  {t('tourDetail.freeCancellation')}
-                </p>
+                  <p className="text-sm text-center text-muted-foreground mt-4">
+                    {t('tourDetail.freeCancellation')}
+                  </p>
+                </div>
               </div>
             </Card>
           </div>
