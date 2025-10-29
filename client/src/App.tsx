@@ -53,6 +53,7 @@ const PostDetails = lazy(() => import("@/pages/post-details"));
 const Analytics = lazy(() => import("@/pages/analytics"));
 const ItineraryBuilder = lazy(() => import("@/pages/itinerary-builder"));
 const EsploraMondo = lazy(() => import("@/pages/esplora-mondo"));
+const Discover = lazy(() => import("@/pages/discover"));
 
 // Loading fallback component
 function PageLoader() {
@@ -174,6 +175,9 @@ function Router() {
             
             {/* 3D Globe Explorer */}
             <Route path="/esplora-mondo" component={EsploraMondo} />
+            
+            {/* Discover Page - Phase 4 */}
+            <Route path="/discover" component={Discover} />
             
             {user.role === 'tourist' && (
               <>

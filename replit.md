@@ -6,6 +6,17 @@ TourConnect is a comprehensive tourism platform that connects four distinct user
 
 **Recent Upgrades (October 2025):**
 
+**v4.1 Social & Growth Upgrade (October 29, 2025):**
+Production-ready social engagement features that enhance user interaction and build trust through community feedback.
+
+**Phase 4 Core Features:**
+- **Like System:** Tourists can like profiles, tours, and services with animated heart button (Framer Motion), toggle on/off functionality, real-time count updates via React Query, and role restriction (only tourists can like)
+- **Trust Levels:** 5-tier reputation system for guides/providers (Explorer 0-20, Pathfinder 21-50, Trailblazer 51-100, Navigator 101-200, Legend 200+ points), dynamic scoring formula: (likes × 2) + (avg_rating × 10), color-coded badges with orange-to-red gradient, progress bar showing advancement to next level
+- **Discover Page:** Geolocation-based content discovery within 50km radius using Haversine formula, real-time permission request for user location, filtered tour and service listings by proximity, responsive card layout with distance indicators, integrated Like buttons and Trust Level badges
+- **Database Schema:** New `likes` table with unique constraint on (userId, targetId, targetType) and indexes, new `trust_levels` table with calculated score, likes count, and average rating fields, automatic recalculation via API endpoint
+- **Backend API:** `/api/likes/toggle` POST endpoint for add/remove with tourist role validation, `/api/likes/:targetType/:targetId` GET for count retrieval, `/api/likes/:targetType/:targetId/check` GET for user's like status, `/api/trust-level/:userId` GET for fetching/creating trust level, `/api/trust-level/:userId/recalculate` POST for manual updates
+- **UI Components:** LikeButton with animation and optimistic updates, TrustLevelBadge with 5 levels and tooltip showing stats, TrustLevelProgress with visual progress bar, all following dark grey + orange (#FF6600) theme
+
 **v4.0 Immersive Experience System (95% Complete - October 28, 2025):**
 Production-ready multi-role tourism platform with cutting-edge 3D/VR experiences, advanced AI features, and community engagement systems. Built on completed v3.0 foundation (messaging, reviews, gamification, Stripe subscriptions, AI assistant).
 

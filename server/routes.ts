@@ -3526,6 +3526,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+
+  // ========== LIKES (Phase 4) ==========
+
+  // Toggle like (add/remove)
+  app.post("/api/likes/toggle", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Only tourists can like
+      if (user?.role !== "tourist") {
+        return res.status(403).json({ message: "Only tourists can like content" });
+      }
+      
+      const { targetId, targetType } = req.body;
+      
+      if (!targetId || !targetType) {
+        return res.status(400).json({ message: "targetId and targetType are required" });
+      }
+      
+      if (!["profile", "tour", "service"].includes(targetType)) {
+        return res.status(400).json({ message: "Invalid targetType. Must be profile, tour, or service" });
+      }
+      
+      // Check if already liked
+      const hasLiked = await storage.hasUserLiked(userId, targetId, targetType);
+      
+      if (hasLiked) {
+        // Remove like
+        await storage.removeLike(userId, targetId, targetType);
+        const count = await storage.getLikesCount(targetId, targetType);
+        res.json({ liked: false, count });
+      } else {
+        // Add like
+        await storage.addLike(userId, targetId, targetType);
+        const count = await storage.getLikesCount(targetId, targetType);
+        res.json({ liked: true, count });
+      }
+    } catch (error: any) {
+      console.error("Error toggling like:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get likes count for target
+  app.get("/api/likes/:targetType/:targetId", async (req, res) => {
+    try {
+      const { targetId, targetType } = req.params;
+      
+      if (!["profile", "tour", "service"].includes(targetType)) {
+        return res.status(400).json({ message: "Invalid targetType" });
+      }
+      
+      const count = await storage.getLikesCount(targetId, targetType as 'profile' | 'tour' | 'service');
+      res.json({ count });
+    } catch (error: any) {
+      console.error("Error getting likes count:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Check if user has liked
+  app.get("/api/likes/:targetType/:targetId/check", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { targetId, targetType } = req.params;
+      
+      if (!["profile", "tour", "service"].includes(targetType)) {
+        return res.status(400).json({ message: "Invalid targetType" });
+      }
+      
+      const hasLiked = await storage.hasUserLiked(userId, targetId, targetType as 'profile' | 'tour' | 'service');
+      res.json({ hasLiked });
+    } catch (error: any) {
+      console.error("Error checking like status:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get user's total likes (for guides/providers)
+  app.get("/api/users/:userId/total-likes", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const totalLikes = await storage.getUserTotalLikes(userId);
+      res.json({ totalLikes });
+    } catch (error: any) {
+      console.error("Error getting total likes:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ========== TRUST LEVELS (Phase 4) ==========
+
+  // Get user's trust level
+  app.get("/api/trust-level/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const trustLevel = await storage.getTrustLevelOrCreate(userId);
+      res.json(trustLevel);
+    } catch (error: any) {
+      console.error("Error getting trust level:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Recalculate and update trust level (for guides/providers)
+  app.post("/api/trust-level/:userId/recalculate", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const requestingUserId = req.user.claims.sub;
+      
+      // Only allow users to recalculate their own trust level
+      if (userId !== requestingUserId) {
+        return res.status(403).json({ message: "You can only recalculate your own trust level" });
+      }
+      
+      const trustLevel = await storage.calculateAndUpdateTrustLevel(userId);
+      res.json(trustLevel);
+    } catch (error: any) {
+      console.error("Error recalculating trust level:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
   
   // ========== SWAGGER DOCUMENTATION ==========
   
