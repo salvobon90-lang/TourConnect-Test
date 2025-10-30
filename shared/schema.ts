@@ -72,8 +72,8 @@ export type LikeTargetType = typeof likeTargetTypes[number];
 export const trustLevels = ["explorer", "pathfinder", "trailblazer", "navigator", "legend"] as const;
 export type TrustLevel = typeof trustLevels[number];
 
-// Reward action types enum (Phase 6, expanded in Phase 8, Phase 9)
-export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share"] as const;
+// Reward action types enum (Phase 6, expanded in Phase 8, Phase 9, Phase 10)
+export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share", "search_like", "search_review", "subscription_complete", "partnership_confirmed"] as const;
 export type RewardActionType = typeof rewardActionTypes[number];
 
 // Reward level tiers enum (Phase 6)
@@ -100,7 +100,7 @@ export type GroupEventType = typeof groupEventTypes[number];
 export const groupEventStatuses = ["pending", "notified", "completed", "cancelled"] as const;
 export type GroupEventStatus = typeof groupEventStatuses[number];
 
-// Points awarded for each action (Phase 6, expanded in Phase 9)
+// Points awarded for each action (Phase 6, expanded in Phase 9, Phase 10)
 export const rewardPoints = {
   booking: 50,
   review: 25,
@@ -118,6 +118,10 @@ export const rewardPoints = {
   ai_reminder_create: 10,
   ai_coordination: 5,
   ai_summary_share: 15,
+  search_like: 5,
+  search_review: 10,
+  subscription_complete: 25,
+  partnership_confirmed: 50,
 } as const;
 
 // Points required for each level
@@ -1187,6 +1191,103 @@ export const groupEventsRelations = relations(groupEvents, ({ one }) => ({
   }),
 }));
 
+// Partnerships table - Monetization system for guides/providers (Phase 10)
+export const partnerships = pgTable("partnerships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tier: varchar("tier", { length: 20 }).notNull(), // 'standard', 'premium', 'pro'
+  status: varchar("status", { length: 20 }).notNull().default('active'), // 'active', 'cancelled', 'expired'
+  
+  // Stripe integration
+  stripeSubscriptionId: varchar("stripe_subscription_id"),
+  stripeCustomerId: varchar("stripe_customer_id"),
+  stripePriceId: varchar("stripe_price_id"),
+  
+  // Dates
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  endDate: timestamp("end_date"),
+  cancelledAt: timestamp("cancelled_at"),
+  
+  // Analytics (JSONB)
+  analytics: jsonb("analytics").$type<{
+    profileViews: number;
+    tourViews: number;
+    serviceViews: number;
+    clicks: number;
+    conversions: number;
+    likes: number;
+    reviews: number;
+  }>().default(sql`'{}'::jsonb`),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
+}, (table) => [
+  index("idx_partnerships_user").on(table.userId),
+  index("idx_partnerships_status").on(table.status),
+]);
+
+export const partnershipsRelations = relations(partnerships, ({ one }) => ({
+  user: one(users, {
+    fields: [partnerships.userId],
+    references: [users.id],
+  }),
+}));
+
+// Search Logs table - Track search queries and interactions (Phase 10)
+export const searchLogs = pgTable("search_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  
+  // Search details
+  query: text("query").notNull(),
+  searchType: varchar("search_type", { length: 20 }), // 'guide', 'tour', 'service', 'all'
+  resultsCount: integer("results_count").notNull().default(0),
+  
+  // User interaction
+  clicked: boolean("clicked").default(false),
+  clickedEntityId: varchar("clicked_entity_id"),
+  clickedEntityType: varchar("clicked_entity_type", { length: 20 }),
+  
+  // Metadata
+  filters: jsonb("filters").$type<{
+    city?: string;
+    language?: string;
+    priceMin?: number;
+    priceMax?: number;
+    rating?: number;
+    availability?: boolean;
+  }>(),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow()
+}, (table) => [
+  index("idx_search_logs_user").on(table.userId),
+  index("idx_search_logs_created").on(table.createdAt),
+  index("idx_search_logs_query").on(table.query),
+]);
+
+// Embeddings table - Semantic search with vector embeddings (Phase 10)
+export const embeddings = pgTable("embeddings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityId: varchar("entity_id").notNull(),
+  entityType: varchar("entity_type", { length: 20 }).notNull(), // 'guide', 'tour', 'service'
+  
+  // Content for semantic search
+  content: text("content").notNull(), // Concatenated searchable text
+  
+  // OpenAI embedding (1536 dimensions for text-embedding-3-small)
+  // Note: This will be stored as text if pgvector is not available
+  embedding: text("embedding").notNull(), // JSON array of numbers or pgvector type
+  
+  // Metadata
+  language: varchar("language", { length: 5 }),
+  lastUpdated: timestamp("last_updated").notNull().defaultNow(),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow()
+}, (table) => [
+  index("idx_embeddings_entity").on(table.entityId, table.entityType),
+  index("idx_embeddings_type").on(table.entityType),
+]);
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -1389,7 +1490,7 @@ export const insertRewardLogSchema = createInsertSchema(rewardLogs).omit({
 });
 
 export const awardPointsSchema = z.object({
-  action: z.enum(['booking', 'review', 'like', 'group_join', 'referral', 'tour_complete', 'profile_complete', 'first_booking', 'streak_bonus', 'smart_group_create', 'smart_group_join', 'smart_group_complete', 'smart_group_invite', 'ai_reminder_create', 'ai_coordination', 'ai_summary_share']),
+  action: z.enum(['booking', 'review', 'like', 'group_join', 'referral', 'tour_complete', 'profile_complete', 'first_booking', 'streak_bonus', 'smart_group_create', 'smart_group_join', 'smart_group_complete', 'smart_group_invite', 'ai_reminder_create', 'ai_coordination', 'ai_summary_share', 'search_like', 'search_review', 'subscription_complete', 'partnership_confirmed']),
   metadata: z.object({
     tourId: z.string().optional(),
     bookingId: z.string().optional(),
@@ -1467,6 +1568,33 @@ export const insertGroupEventSchema = createInsertSchema(groupEvents).omit({
   status: z.enum(groupEventStatuses).default("pending"),
 });
 
+// Partnerships (Phase 10)
+export const insertPartnershipSchema = createInsertSchema(partnerships).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  tier: z.enum(['standard', 'premium', 'pro']),
+  status: z.enum(['active', 'cancelled', 'expired']).default('active'),
+});
+
+// Search Logs (Phase 10)
+export const insertSearchLogSchema = createInsertSchema(searchLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Embeddings (Phase 10)
+export const insertEmbeddingSchema = createInsertSchema(embeddings).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  entityType: z.enum(['guide', 'tour', 'service']),
+  content: z.string().min(1),
+  embedding: z.string(), // JSON string of number array
+  language: z.string().max(5).optional().nullable(),
+});
+
 // Group Booking API validation schemas
 export const joinGroupBookingSchema = z.object({
   participants: z.number().int().min(1).max(20).default(1)
@@ -1537,6 +1665,12 @@ export type InsertAILog = z.infer<typeof insertAILogSchema>;
 export type AILog = typeof aiLogs.$inferSelect;
 export type InsertGroupEvent = z.infer<typeof insertGroupEventSchema>;
 export type GroupEvent = typeof groupEvents.$inferSelect;
+export type InsertPartnership = z.infer<typeof insertPartnershipSchema>;
+export type Partnership = typeof partnerships.$inferSelect;
+export type InsertSearchLog = z.infer<typeof insertSearchLogSchema>;
+export type SearchLog = typeof searchLogs.$inferSelect;
+export type InsertEmbedding = z.infer<typeof insertEmbeddingSchema>;
+export type Embedding = typeof embeddings.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {

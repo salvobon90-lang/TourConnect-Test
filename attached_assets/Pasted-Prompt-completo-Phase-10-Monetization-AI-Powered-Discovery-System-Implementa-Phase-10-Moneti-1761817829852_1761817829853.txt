@@ -1,0 +1,237 @@
+Prompt completo — Phase 10: Monetization & AI-Powered Discovery System
+
+Implementa Phase 10 – Monetization & AI-Powered Discovery System per TourConnect.
+
+🎯 Obiettivo generale:
+Aggiungere un sistema di monetizzazione e partnership intelligente per guide e servizi, insieme a una barra di ricerca globale potenziata dall’AI, che consente agli utenti di trovare, filtrare e interagire con tour, guide e servizi in modo naturale e rapido.
+
+⚙️ Contesto tecnico:
+
+Frontend: React + TypeScript
+
+Backend: Node.js / Express
+
+Database: PostgreSQL
+
+Real-time: WebSocket
+
+Tema: dark grey + orange #FF6600
+
+Lingue supportate: EN, IT, DE, FR, ES
+
+Integrazioni già esistenti: SmartGroups, Reward System, Like System, Group Booking, AI Assistant, PWA, SEO, Profilo Esteso.
+
+💰 Parte 1 – Monetization & Partnership System
+
+Implementa un sistema di partnership e abbonamenti premium per guide e provider, che consenta di sponsorizzare tour e servizi con piani a pagamento, visibilità prioritaria e analytics.
+
+🔧 Funzionalità principali:
+
+Ogni guida o provider può:
+
+Attivare piani promozionali:
+
+Standard: visibilità base 7 giorni
+
+Premium: 30 giorni con badge “In evidenza”
+
+Pro: visibilità top + accesso analytics + badge “Partner Verified”
+
+Pannello My Promotions con stato abbonamenti, scadenze e statistiche.
+
+Dashboard Analytics con:
+
+Visualizzazioni profilo
+
+Click su tour/servizi
+
+Conversioni (prenotazioni, like, recensioni)
+
+Pagamenti con Stripe:
+
+Tier 1 → 9.99€/mese
+
+Tier 2 → 29.99€/mese
+
+Tier 3 → 59.99€/mese
+
+📊 Obiettivo: offrire un canale di guadagno scalabile e trasparente per guide e provider, stimolando la crescita organica e le collaborazioni interne alla piattaforma.
+
+🔍 Parte 2 – Smart Global Search Bar
+
+Aggiungere una barra di ricerca universale e intelligente (fissa nella top navbar) per permettere agli utenti di trovare:
+
+Guide
+
+Tour
+
+Servizi
+
+✅ Caratteristiche principali:
+
+Ricerca in tempo reale con suggerimenti (autocomplete)
+
+Filtri per categoria (guide, tour, service)
+
+Ricerca multilingua e tolleranza agli errori ortografici
+
+Visualizzazione risultati con foto, nome, categoria, like e rating
+
+Azioni rapide:
+
+Apri profilo
+
+Lascia like
+
+Aggiungi ai preferiti
+
+Integrazione diretta con il Reward System:
+
++5 punti per ogni like lasciato tramite ricerca
+
++10 punti per recensione completata dopo ricerca
+
+🤖 Parte 3 – AI Semantic Search (Ricerca Semantica)
+
+Potenziare la barra di ricerca con un motore semantico AI integrato nel backend, sfruttando l’assistente AI già presente (TC-Assistant).
+
+🔍 Esempi di query supportate:
+
+“Mostrami le guide a Roma con più recensioni positive”
+
+“Servizi economici a Firenze per famiglie”
+
+“Tour con più like vicino a me”
+
+“Guide disponibili domani che parlano tedesco”
+
+🧠 Funzionalità AI:
+
+Interpretazione semantica della query utente
+
+Analisi linguistica e sinonimi multilingua
+
+Embedding-based ranking (PostgreSQL + pgvector)
+
+Risposte ibride:
+
+1️⃣ Risultati strutturati (query SQL)
+
+2️⃣ Spiegazione AI contestuale (“Ho trovato 3 tour simili nella tua area”)
+
+🔌 Nuovi endpoint backend:
+
+GET /api/search?q=<term>&type=<guide|tour|service>
+POST /api/search/semantic
+POST /api/partnerships/create
+GET /api/partnerships/my
+POST /api/subscription/upgrade
+GET /api/analytics/profile/:id
+
+
+WebSocket events:
+
+search_live_results → risultati real-time durante digitazione
+
+promotion_updates → aggiornamenti sponsorship
+
+ai_suggestions → risposta semantica AI (riassunti naturali + risultati filtrati)
+
+🎨 Parte 4 – Frontend UX/UI
+
+Barra di ricerca sempre visibile (top nav responsive)
+
+Risultati in dropdown con animazione Framer Motion
+
+Pagina “Advanced Search” con filtri per:
+
+Città
+
+Lingua
+
+Prezzo
+
+Recensioni
+
+Disponibilità
+
+Profili con layout coerente e pulsante “Like” interattivo
+
+Tooltip badge “Partner Verified” per guide e servizi sponsorizzati
+
+Temi coerenti: dark grey + orange (#FF6600)
+
+🏅 Parte 5 – Reward & Trust Integration
+
++5 punti → like tramite ricerca
+
++10 punti → recensione dopo ricerca
+
++25 punti → completamento abbonamento
+
++50 punti → partnership confermata
+
+Badge “Partner Verified” assegnato automaticamente alle guide con abbonamento attivo.
+
+🔒 Sicurezza e Privacy
+
+Rate limiting sulla ricerca (max 10 richieste/min)
+
+Cache per ricerche popolari
+
+Anti-bot su like e recensioni
+
+Protezione SQL injection e XSS
+
+Stripe API con sicurezza e chiavi ambiente
+
+GDPR e diritto all’oblio anche per ricerche semantiche
+
+🧪 Test richiesti
+
+Unit test: ricerca base, semantica, pagamenti, partnership
+
+Integration test: flusso ricerca → profilo → like → reward
+
+Performance test: 1000 ricerche simultanee
+
+Security test: rate limit, SQL injection, frodi Stripe
+
+📈 KPI
+
++25% engagement profili guida/servizi
+
++20% ricerche concluse con interazione
+
++15% abbonamenti attivi
+
++10% incremento conversioni da ricerca a prenotazione
+
+✅ Deliverables finali
+
+Ricerca globale intelligente completata
+
+AI semantica integrata
+
+Pannello partnership + abbonamenti attivi con Stripe
+
+Dashboard analytics per creator
+
+Integrazione Reward System
+
+Multilingua attiva
+
+Test superati e documentazione aggiornata
+
+🚀 Istruzione finale per l’agent:
+
+Procedi con sviluppo in ordine:
+1️⃣ Backend (API + semantica + monetization)
+2️⃣ WebSocket live search
+3️⃣ Frontend search bar e interfacce partnership
+4️⃣ Integrazione Reward System
+5️⃣ Test e deploy progressivo
+
+Mantieni coerenza di design, performance e sicurezza.
+Tutti i prompt AI devono restare server-side, multilingua e sicuri.
+Tema visivo: dark grey + orange #FF6600 coerente in ogni pagina.

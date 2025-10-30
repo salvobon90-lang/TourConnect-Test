@@ -27,6 +27,9 @@ import {
   smartGroupInvites,
   aiLogs,
   groupEvents,
+  partnerships,
+  searchLogs,
+  embeddings,
   rewardPoints,
   levelThresholds,
   type User,
@@ -84,6 +87,12 @@ import {
   type InsertAILog,
   type GroupEvent,
   type InsertGroupEvent,
+  type Partnership,
+  type InsertPartnership,
+  type SearchLog,
+  type InsertSearchLog,
+  type Embedding,
+  type InsertEmbedding,
   type RewardActionType,
   type RewardLevel,
   type TourWithGuide,
@@ -360,6 +369,57 @@ export interface IStorage {
   hasUserConsentedToAI(userId: string): Promise<boolean>;
   updateAIConsent(userId: string, consent: boolean): Promise<void>;
   getAIConsentStatus(userId: string): Promise<{ hasConsented: boolean; consentDate: Date | null }>;
+  
+  // Partnership Management (Phase 10)
+  createPartnership(data: {
+    userId: string;
+    tier: 'standard' | 'premium' | 'pro';
+    stripeSubscriptionId?: string;
+    stripeCustomerId?: string;
+    stripePriceId?: string;
+    endDate?: Date;
+  }): Promise<Partnership>;
+  getPartnershipByUserId(userId: string): Promise<Partnership | null>;
+  updatePartnershipStatus(
+    partnershipId: string,
+    status: 'active' | 'cancelled' | 'expired'
+  ): Promise<void>;
+  incrementPartnershipAnalytics(
+    userId: string,
+    field: 'profileViews' | 'tourViews' | 'serviceViews' | 'clicks' | 'conversions' | 'likes' | 'reviews'
+  ): Promise<void>;
+  
+  // Search Logging (Phase 10)
+  logSearch(data: {
+    userId?: string;
+    query: string;
+    searchType?: string;
+    resultsCount: number;
+    filters?: any;
+  }): Promise<SearchLog>;
+  updateSearchClick(
+    searchLogId: string,
+    entityId: string,
+    entityType: string
+  ): Promise<void>;
+  
+  // Embeddings Management (Phase 10)
+  createEmbedding(data: {
+    entityId: string;
+    entityType: 'guide' | 'tour' | 'service';
+    content: string;
+    embedding: number[];
+    language?: string;
+  }): Promise<Embedding>;
+  getEmbedding(
+    entityId: string,
+    entityType: string
+  ): Promise<Embedding | null>;
+  searchSimilarEmbeddings(
+    queryEmbedding: number[],
+    entityType?: string,
+    limit?: number
+  ): Promise<Array<Embedding & { similarity: number }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3852,6 +3912,180 @@ export class DatabaseStorage implements IStorage {
       hasConsented: user?.aiConsent ?? false,
       consentDate: user?.aiConsentDate ?? null
     };
+  }
+
+  // Partnership Management (Phase 10)
+  async createPartnership(data: {
+    userId: string;
+    tier: 'standard' | 'premium' | 'pro';
+    stripeSubscriptionId?: string;
+    stripeCustomerId?: string;
+    stripePriceId?: string;
+    endDate?: Date;
+  }): Promise<Partnership> {
+    const [partnership] = await db.insert(partnerships)
+      .values({
+        ...data,
+        status: 'active',
+        analytics: {
+          profileViews: 0,
+          tourViews: 0,
+          serviceViews: 0,
+          clicks: 0,
+          conversions: 0,
+          likes: 0,
+          reviews: 0
+        }
+      })
+      .returning();
+    return partnership;
+  }
+
+  async getPartnershipByUserId(userId: string): Promise<Partnership | null> {
+    const partnership = await db.query.partnerships.findFirst({
+      where: eq(partnerships.userId, userId),
+      orderBy: desc(partnerships.createdAt)
+    });
+    return partnership || null;
+  }
+
+  async updatePartnershipStatus(
+    partnershipId: string,
+    status: 'active' | 'cancelled' | 'expired'
+  ): Promise<void> {
+    await db.update(partnerships)
+      .set({
+        status,
+        cancelledAt: status === 'cancelled' ? new Date() : null,
+        updatedAt: new Date()
+      })
+      .where(eq(partnerships.id, partnershipId));
+  }
+
+  async incrementPartnershipAnalytics(
+    userId: string,
+    field: 'profileViews' | 'tourViews' | 'serviceViews' | 'clicks' | 'conversions' | 'likes' | 'reviews'
+  ): Promise<void> {
+    const partnership = await this.getPartnershipByUserId(userId);
+    if (!partnership) return;
+    
+    const analytics = partnership.analytics || {
+      profileViews: 0,
+      tourViews: 0,
+      serviceViews: 0,
+      clicks: 0,
+      conversions: 0,
+      likes: 0,
+      reviews: 0
+    };
+    analytics[field] = (analytics[field] || 0) + 1;
+    
+    await db.update(partnerships)
+      .set({ analytics, updatedAt: new Date() })
+      .where(eq(partnerships.id, partnership.id));
+  }
+
+  // Search Logging (Phase 10)
+  async logSearch(data: {
+    userId?: string;
+    query: string;
+    searchType?: string;
+    resultsCount: number;
+    filters?: any;
+  }): Promise<SearchLog> {
+    const [searchLog] = await db.insert(searchLogs).values(data).returning();
+    return searchLog;
+  }
+
+  async updateSearchClick(
+    searchLogId: string,
+    entityId: string,
+    entityType: string
+  ): Promise<void> {
+    await db.update(searchLogs)
+      .set({
+        clicked: true,
+        clickedEntityId: entityId,
+        clickedEntityType: entityType
+      })
+      .where(eq(searchLogs.id, searchLogId));
+  }
+
+  // Embeddings Management (Phase 10)
+  async createEmbedding(data: {
+    entityId: string;
+    entityType: 'guide' | 'tour' | 'service';
+    content: string;
+    embedding: number[];
+    language?: string;
+  }): Promise<Embedding> {
+    // Store embedding as JSON string (works without pgvector extension)
+    const [embedding] = await db.insert(embeddings).values({
+      entityId: data.entityId,
+      entityType: data.entityType,
+      content: data.content,
+      embedding: JSON.stringify(data.embedding),
+      language: data.language
+    }).returning();
+    return embedding;
+  }
+
+  async getEmbedding(
+    entityId: string,
+    entityType: string
+  ): Promise<Embedding | null> {
+    const embedding = await db.query.embeddings.findFirst({
+      where: and(
+        eq(embeddings.entityId, entityId),
+        eq(embeddings.entityType, entityType)
+      )
+    });
+    return embedding || null;
+  }
+
+  async searchSimilarEmbeddings(
+    queryEmbedding: number[],
+    entityType?: string,
+    limit = 10
+  ): Promise<Array<Embedding & { similarity: number }>> {
+    // Fallback to text-based similarity without pgvector
+    // This is a simple implementation - can be enhanced with actual vector search if pgvector is available
+    const results = await db
+      .select()
+      .from(embeddings)
+      .where(entityType ? eq(embeddings.entityType, entityType) : sql`1=1`)
+      .limit(limit);
+    
+    // Calculate cosine similarity manually
+    const withSimilarity = results.map(result => {
+      const embeddingArray = JSON.parse(result.embedding);
+      const similarity = this.cosineSimilarity(queryEmbedding, embeddingArray);
+      return {
+        ...result,
+        similarity
+      };
+    });
+    
+    // Sort by similarity (highest first)
+    return withSimilarity.sort((a, b) => b.similarity - a.similarity);
+  }
+
+  // Helper: Calculate cosine similarity between two vectors
+  private cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length) return 0;
+    
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    
+    for (let i = 0; i < a.length; i++) {
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    
+    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+    return denominator === 0 ? 0 : dotProduct / denominator;
   }
 
   // Helper: Sanitize AI input data to remove sensitive information
