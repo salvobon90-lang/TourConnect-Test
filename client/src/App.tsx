@@ -55,6 +55,7 @@ const ItineraryBuilder = lazy(() => import("@/pages/itinerary-builder"));
 const EsploraMondo = lazy(() => import("@/pages/esplora-mondo"));
 const Discover = lazy(() => import("@/pages/discover"));
 const CommunityMapPage = lazy(() => import("@/pages/CommunityMapPage"));
+const SearchPage = lazy(() => import("@/pages/SearchPage"));
 
 // Loading fallback component
 function PageLoader() {
@@ -148,6 +149,7 @@ function Router() {
         <Suspense fallback={<PageLoader />}>
           <Switch location={location}>
             {/* Shared routes for all authenticated users */}
+            <Route path="/search" component={SearchPage} />
             <Route path="/profile" component={Profile} />
             <Route path="/messages" component={Messages} />
             <Route path="/subscriptions" component={Subscriptions} />

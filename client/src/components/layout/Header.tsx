@@ -23,15 +23,11 @@ import {
   Map
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { GlobalSearchBar } from '@/components/search/GlobalSearchBar';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect } from 'react';
 import { queryClient } from '@/lib/queryClient';
-import { prefersReducedMotion } from '@/lib/animations';
-import navbarAnimation from '@assets/animations/navbar-logo.json';
-
-// Lazy load Lottie for performance
-const Lottie = lazy(() => import('lottie-react'));
 
 export function Header() {
   const { user, isAuthenticated } = useAuth();
@@ -82,33 +78,22 @@ export function Header() {
   
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-card backdrop-blur">
-      <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4">
+      <div className="max-w-7xl mx-auto flex h-16 items-center justify-between gap-4 px-4">
         {/* Logo */}
         <div 
-          className="flex items-center gap-2 cursor-pointer hover-elevate rounded-md px-3 py-2"
+          className="flex items-center gap-2 cursor-pointer hover-elevate rounded-md px-3 py-2 flex-shrink-0"
           onClick={() => setLocation('/')}
           data-testid="header-logo"
         >
-          {/* Lottie animation with reduced motion support */}
-          {!prefersReducedMotion() ? (
-            <Suspense fallback={<Globe className="h-8 w-8 text-primary" />}>
-              <div className="w-10 h-10" data-testid="navbar-animation">
-                <Lottie 
-                  animationData={navbarAnimation}
-                  loop={true}
-                  autoplay={true}
-                  style={{ width: '100%', height: '100%' }}
-                />
-              </div>
-            </Suspense>
-          ) : (
-            <Globe className="h-8 w-8 text-primary" />
-          )}
-          <span className="font-bold text-xl hidden md:inline">TourConnect</span>
+          <Globe className="h-8 w-8 text-primary" />
+          <span className="font-bold text-xl hidden lg:inline">TourConnect</span>
         </div>
         
+        {/* Global Search Bar */}
+        <GlobalSearchBar className="hidden md:flex flex-1 max-w-md" />
+        
         {/* Right side */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* Messages */}
           <Button
             variant="ghost"
