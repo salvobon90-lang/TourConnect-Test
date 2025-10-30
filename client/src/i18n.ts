@@ -101,6 +101,12 @@ const resources = {
         cancelled: "Cancelled",
         completed: "Completed",
       },
+      badges: {
+        partnerVerified: "Partner Verified",
+        sponsored: "Sponsored",
+        trustedPartner: "Trusted Partner",
+        verifiedBusiness: "Verified Business",
+      },
       landing: {
         heroTitle: "Discover Authentic Experiences",
         heroSubtitle: "Discover authentic experiences with local guides, explore amazing destinations, and connect with trusted service providers",
@@ -508,6 +514,59 @@ const resources = {
         locationDeniedDesc: "To use the Discover page, please enable location services in your browser settings.",
         noNearbyTours: "No tours found within 50km of your location",
         noNearbyServices: "No services found within 50km of your location",
+        bundledExperiences: "Bundled Experiences",
+        noNearbyPackages: "No packages found within 50km of your location",
+      },
+      packages: {
+        title: "Travel Packages",
+        viewBundle: "View Bundle",
+        bookBundle: "Book Bundle",
+        partnerVerified: "Partner Verified",
+        bundleDiscount: "Bundle Discount",
+        includedInPackage: "Included in This Package",
+        pricePerPerson: "Price per Person",
+        originalPrice: "Original Price",
+        finalPrice: "Final Price",
+        maxParticipants: "Max Participants",
+        cancellationPolicy: "Cancellation Policy",
+        flexible: "Flexible",
+        moderate: "Moderate",
+        strict: "Strict",
+        bookNow: "Book Now",
+        applyCoupon: "Apply Coupon",
+        couponCode: "Coupon Code",
+        enterCouponCode: "Enter coupon code",
+        totalPrice: "Total Price",
+        subtotal: "Subtotal",
+        couponDiscount: "Coupon Discount",
+        participants: "Participants",
+        person: "person",
+        people: "people",
+        pricingCalculator: "Pricing Calculator",
+        apply: "Apply",
+        couponApplied: "Coupon Applied",
+        couponAppliedDesc: "Discount of {{value}} applied successfully",
+        couponAppliedBadge: "Coupon Applied",
+        bookingDetails: "Booking Details",
+        specialRequests: "Special Requests (Optional)",
+        specialRequestsPlaceholder: "Any special requirements or requests...",
+        acceptTerms: "I accept the terms and conditions",
+        processing: "Processing...",
+        secureCheckout: "Your payment is encrypted and secure",
+        partnerInfo: "Partner Information",
+        verified: "Verified",
+        notFound: "Package Not Found",
+        notFoundDesc: "The package you're looking for doesn't exist",
+        errors: {
+          loginRequired: "Login Required",
+          loginRequiredDesc: "Please log in to book this package",
+          acceptTerms: "Please accept the terms and conditions",
+          bookingFailed: "Booking Failed",
+          bookingFailedDesc: "Failed to create booking. Please try again.",
+          invalidCoupon: "Invalid Coupon",
+          invalidCouponDesc: "The coupon code you entered is invalid or expired",
+          emptyCoupon: "Please enter a coupon code",
+        },
       },
       system: {
         unauthorized: "Unauthorized",
@@ -1027,7 +1086,10 @@ const resources = {
         },
       },
       search: {
+        title: "Search TourConnect",
+        subtitle: "Find guides, tours, and services worldwide",
         placeholder: "Search guides, tours, services...",
+        searchPlaceholder: "Search...",
         aiSearch: "AI Search",
         viewAllResults: "View all {{count}} results",
         noResults: "No results found for \"{{query}}\"",
@@ -1039,14 +1101,21 @@ const resources = {
         guides: "Guides",
         tours: "Tours",
         services: "Services",
+        packages: "Packages",
         city: "City",
         language: "Language",
-        priceRange: "Price Range",
+        priceRange: "Price: €{{min}} - €{{max}}",
         rating: "Rating",
         availability: "Availability",
         resultsCount: "{{count}} results",
+        showPackagesOnly: "Show Packages Only",
+        partnerVerifiedOnly: "Partner Verified Only",
         aiInsights: "AI Insights",
         confidence: "{{percent}}% confidence",
+        packagesCount: "Packages ({{count}})",
+        guidesCount: "Guides ({{count}})",
+        toursCount: "Tours ({{count}})",
+        servicesCount: "Services ({{count}})",
         semanticSearch: {
           title: "Smart Search",
           description: "Use natural language to find what you're looking for",
@@ -1138,6 +1207,452 @@ const resources = {
         tabs: {
           dashboard: "Dashboard",
           analytics: "Analytics"
+        }
+      },
+      partnerPortal: {
+        title: "Partner Portal",
+        subtitle: "Manage your business and grow your revenue",
+        tabs: {
+          dashboard: "Dashboard",
+          packages: "Packages",
+          coupons: "Coupons",
+          affiliates: "Affiliates",
+          analytics: "Analytics",
+          payouts: "Payouts",
+          billing: "Billing",
+          connectors: "Connectors",
+          profile: "Profile"
+        },
+        dashboard: {
+          title: "Dashboard Overview",
+          welcome: "Welcome back, {{name}}",
+          stats: {
+            totalRevenue: "Total Revenue",
+            thisMonth: "This Month",
+            allTime: "All Time",
+            activePackages: "Active Packages",
+            totalBookings: "Total Bookings",
+            pending: "Pending",
+            confirmed: "Confirmed",
+            completed: "Completed",
+            activeCoupons: "Active Coupons",
+            activeAffiliates: "Active Affiliates"
+          },
+          recentBookings: {
+            title: "Recent Bookings",
+            viewAll: "View All",
+            noBookings: "No recent bookings",
+            customer: "Customer",
+            package: "Package",
+            date: "Date",
+            amount: "Amount",
+            status: "Status"
+          },
+          quickActions: {
+            title: "Quick Actions",
+            createPackage: "Create Package",
+            createCoupon: "Create Coupon",
+            viewAnalytics: "View Analytics"
+          }
+        },
+        packages: {
+          title: "Manage Packages",
+          createNew: "Create Package",
+          search: "Search packages...",
+          noPackages: "No packages yet",
+          noPackagesDesc: "Create your first package to start bundling tours and services",
+          table: {
+            title: "Title",
+            pricing: "Pricing",
+            tours: "Tours",
+            discount: "Discount",
+            bookings: "Bookings",
+            status: "Status",
+            actions: "Actions"
+          },
+          form: {
+            title: "Package Title",
+            titlePlaceholder: "e.g., Rome City Adventure Bundle",
+            description: "Description",
+            descriptionPlaceholder: "Describe what's included in this package...",
+            pricing: "Pricing",
+            selectTours: "Select Tours/Services",
+            selectToursPlaceholder: "Choose tours to bundle",
+            discountType: "Discount Type",
+            percentage: "Percentage",
+            earlyBird: "Early Bird",
+            group: "Group Discount",
+            discountValue: "Discount Value (%)",
+            cancellationPolicy: "Cancellation Policy",
+            cancellationPlaceholder: "Describe cancellation terms...",
+            maxParticipants: "Max Participants",
+            create: "Create Package",
+            update: "Update Package",
+            creating: "Creating...",
+            updating: "Updating..."
+          },
+          delete: {
+            title: "Delete Package",
+            message: "Are you sure you want to delete this package? This action cannot be undone.",
+            confirm: "Delete Package",
+            cancel: "Cancel"
+          },
+          success: {
+            created: "Package created successfully",
+            updated: "Package updated successfully",
+            deleted: "Package deleted successfully"
+          },
+          errors: {
+            createFailed: "Failed to create package",
+            updateFailed: "Failed to update package",
+            deleteFailed: "Failed to delete package",
+            fetchFailed: "Failed to load packages"
+          }
+        },
+        coupons: {
+          title: "Manage Coupons",
+          createNew: "Create Coupon",
+          search: "Search coupons...",
+          noCoupons: "No coupons yet",
+          noCouponsDesc: "Create discount codes to attract more customers",
+          table: {
+            code: "Code",
+            type: "Type",
+            value: "Value",
+            validFrom: "Valid From",
+            validTo: "Valid To",
+            used: "Used",
+            limit: "Limit",
+            status: "Status",
+            actions: "Actions"
+          },
+          form: {
+            code: "Coupon Code",
+            codePlaceholder: "e.g., SUMMER2025",
+            generate: "Auto-generate",
+            type: "Discount Type",
+            percentage: "Percentage",
+            fixed: "Fixed Amount",
+            value: "Discount Value",
+            valuePlaceholder: "e.g., 20",
+            validFrom: "Valid From",
+            validTo: "Valid To",
+            usageLimit: "Usage Limit",
+            usageLimitPlaceholder: "Leave empty for unlimited",
+            minOrderAmount: "Minimum Order Amount",
+            minOrderPlaceholder: "e.g., 50",
+            create: "Create Coupon",
+            update: "Update Coupon",
+            creating: "Creating...",
+            updating: "Updating..."
+          },
+          deactivate: {
+            title: "Deactivate Coupon",
+            message: "Are you sure you want to deactivate this coupon?",
+            confirm: "Deactivate",
+            cancel: "Cancel"
+          },
+          stats: {
+            title: "Coupon Statistics",
+            totalUses: "Total Uses",
+            revenue: "Revenue Generated",
+            avgOrderValue: "Avg Order Value"
+          },
+          success: {
+            created: "Coupon created successfully",
+            updated: "Coupon updated successfully",
+            deactivated: "Coupon deactivated successfully"
+          },
+          errors: {
+            createFailed: "Failed to create coupon",
+            updateFailed: "Failed to update coupon",
+            deactivateFailed: "Failed to deactivate coupon",
+            fetchFailed: "Failed to load coupons"
+          }
+        },
+        affiliates: {
+          title: "Affiliate Program",
+          createNew: "Create Affiliate Link",
+          noAffiliates: "No affiliate links yet",
+          noAffiliatesDesc: "Create affiliate links to expand your reach",
+          table: {
+            code: "Affiliate Code",
+            commission: "Commission",
+            targetUrl: "Target URL",
+            clicks: "Clicks",
+            conversions: "Conversions",
+            revenue: "Revenue",
+            status: "Status",
+            actions: "Actions"
+          },
+          form: {
+            code: "Affiliate Code",
+            codePlaceholder: "e.g., PARTNER123",
+            commission: "Commission (%)",
+            commissionPlaceholder: "e.g., 10",
+            targetUrl: "Target URL",
+            targetUrlPlaceholder: "https://example.com",
+            create: "Create Link",
+            update: "Update Link",
+            creating: "Creating...",
+            updating: "Updating..."
+          },
+          stats: {
+            title: "Affiliate Statistics",
+            clicks: "Total Clicks",
+            conversions: "Conversions",
+            revenue: "Total Revenue",
+            conversionRate: "Conversion Rate",
+            avgOrderValue: "Avg Order Value"
+          },
+          deactivate: {
+            title: "Deactivate Affiliate Link",
+            message: "Are you sure you want to deactivate this affiliate link?",
+            confirm: "Deactivate",
+            cancel: "Cancel"
+          },
+          success: {
+            created: "Affiliate link created successfully",
+            updated: "Affiliate link updated successfully",
+            deactivated: "Affiliate link deactivated successfully"
+          },
+          errors: {
+            createFailed: "Failed to create affiliate link",
+            updateFailed: "Failed to update affiliate link",
+            deactivateFailed: "Failed to deactivate affiliate link",
+            fetchFailed: "Failed to load affiliate links"
+          }
+        },
+        analytics: {
+          title: "Advanced Analytics",
+          subtitle: "Detailed insights into your performance",
+          timePeriod: "Time Period",
+          last7Days: "Last 7 Days",
+          last30Days: "Last 30 Days",
+          last90Days: "Last 90 Days",
+          thisYear: "This Year",
+          custom: "Custom Range",
+          exportData: "Export Data",
+          exportCSV: "Export as CSV",
+          exportJSON: "Export as JSON",
+          topPerforming: {
+            title: "Top Performing Packages",
+            package: "Package",
+            bookings: "Bookings",
+            revenue: "Revenue",
+            avgRating: "Avg Rating"
+          },
+          trends: {
+            title: "Monthly Trends",
+            bookings: "Bookings",
+            revenue: "Revenue"
+          },
+          breakdown: {
+            title: "Revenue Breakdown",
+            packages: "Packages",
+            coupons: "Coupons",
+            affiliates: "Affiliates"
+          },
+          success: {
+            exported: "Data exported successfully"
+          },
+          errors: {
+            exportFailed: "Failed to export data",
+            fetchFailed: "Failed to load analytics data"
+          }
+        },
+        payouts: {
+          title: "Payouts",
+          currentBalance: "Current Balance",
+          pendingPayout: "Pending Payout",
+          availableForPayout: "Available for Payout",
+          history: {
+            title: "Payout History",
+            date: "Date",
+            amount: "Amount",
+            status: "Status",
+            period: "Period",
+            noPayouts: "No payout history",
+            noPayoutsDesc: "You'll see your payouts here once processed"
+          },
+          revenue: {
+            title: "Revenue Breakdown",
+            gross: "Gross Revenue",
+            fees: "Platform Fees",
+            net: "Net Revenue"
+          },
+          stripeStatus: {
+            title: "Stripe Connect Status",
+            connected: "Connected",
+            notConnected: "Not Connected",
+            setupRequired: "Setup Required"
+          },
+          errors: {
+            fetchFailed: "Failed to load payout data"
+          }
+        },
+        billing: {
+          title: "Billing & Payments",
+          subtitle: "Manage your Stripe Connect account",
+          connectStripe: "Connect Stripe Account",
+          refreshStatus: "Refresh Status",
+          status: {
+            title: "Account Status",
+            connected: "Connected",
+            onboardingComplete: "Onboarding Complete",
+            chargesEnabled: "Charges Enabled",
+            yes: "Yes",
+            no: "No"
+          },
+          onboarding: {
+            title: "Complete Setup",
+            description: "To receive payments, you need to connect your Stripe account. This is a one-time setup that takes just a few minutes.",
+            startSetup: "Start Setup",
+            processing: "Setting up..."
+          },
+          connected: {
+            title: "Account Connected",
+            description: "Your Stripe account is connected and ready to receive payments.",
+            accountId: "Account ID",
+            manageAccount: "Manage Account"
+          },
+          errors: {
+            onboardFailed: "Failed to start onboarding",
+            statusFailed: "Failed to load account status",
+            refreshFailed: "Failed to refresh status"
+          }
+        },
+        connectors: {
+          title: "OTA & DMO Connectors",
+          subtitle: "Integrate with online travel agencies and destination management organizations",
+          createNew: "Create Connector",
+          noConnectors: "No connectors configured",
+          noConnectorsDesc: "Connect to OTAs and DMOs to sync your availability",
+          table: {
+            name: "Name",
+            type: "Type",
+            status: "Status",
+            lastSync: "Last Sync",
+            actions: "Actions"
+          },
+          form: {
+            name: "Connector Name",
+            namePlaceholder: "e.g., Booking.com Integration",
+            type: "Type",
+            ota: "OTA (Online Travel Agency)",
+            dmo: "DMO (Destination Management)",
+            custom: "Custom Integration",
+            apiKey: "API Key",
+            apiKeyPlaceholder: "Enter API key",
+            credentials: "Credentials",
+            credentialsPlaceholder: "Enter credentials",
+            webhookUrl: "Webhook URL",
+            create: "Create Connector",
+            update: "Update Connector",
+            creating: "Creating...",
+            updating: "Updating..."
+          },
+          sync: {
+            button: "Sync Now",
+            syncing: "Syncing...",
+            title: "Sync History",
+            date: "Date",
+            status: "Status",
+            records: "Records",
+            noHistory: "No sync history"
+          },
+          mappings: {
+            title: "Connector Mappings",
+            localId: "Local ID",
+            externalId: "External ID",
+            type: "Type",
+            noMappings: "No mappings configured"
+          },
+          delete: {
+            title: "Delete Connector",
+            message: "Are you sure you want to delete this connector? All mappings will be lost.",
+            confirm: "Delete Connector",
+            cancel: "Cancel"
+          },
+          success: {
+            created: "Connector created successfully",
+            updated: "Connector updated successfully",
+            deleted: "Connector deleted successfully",
+            synced: "Sync completed successfully"
+          },
+          errors: {
+            createFailed: "Failed to create connector",
+            updateFailed: "Failed to update connector",
+            deleteFailed: "Failed to delete connector",
+            syncFailed: "Failed to sync connector",
+            fetchFailed: "Failed to load connectors"
+          }
+        },
+        profile: {
+          title: "Partner Profile",
+          subtitle: "Manage your business information",
+          basicInfo: {
+            title: "Basic Information",
+            businessName: "Business Name",
+            businessNamePlaceholder: "Your business name",
+            businessType: "Business Type",
+            tourOperator: "Tour Operator",
+            travelAgency: "Travel Agency",
+            hotelPartner: "Hotel Partner",
+            activityProvider: "Activity Provider",
+            other: "Other",
+            description: "Description",
+            descriptionPlaceholder: "Tell us about your business...",
+            contactEmail: "Contact Email",
+            contactPhone: "Contact Phone",
+            website: "Website",
+            websitePlaceholder: "https://example.com"
+          },
+          branding: {
+            title: "Branding",
+            logo: "Business Logo",
+            uploadLogo: "Upload Logo",
+            changeLogo: "Change Logo",
+            uploading: "Uploading...",
+            logoRequirements: "PNG or JPG. Max 2MB. Recommended: 400x400px"
+          },
+          social: {
+            title: "Social Links",
+            facebook: "Facebook",
+            instagram: "Instagram",
+            twitter: "Twitter",
+            linkedin: "LinkedIn"
+          },
+          verification: {
+            title: "Verification Status",
+            status: "Status",
+            verified: "Verified",
+            pending: "Pending Verification",
+            notVerified: "Not Verified",
+            uploadDocuments: "Upload Business Documents",
+            documentsTitle: "Business Documents (KYC)",
+            uploadDocument: "Upload Document",
+            businessLicense: "Business License",
+            taxId: "Tax ID",
+            insuranceProof: "Insurance Proof"
+          },
+          save: "Update Profile",
+          saving: "Saving...",
+          success: {
+            updated: "Profile updated successfully"
+          },
+          errors: {
+            updateFailed: "Failed to update profile",
+            fetchFailed: "Failed to load profile",
+            uploadFailed: "Failed to upload file"
+          }
+        },
+        errors: {
+          unauthorized: "You must be logged in to access the Partner Portal",
+          noPartnerProfile: "Partner Profile Required",
+          noPartnerProfileDesc: "You need to register as a partner to access this portal.",
+          registerAsPartner: "Register as Partner",
+          loadingError: "Failed to load partner data"
         }
       },
       marketplace: {

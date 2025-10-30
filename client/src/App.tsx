@@ -59,6 +59,8 @@ const SearchPage = lazy(() => import("@/pages/SearchPage"));
 const PartnershipsPage = lazy(() => import("@/pages/PartnershipsPage"));
 const AdminLoginPage = lazy(() => import("@/pages/AdminLoginPage"));
 const GroupMarketplace = lazy(() => import("@/pages/group-marketplace"));
+const PartnerPortal = lazy(() => import("@/pages/PartnerPortal"));
+const PackageDetail = lazy(() => import("@/pages/PackageDetail"));
 
 // Loading fallback component
 function PageLoader() {
@@ -155,6 +157,7 @@ function Router() {
             {/* Shared routes for all authenticated users */}
             <Route path="/search" component={SearchPage} />
             <Route path="/marketplace" component={GroupMarketplace} />
+            <Route path="/partner-portal" component={PartnerPortal} />
             <Route path="/profile" component={Profile} />
             <Route path="/messages" component={Messages} />
             <Route path="/subscriptions" component={Subscriptions} />
@@ -162,6 +165,7 @@ function Router() {
             <Route path="/subscriptions/cancel" component={SubscriptionCancel} />
             <Route path="/tours/:id/3d" component={Tour3DPage} />
             <Route path="/tours/:id" component={TourDetail} />
+            <Route path="/packages/:id" component={PackageDetail} />
             <Route path="/book/:id" component={BookTour} />
             <Route path="/booking-success" component={BookingSuccess} />
             <Route path="/sponsorship-success" component={SponsorshipSuccess} />

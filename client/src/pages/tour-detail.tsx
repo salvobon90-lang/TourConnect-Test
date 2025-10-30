@@ -15,6 +15,7 @@ import { CreateReviewForm } from '@/components/reviews/CreateReviewForm';
 import { GroupBookingCard } from '@/components/GroupBookingCard';
 import { ParticipantsList } from '@/components/ParticipantsList';
 import { SmartShareCard } from '@/components/SmartShareCard';
+import { PartnerBadge } from '@/components/PartnerBadge';
 import { useState } from 'react';
 
 export default function TourDetail() {
@@ -157,10 +158,13 @@ export default function TourDetail() {
                       {tour.guide.firstName?.[0] || 'G'}
                     </span>
                   </div>
-                  <div>
-                    <p className="font-semibold text-lg">
-                      {tour.guide.firstName} {tour.guide.lastName}
-                    </p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-lg">
+                        {tour.guide.firstName} {tour.guide.lastName}
+                      </p>
+                      {tour.guide.verified && <PartnerBadge verified={true} size="sm" />}
+                    </div>
                     <p className="text-muted-foreground">{t('roles.guide')}</p>
                   </div>
                 </div>

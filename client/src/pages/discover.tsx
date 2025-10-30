@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { MapPin, Star, Heart, Navigation } from "lucide-react";
+import { MapPin, Star, Heart, Navigation, Package as PackageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LikeButton } from "@/components/LikeButton";
 import { TrustLevelBadge } from "@/components/TrustLevelBadge";
+import { PackageCard } from "@/components/PackageCard";
+import { PartnerBadge } from "@/components/PartnerBadge";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 
 interface Tour {
@@ -24,6 +26,7 @@ interface Tour {
     id: string;
     firstName: string;
     lastName: string;
+    verified?: boolean;
   };
 }
 
@@ -38,12 +41,30 @@ interface Service {
   provider: {
     id: string;
     businessName: string;
+    verified?: boolean;
+  };
+}
+
+interface Package {
+  id: string;
+  title: string;
+  description: string;
+  basePrice: string;
+  items: Array<{type: string; id: string; quantity: number}>;
+  discountRules?: {type: string; value: number; minParticipants?: number};
+  cancellationPolicy?: string;
+  partner: {
+    id: string;
+    name: string;
+    logoUrl?: string;
+    verified: boolean;
   };
 }
 
 export default function DiscoverPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPermission, setLocationPermission] = useState<"granted" | "denied" | "pending">("pending");
 
@@ -88,6 +109,18 @@ export default function DiscoverPage() {
       const res = await fetch("/api/services");
       if (!res.ok) throw new Error("Failed to fetch services");
       return res.json() as Promise<Service[]>;
+    },
+  });
+
+  // Fetch packages
+  const { data: packages = [] } = useQuery({
+    queryKey: ["packages", "search"],
+    queryFn: async () => {
+      const res = await fetch("/api/packages/search?limit=10", {
+        credentials: 'include',
+      });
+      if (!res.ok) return [];
+      return res.json() as Promise<Package[]>;
     },
   });
 
@@ -200,8 +233,9 @@ export default function DiscoverPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
                       {tour.description}
                     </p>
-                    <div className="mt-3 flex items-center gap-2">
+                    <div className="mt-3 flex items-center gap-2 flex-wrap">
                       <TrustLevelBadge userId={tour.guideId} size="sm" />
+                      {tour.guide.verified && <PartnerBadge verified={true} size="sm" />}
                     </div>
                   </CardContent>
                   <CardFooter className="flex justify-between items-center">
@@ -262,8 +296,9 @@ export default function DiscoverPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
                       {service.description}
                     </p>
-                    <div className="mt-3 flex items-center gap-2">
+                    <div className="mt-3 flex items-center gap-2 flex-wrap">
                       <TrustLevelBadge userId={service.providerId} size="sm" />
+                      {service.provider.verified && <PartnerBadge verified={true} size="sm" />}
                     </div>
                   </CardContent>
                   <CardFooter>
@@ -279,6 +314,31 @@ export default function DiscoverPage() {
           )}
         </div>
       </section>
+
+      {/* Bundled Packages */}
+      {packages.length > 0 && (
+        <section>
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <PackageIcon className="h-6 w-6 text-orange-600" />
+            {t("discover.bundledExperiences")}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {packages.slice(0, 6).map((pkg, index) => (
+              <motion.div
+                key={pkg.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <PackageCard 
+                  package={pkg} 
+                  onClick={() => setLocation(`/packages/${pkg.id}`)} 
+                />
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
