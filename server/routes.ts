@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { isPartner } from "./middleware/auth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
@@ -5255,6 +5256,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       
+      // Check if user is a partner
+      const partner = await storage.getPartnerByOwner(userId);
+
+      // DELETE PARTNER DATA FIRST (if partner exists)
+      if (partner) {
+        const partnerId = partner.id;
+        
+        // Deactivate packages (keep for historical records)
+        await storage.deactivatePartnerPackages(partnerId);
+        
+        // Deactivate coupons
+        await storage.deactivatePartnerCoupons(partnerId);
+        
+        // Anonymize partner profile
+        await storage.anonymizePartnerProfile(partnerId);
+        
+        // Anonymize payouts (keep for financial records)
+        await storage.anonymizePartnerPayouts(partnerId);
+      }
+
+      // THEN existing user data deletion
       await storage.deleteUserPosts(userId);
       await storage.deleteUserComments(userId);
       await storage.deleteUserLikes(userId);
@@ -5276,10 +5298,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userData = {
         profile: await storage.getUserById(userId),
         posts: await storage.getUserPosts(userId),
-        bookings: await storage.getBookings(userId),
-        reviews: await storage.getReviewsByUser(userId),
+        bookings: await storage.getUserBookings(userId),
+        reviews: await storage.getUserReviews(userId),
         messages: await storage.getUserMessages(userId),
+        
+        // ADD PARTNER DATA
+        partnerProfile: await storage.getPartnerByOwner(userId),
+        packages: null as any,
+        coupons: null as any,
+        affiliateLinks: null as any,
+        payouts: null as any,
       };
+
+      // If user is a partner, fetch partner-specific data
+      if (userData.partnerProfile) {
+        const partnerId = userData.partnerProfile.id;
+        userData.packages = await storage.getPartnerPackages(partnerId);
+        userData.coupons = await storage.getPartnerCoupons(partnerId);
+        userData.affiliateLinks = await storage.getUserAffiliateLinks(userId);
+        userData.payouts = await storage.getPartnerPayouts(partnerId);
+      }
       
       res.json(userData);
     } catch (error: any) {
@@ -5328,14 +5366,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get My Partner Profile
-  app.get('/api/partners/me', isAuthenticated, async (req: any, res) => {
+  app.get('/api/partners/me', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(404).json({ message: "Partner profile not found" });
-      }
+      const partner = (req as any).partner;
       
       res.json(partner);
     } catch (error) {
@@ -5345,14 +5378,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update My Partner Profile
-  app.patch('/api/partners/me', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/partners/me', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(404).json({ message: "Partner profile not found" });
-      }
+      const partner = (req as any).partner;
       
       // Don't allow changing verified status through this endpoint
       const { verified, ownerUserId, ...updateData } = req.body;
@@ -5453,14 +5481,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get Partner Analytics
-  app.get('/api/partners/me/analytics', isAuthenticated, async (req: any, res) => {
+  app.get('/api/partners/me/analytics', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(404).json({ message: "Partner profile not found" });
-      }
+      const partner = (req as any).partner;
       
       const analytics = await storage.getPartnerAnalytics(partner.id);
       
@@ -5474,14 +5497,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============= ADVANCED PARTNER ANALYTICS (Phase 12) =============
 
   // Get Top Packages (Partner only)
-  app.get('/api/partners/analytics/top-products', isAuthenticated, async (req: any, res) => {
+  app.get('/api/partners/analytics/top-products', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(403).json({ message: "Partner profile required" });
-      }
+      const partner = (req as any).partner;
       
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
       const topPackages = await storage.getPartnerTopPackages(partner.id, limit);
@@ -5494,14 +5512,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get Monthly Trends (Partner only)
-  app.get('/api/partners/analytics/trends', isAuthenticated, async (req: any, res) => {
+  app.get('/api/partners/analytics/trends', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(403).json({ message: "Partner profile required" });
-      }
+      const partner = (req as any).partner;
       
       const months = req.query.months ? parseInt(req.query.months as string, 10) : 6;
       const trends = await storage.getPartnerMonthlyTrends(partner.id, months);
@@ -5514,14 +5527,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export Partner Data (CSV/JSON) (Partner only)
-  app.get('/api/partners/analytics/export', isAuthenticated, async (req: any, res) => {
+  app.get('/api/partners/analytics/export', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(403).json({ message: "Partner profile required" });
-      }
+      const partner = (req as any).partner;
       
       const format = (req.query.format as string) || 'json';
       const data = await storage.exportPartnerData(partner.id);
@@ -6059,14 +6067,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============= PACKAGES ENGINE (Phase 12) =============
 
   // Create Package (Partner only)
-  app.post('/api/packages/create', isAuthenticated, async (req: any, res) => {
+  app.post('/api/packages/create', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(403).json({ message: "You must be a registered partner to create packages" });
-      }
+      const partner = (req as any).partner;
       
       if (!partner.verified) {
         return res.status(403).json({ message: "Partner account must be verified to create packages" });
@@ -6207,14 +6210,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get Partner Packages (Partner only)
-  app.get('/api/packages/my', isAuthenticated, async (req: any, res) => {
+  app.get('/api/packages/my', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(403).json({ message: "Partner profile required" });
-      }
+      const partner = (req as any).partner;
       
       const packages = await storage.getPartnerPackages(partner.id);
       
@@ -6226,9 +6224,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update Package (Partner only)
-  app.patch('/api/packages/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/packages/:id', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const partner = (req as any).partner;
       const packageId = req.params.id;
       
       const pkg = await storage.getPackage(packageId);
@@ -6236,8 +6234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Package not found" });
       }
       
-      const partner = await storage.getPartner(pkg.partnerId);
-      if (!partner || partner.ownerUserId !== userId) {
+      if (pkg.partnerId !== partner.id) {
         return res.status(403).json({ message: "You can only update your own packages" });
       }
       
@@ -6251,9 +6248,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete Package (Partner only)
-  app.delete('/api/packages/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/packages/:id', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const partner = (req as any).partner;
       const packageId = req.params.id;
       
       const pkg = await storage.getPackage(packageId);
@@ -6261,8 +6258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Package not found" });
       }
       
-      const partner = await storage.getPartner(pkg.partnerId);
-      if (!partner || partner.ownerUserId !== userId) {
+      if (pkg.partnerId !== partner.id) {
         return res.status(403).json({ message: "You can only delete your own packages" });
       }
       
@@ -6278,14 +6274,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============= COUPONS MANAGEMENT (Phase 12) =============
 
   // Create Coupon (Partner only)
-  app.post('/api/coupons/create', isAuthenticated, async (req: any, res) => {
+  app.post('/api/coupons/create', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(403).json({ message: "Partner profile required" });
-      }
+      const partner = (req as any).partner;
       
       const validatedData = insertCouponSchema.parse({
         ...req.body,
@@ -6357,9 +6348,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update Coupon (Partner only)
-  app.patch('/api/coupons/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/coupons/:id', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const partner = (req as any).partner;
       const couponId = req.params.id;
       
       const coupon = await storage.getCoupon(couponId);
@@ -6367,8 +6358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Coupon not found" });
       }
       
-      const partner = await storage.getPartner(coupon.partnerId!);
-      if (!partner || partner.ownerUserId !== userId) {
+      if (coupon.partnerId !== partner.id) {
         return res.status(403).json({ message: "You can only update your own coupons" });
       }
       
@@ -6382,9 +6372,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Deactivate Coupon (Partner only)
-  app.post('/api/coupons/:id/deactivate', isAuthenticated, async (req: any, res) => {
+  app.post('/api/coupons/:id/deactivate', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const partner = (req as any).partner;
       const couponId = req.params.id;
       
       const coupon = await storage.getCoupon(couponId);
@@ -6392,8 +6382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Coupon not found" });
       }
       
-      const partner = await storage.getPartner(coupon.partnerId!);
-      if (!partner || partner.ownerUserId !== userId) {
+      if (coupon.partnerId !== partner.id) {
         return res.status(403).json({ message: "You can only deactivate your own coupons" });
       }
       
@@ -6449,14 +6438,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get Partner's Affiliate Links (Partner only)
-  app.get('/api/affiliates/partner/my', isAuthenticated, async (req: any, res) => {
+  app.get('/api/affiliates/partner/my', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(403).json({ message: "Partner profile required" });
-      }
+      const partner = (req as any).partner;
       
       const links = await storage.getPartnerAffiliateLinks(partner.id);
       
@@ -6785,14 +6769,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============= OTA/DMO CONNECTORS (Phase 12) =============
 
   // Register OTA Connector (Partner only)
-  app.post('/api/connectors/ota/register', isAuthenticated, async (req: any, res) => {
+  app.post('/api/connectors/ota/register', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(403).json({ message: "Partner profile required" });
-      }
+      const partner = (req as any).partner;
       
       // Validate with Zod
       const validatedData = insertExternalConnectorSchema.parse({
@@ -6810,14 +6789,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get My Connectors (Partner only)
-  app.get('/api/connectors/my', isAuthenticated, async (req: any, res) => {
+  app.get('/api/connectors/my', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const partner = await storage.getPartnerByOwner(userId);
-      
-      if (!partner) {
-        return res.status(403).json({ message: "Partner profile required" });
-      }
+      const partner = (req as any).partner;
       
       const connectors = await storage.getPartnerConnectors(partner.id);
       
@@ -6829,9 +6803,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get Connector Details
-  app.get('/api/connectors/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/connectors/:id', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const partner = (req as any).partner;
       const connectorId = req.params.id;
       
       const connector = await storage.getExternalConnector(connectorId);
@@ -6841,8 +6815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify ownership
-      const partner = await storage.getPartner(connector.partnerId);
-      if (!partner || partner.ownerUserId !== userId) {
+      if (connector.partnerId !== partner.id) {
         return res.status(403).json({ message: "Not your connector" });
       }
       
@@ -6861,9 +6834,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Push Availability to OTA (Simulate sync)
-  app.post('/api/connectors/ota/push-availability', isAuthenticated, async (req: any, res) => {
+  app.post('/api/connectors/ota/push-availability', isAuthenticated, isPartner, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const partner = (req as any).partner;
       const { connectorId } = req.body;
       
       const connector = await storage.getExternalConnector(connectorId);
@@ -6873,8 +6846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify ownership
-      const partner = await storage.getPartner(connector.partnerId);
-      if (!partner || partner.ownerUserId !== userId) {
+      if (connector.partnerId !== partner.id) {
         return res.status(403).json({ message: "Not your connector" });
       }
       

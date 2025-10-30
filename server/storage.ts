@@ -505,6 +505,18 @@ export interface IStorage {
   deactivateUser(userId: string): Promise<void>;
   getUserPosts(userId: string): Promise<Post[]>;
   getUserMessages(userId: string): Promise<SelectMessage[]>;
+  
+  // Partner GDPR operations
+  getPartnerPackages(partnerId: string): Promise<Package[]>;
+  getPartnerCoupons(partnerId: string): Promise<Coupon[]>;
+  getUserAffiliateLinks(userId: string): Promise<AffiliateLink[]>;
+  getPartnerPayouts(partnerId: string): Promise<Payout[]>;
+  deactivatePartnerPackages(partnerId: string): Promise<void>;
+  deactivatePartnerCoupons(partnerId: string): Promise<void>;
+  anonymizePartnerProfile(partnerId: string): Promise<void>;
+  anonymizePartnerPayouts(partnerId: string): Promise<void>;
+  getUserReviews(userId: string): Promise<Review[]>;
+  getUserBookings(userId: string): Promise<BookingWithDetails[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4558,6 +4570,68 @@ export class DatabaseStorage implements IStorage {
       .from(messages)
       .where(eq(messages.senderId, userId))
       .orderBy(desc(messages.createdAt));
+  }
+
+  async getUserReviews(userId: string): Promise<Review[]> {
+    return db
+      .select()
+      .from(reviews)
+      .where(eq(reviews.userId, userId))
+      .orderBy(desc(reviews.createdAt));
+  }
+
+  async getUserBookings(userId: string): Promise<BookingWithDetails[]> {
+    return this.getBookings(userId);
+  }
+
+  // Partner GDPR operations
+  async getPartnerPackages(partnerId: string): Promise<Package[]> {
+    return await db.select().from(packages).where(eq(packages.partnerId, partnerId));
+  }
+
+  async getPartnerCoupons(partnerId: string): Promise<Coupon[]> {
+    return await db.select().from(coupons).where(eq(coupons.partnerId, partnerId));
+  }
+
+  async getUserAffiliateLinks(userId: string): Promise<AffiliateLink[]> {
+    return await db.select().from(affiliateLinks).where(eq(affiliateLinks.userId, userId));
+  }
+
+  async getPartnerPayouts(partnerId: string): Promise<Payout[]> {
+    return await db.select().from(payouts).where(eq(payouts.partnerId, partnerId));
+  }
+
+  async deactivatePartnerPackages(partnerId: string): Promise<void> {
+    await db.update(packages)
+      .set({ isActive: false })
+      .where(eq(packages.partnerId, partnerId));
+  }
+
+  async deactivatePartnerCoupons(partnerId: string): Promise<void> {
+    await db.update(coupons)
+      .set({ isActive: false })
+      .where(eq(coupons.partnerId, partnerId));
+  }
+
+  async anonymizePartnerProfile(partnerId: string): Promise<void> {
+    await db.update(partners)
+      .set({
+        businessName: 'DELETED_USER',
+        contactEmail: 'deleted@example.com',
+        contactPhone: null,
+        description: 'User data deleted per GDPR request',
+        website: null,
+        socialLinks: null,
+      })
+      .where(eq(partners.id, partnerId));
+  }
+
+  async anonymizePartnerPayouts(partnerId: string): Promise<void> {
+    await db.update(payouts)
+      .set({
+        metadata: { anonymized: true, reason: 'GDPR deletion' }
+      })
+      .where(eq(payouts.partnerId, partnerId));
   }
 
   // ============= PARTNERS METHODS (Phase 12) =============
