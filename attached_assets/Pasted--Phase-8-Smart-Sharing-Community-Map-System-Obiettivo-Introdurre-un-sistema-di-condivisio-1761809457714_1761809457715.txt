@@ -1,0 +1,65 @@
+🧭 Phase 8 – Smart Sharing & Community Map System
+
+🎯 Obiettivo
+
+Introdurre un sistema di condivisione intelligente e comunitaria che permetta ai turisti di ricondividere tour o servizi già esistenti, creando gruppi spontanei di prenotazione (SmartGroups) per abbattere i costi individuali e incentivare la partecipazione.
+
+Questa fase introduce anche la Community Map, una mappa interattiva che mostra i gruppi attivi nelle vicinanze e permette agli utenti di unirsi in tempo reale.
+
+⸻
+
+🧩 Funzionalità da Implementare
+
+1️⃣ 🤝 Smart Share Booking (Group Campaigns)
+	•	Aggiungere pulsante “🔁 Condividi per completare il tour” su tutte le pagine di tour e servizi.
+	•	Quando un turista clicca:
+	•	Si crea una SmartGroup Campaign legata al tour/servizio originale.
+	•	Il gruppo ha un numero target di partecipanti e un prezzo dinamico che diminuisce man mano che altri si uniscono.
+	•	Ogni utente può invitare amici con link o QR code univoco.
+	•	Al raggiungimento del numero minimo, il gruppo diventa “Attivo” e il pagamento si sblocca.
+
+Componenti da creare:
+	•	SmartShareCard → mostra titolo del tour, partecipanti, prezzo corrente, e pulsante “Unisciti al gruppo”.
+	•	JoinGroupModal → finestra modale per unirsi a un gruppo.
+	•	InviteFriendsPanel → sezione con link + QR code condivisibile.
+	•	GroupProgressBar → barra di avanzamento verso l’obiettivo.
+	•	GroupStatusBadge → mostra stato (Attivo / In formazione / Completato).
+
+⸻
+
+2️⃣ 🌍 Community Map – SmartGroups Map Integration
+	•	Aggiungere una nuova pagina Community Map raggiungibile dal menu principale.
+	•	Mostra una mappa interattiva (basata su OpenStreetMap o Google Maps API) con tutti i gruppi attivi e in formazione entro 50 km dall’utente.
+	•	Ogni gruppo viene rappresentato da un marker personalizzato TourConnect (logo TC arancione).
+	•	Cliccando un marker:
+	•	Si apre un pop-up con info: titolo del tour, partecipanti attuali, prezzo, e bottone “Unisciti”.
+	•	Possibilità di filtrare per:
+	•	Tipo (tour / servizio)
+	•	Categoria (es. cultura, food, sport)
+	•	Prezzo
+	•	Distanza
+	•	Stato gruppo (in formazione / attivo / completo)
+	•	Geolocalizzazione automatica dell’utente con pulsante “📍 Trova gruppi vicino a me”.
+
+Componenti da creare:
+	•	CommunityMapPage
+	•	SmartGroupMarker (custom marker con logo TC)
+	•	GroupPopupCard
+	•	MapFilterBar
+
+⸻
+
+3️⃣ 💬 Group Chat in Tempo Reale
+	•	Ogni gruppo ha una chat integrata per permettere ai membri di comunicare e coordinarsi.
+	•	WebSocket channel: smart_group_chat:{group_id}
+	•	Chat moderna con:
+	•	Indicatori di scrittura (“sta scrivendo…”)
+	•	Messaggi multilingua
+	•	Notifiche push in-app
+	•	Accesso limitato ai soli membri del gruppo.
+	•	Moderazione base + pulsante “Segnala comportamento inappropriato”.
+
+Componenti:
+	•	GroupChatPanel
+	•	ChatMessageBubble
+	•	ReportUserModal
