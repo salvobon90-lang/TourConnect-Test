@@ -61,6 +61,8 @@ const AdminLoginPage = lazy(() => import("@/pages/AdminLoginPage"));
 const GroupMarketplace = lazy(() => import("@/pages/group-marketplace"));
 const PartnerPortal = lazy(() => import("@/pages/PartnerPortal"));
 const PackageDetail = lazy(() => import("@/pages/PackageDetail"));
+const ServiceList = lazy(() => import("@/pages/ServiceList"));
+const ServiceDetail = lazy(() => import("@/pages/ServiceDetail"));
 
 // Loading fallback component
 function PageLoader() {
@@ -166,6 +168,8 @@ function Router() {
             <Route path="/tours/:id/3d" component={Tour3DPage} />
             <Route path="/tours/:id" component={TourDetail} />
             <Route path="/packages/:id" component={PackageDetail} />
+            <Route path="/services" component={ServiceList} />
+            <Route path="/services/:id" component={ServiceDetail} />
             <Route path="/book/:id" component={BookTour} />
             <Route path="/booking-success" component={BookingSuccess} />
             <Route path="/sponsorship-success" component={SponsorshipSuccess} />
