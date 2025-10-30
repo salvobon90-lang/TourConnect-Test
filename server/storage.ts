@@ -34,6 +34,16 @@ import {
   notifications,
   rewardPoints,
   levelThresholds,
+  partners,
+  packages,
+  packageBookings,
+  partnerAccounts,
+  payouts,
+  coupons,
+  affiliateLinks,
+  auditLogs,
+  externalConnectors,
+  externalInventoryMap,
   type User,
   type UpsertUser,
   type Tour,
@@ -105,6 +115,23 @@ import {
   type ServiceWithProvider,
   type BookingWithDetails,
   type UserRole,
+  type InsertPartner,
+  type Partner,
+  type InsertPackage,
+  type Package,
+  type InsertPackageBooking,
+  type PackageBooking,
+  type PartnerAccount,
+  type Payout,
+  type InsertAuditLog,
+  type AuditLog,
+  type InsertCoupon,
+  type Coupon,
+  type InsertAffiliateLink,
+  type AffiliateLink,
+  type InsertExternalConnector,
+  type ExternalConnector,
+  type ExternalInventoryMapping,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, gt, or, inArray, ne, gte, lte } from "drizzle-orm";
@@ -2712,13 +2739,10 @@ export class DatabaseStorage implements IStorage {
 
   // Update group status
   async updateGroupStatus(groupId: string, status: 'open' | 'full' | 'confirmed' | 'closed' | 'cancelled') {
-    const [updated] = await db
+    await db
       .update(groupBookings)
       .set({ status, updatedAt: new Date() })
-      .where(eq(groupBookings.id, groupId))
-      .returning();
-
-    return updated;
+      .where(eq(groupBookings.id, groupId));
   }
 
   // Get all group bookings for a user (via their bookings)
@@ -3433,10 +3457,8 @@ export class DatabaseStorage implements IStorage {
 
     // Award points for creating group
     await this.awardPoints(userId, 'smart_group_create', {
-      metadata: {
-        targetId: group.id,
-        description: `Created smart group: ${group.name}`,
-      },
+      targetId: group.id,
+      description: `Created smart group: ${group.name}`,
     });
 
     return group;
@@ -3502,8 +3524,8 @@ export class DatabaseStorage implements IStorage {
       return {
         ...r.group,
         creator: r.creator!,
-        tour: r.tour || undefined,
-        service: r.service || undefined,
+        tour: r.tour as any || undefined,
+        service: r.service as any || undefined,
         _count: {
           members: Number(r.memberCount),
           messages: Number(r.messageCount),
@@ -3512,7 +3534,7 @@ export class DatabaseStorage implements IStorage {
       };
     });
 
-    return groupsWithDistance.filter(g => g.distance <= radiusKm);
+    return groupsWithDistance.filter(g => g.distance <= radiusKm) as any;
   }
 
   // Get single smart group with details
@@ -3560,8 +3582,8 @@ export class DatabaseStorage implements IStorage {
     return {
       ...result.group,
       creator: result.creator!,
-      tour: result.tour || undefined,
-      service: result.service || undefined,
+      tour: result.tour as any || undefined,
+      service: result.service as any || undefined,
       members: membersData.map(m => ({ ...m.member, user: m.user! })),
       _count: {
         members: Number(counts[0]?.memberCount || 0),
@@ -3645,27 +3667,21 @@ export class DatabaseStorage implements IStorage {
 
     // Award points to joiner
     await this.awardPoints(userId, 'smart_group_join', {
-      metadata: {
-        targetId: groupId,
-        description: `Joined smart group: ${group.name}`,
-      },
+      targetId: groupId,
+      description: `Joined smart group: ${group.name}`,
     });
 
     // Award points to group creator for each participant
     await this.awardPoints(group.creatorId, 'smart_group_join', {
-      metadata: {
-        targetId: groupId,
-        description: `Participant joined your group: ${group.name}`,
-      },
+      targetId: groupId,
+      description: `Participant joined your group: ${group.name}`,
     });
 
     // If group is now complete, award completion bonus
     if (newStatus === 'full') {
       await this.awardPoints(group.creatorId, 'smart_group_complete', {
-        metadata: {
-          targetId: groupId,
-          description: `Smart group completed: ${group.name}`,
-        },
+        targetId: groupId,
+        description: `Smart group completed: ${group.name}`,
       });
     }
 
@@ -3758,13 +3774,13 @@ export class DatabaseStorage implements IStorage {
     return results.map(r => ({
       ...r.group,
       creator: r.creator!,
-      tour: r.tour || undefined,
-      service: r.service || undefined,
+      tour: r.tour as any || undefined,
+      service: r.service as any || undefined,
       _count: {
         members: Number(r.memberCount),
         messages: Number(r.messageCount),
       },
-    }));
+    })) as any;
   }
 
   // Get messages for a smart group
@@ -4440,24 +4456,18 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`COUNT(*)` })
       .from(smartGroups)
       .where(and(
-        eq(smartGroups.createdBy, userId),
+        eq(smartGroups.creatorId, userId),
         eq(smartGroups.status, 'completed')
       ));
 
     if (groupsCreated[0].count >= 5) {
-      await this.addRewardPoints(userId, 100, 'community_interaction', 'Earned Community Leader badge');
+      await this.awardPoints(userId, 'community_interaction', {
+        description: 'Earned Community Leader badge',
+      });
     }
   }
 
   // Group Booking Payment operations
-  async getGroupById(groupId: string): Promise<GroupBooking | undefined> {
-    const [group] = await db
-      .select()
-      .from(groupBookings)
-      .where(eq(groupBookings.id, groupId));
-    return group;
-  }
-
   async getExpiredGroups(): Promise<GroupBooking[]> {
     const now = new Date();
     return db
@@ -4470,16 +4480,6 @@ export class DatabaseStorage implements IStorage {
           sql`${groupBookings.expiresAt} IS NOT NULL`
         )
       );
-  }
-
-  async updateGroupStatus(groupId: string, status: string): Promise<void> {
-    await db
-      .update(groupBookings)
-      .set({ 
-        status: status as any,
-        updatedAt: new Date()
-      })
-      .where(eq(groupBookings.id, groupId));
   }
 
   async getGroupMembers(groupId: string): Promise<Array<{ userId: string; email: string; firstName: string; lastName: string }>> {
@@ -4504,11 +4504,11 @@ export class DatabaseStorage implements IStorage {
 
   // GDPR Compliance operations
   async deleteUserPosts(userId: string): Promise<void> {
-    await db.delete(posts).where(eq(posts.userId, userId));
+    await db.delete(posts).where(eq(posts.authorId, userId));
   }
 
   async deleteUserComments(userId: string): Promise<void> {
-    await db.delete(postComments).where(eq(postComments.userId, userId));
+    await db.delete(postComments).where(eq(postComments.authorId, userId));
   }
 
   async deleteUserLikes(userId: string): Promise<void> {
@@ -4548,7 +4548,7 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(posts)
-      .where(eq(posts.userId, userId))
+      .where(eq(posts.authorId, userId))
       .orderBy(desc(posts.createdAt));
   }
 
@@ -4558,6 +4558,1062 @@ export class DatabaseStorage implements IStorage {
       .from(messages)
       .where(eq(messages.senderId, userId))
       .orderBy(desc(messages.createdAt));
+  }
+
+  // ============= PARTNERS METHODS (Phase 12) =============
+
+  async createPartner(data: InsertPartner): Promise<Partner> {
+    const [partner] = await db.insert(partners).values(data).returning();
+    return partner;
+  }
+
+  async getPartner(partnerId: string): Promise<Partner | undefined> {
+    const [partner] = await db.select().from(partners).where(eq(partners.id, partnerId));
+    return partner;
+  }
+
+  async getPartnerByOwner(ownerUserId: string): Promise<Partner | undefined> {
+    const [partner] = await db.select().from(partners).where(eq(partners.ownerUserId, ownerUserId));
+    return partner;
+  }
+
+  async getAllPartners(filters?: { type?: string; verified?: boolean }): Promise<Partner[]> {
+    let query = db.select().from(partners);
+    
+    if (filters?.type) {
+      query = query.where(eq(partners.type, filters.type)) as any;
+    }
+    
+    if (filters?.verified !== undefined) {
+      const condition = filters.verified 
+        ? eq(partners.verified, true)
+        : eq(partners.verified, false);
+      query = query.where(condition) as any;
+    }
+    
+    return await query;
+  }
+
+  async updatePartner(partnerId: string, data: Partial<InsertPartner>): Promise<Partner> {
+    const [updated] = await db
+      .update(partners)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(partners.id, partnerId))
+      .returning();
+    return updated;
+  }
+
+  async verifyPartner(partnerId: string, verifiedBy: string): Promise<Partner> {
+    const [partner] = await db
+      .update(partners)
+      .set({ 
+        verified: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(partners.id, partnerId))
+      .returning();
+    
+    // Log audit trail
+    await this.createAuditLog({
+      userId: verifiedBy,
+      action: 'verify_partner',
+      entityType: 'partner',
+      entityId: partnerId,
+      changes: { 
+        before: { verified: false }, 
+        after: { verified: true } 
+      },
+    });
+    
+    return partner;
+  }
+
+  async deletePartner(partnerId: string): Promise<void> {
+    await db.delete(partners).where(eq(partners.id, partnerId));
+  }
+
+  // Audit log helper
+  async createAuditLog(data: InsertAuditLog): Promise<AuditLog> {
+    const [log] = await db.insert(auditLogs).values(data).returning();
+    return log;
+  }
+
+  async getPartnerAnalytics(partnerId: string): Promise<{
+    totalPackages: number;
+    activePackages: number;
+    totalBookings: number;
+    totalRevenue: string;
+    conversionRate: number;
+  }> {
+    // Get packages count
+    const partnerPackages = await db
+      .select()
+      .from(packages)
+      .where(eq(packages.partnerId, partnerId));
+    
+    const totalPackages = partnerPackages.length;
+    const activePackages = partnerPackages.filter(p => p.isActive).length;
+    
+    // Get bookings count and revenue
+    const packageIds = partnerPackages.map(p => p.id);
+    
+    let totalBookings = 0;
+    let totalRevenue = '0';
+    
+    if (packageIds.length > 0) {
+      const bookings = await db
+        .select()
+        .from(packageBookings)
+        .where(
+          and(
+            inArray(packageBookings.packageId, packageIds),
+            eq(packageBookings.paymentStatus, 'paid')
+          )
+        );
+      
+      totalBookings = bookings.length;
+      totalRevenue = bookings
+        .reduce((sum, b) => sum + parseFloat(b.totalPrice), 0)
+        .toFixed(2);
+    }
+    
+    // Calculate conversion rate (mock analytics - in production, use analyticsEvents)
+    const conversionRate = totalPackages > 0 
+      ? (totalBookings / (totalPackages * 10)) * 100 // Simplified calculation
+      : 0;
+    
+    return {
+      totalPackages,
+      activePackages,
+      totalBookings,
+      totalRevenue,
+      conversionRate: Math.round(conversionRate * 100) / 100,
+    };
+  }
+
+  // ============= PACKAGES METHODS (Phase 12) =============
+
+  async createPackage(data: InsertPackage): Promise<Package> {
+    const [pkg] = await db.insert(packages).values([data]).returning();
+    
+    // Award points for package creation
+    const partner = await this.getPartner(data.partnerId);
+    if (partner) {
+      await this.awardPoints(partner.ownerUserId, 'package_created', {
+        description: 'Package created',
+        targetId: pkg.id,
+      });
+    }
+    
+    return pkg;
+  }
+
+  async getPackage(packageId: string): Promise<Package | undefined> {
+    const [pkg] = await db.select().from(packages).where(eq(packages.id, packageId));
+    return pkg;
+  }
+
+  async getPackageWithDetails(packageId: string): Promise<any> {
+    const pkg = await this.getPackage(packageId);
+    if (!pkg) return undefined;
+    
+    // Fetch partner details
+    const partner = await this.getPartner(pkg.partnerId);
+    
+    // Fetch items details (tours, services, etc.)
+    const itemsDetails = await Promise.all(
+      pkg.items.map(async (item: any) => {
+        if (item.type === 'tour') {
+          const tour = await this.getTour(item.id);
+          return { ...item, details: tour };
+        } else if (item.type === 'service') {
+          const service = await this.getService(item.id);
+          return { ...item, details: service };
+        }
+        return item;
+      })
+    );
+    
+    return {
+      ...pkg,
+      partner,
+      itemsDetails,
+    };
+  }
+
+  async searchPackages(filters: {
+    destination?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    dateFrom?: string;
+    verified?: boolean;
+    sortBy?: 'price_low' | 'price_high' | 'newest';
+    limit?: number;
+  }): Promise<Package[]> {
+    const conditions = [eq(packages.isActive, true)];
+    
+    // Price filters
+    if (filters.minPrice !== undefined) {
+      conditions.push(sql`CAST(${packages.basePrice} AS DECIMAL) >= ${filters.minPrice}`);
+    }
+    
+    if (filters.maxPrice !== undefined) {
+      conditions.push(sql`CAST(${packages.basePrice} AS DECIMAL) <= ${filters.maxPrice}`);
+    }
+    
+    let query = db
+      .select()
+      .from(packages)
+      .where(and(...conditions));
+    
+    // Sort
+    if (filters.sortBy === 'price_low') {
+      query = query.orderBy(asc(packages.basePrice)) as any;
+    } else if (filters.sortBy === 'price_high') {
+      query = query.orderBy(desc(packages.basePrice)) as any;
+    } else {
+      query = query.orderBy(desc(packages.createdAt)) as any;
+    }
+    
+    // Limit
+    if (filters.limit) {
+      query = query.limit(filters.limit) as any;
+    }
+    
+    const pkgs = await query;
+    
+    // Filter by verified partner if requested
+    if (filters.verified) {
+      const verifiedPkgs = await Promise.all(
+        pkgs.map(async (pkg) => {
+          const partner = await this.getPartner(pkg.partnerId);
+          return partner?.verified ? pkg : null;
+        })
+      );
+      return verifiedPkgs.filter(Boolean) as Package[];
+    }
+    
+    return pkgs;
+  }
+
+  async getPartnerPackages(partnerId: string): Promise<Package[]> {
+    return await db
+      .select()
+      .from(packages)
+      .where(eq(packages.partnerId, partnerId))
+      .orderBy(desc(packages.createdAt));
+  }
+
+  async updatePackage(packageId: string, data: Partial<InsertPackage>): Promise<Package> {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    const [updated] = await db
+      .update(packages)
+      .set(updateData)
+      .where(eq(packages.id, packageId))
+      .returning();
+    return updated;
+  }
+
+  async deletePackage(packageId: string): Promise<void> {
+    await db.delete(packages).where(eq(packages.id, packageId));
+  }
+
+  // Calculate package final price with discounts
+  calculatePackagePrice(pkg: Package, participants: number = 1): {
+    basePrice: number;
+    discount: number;
+    finalPrice: number;
+    discountPercentage: number;
+  } {
+    const basePrice = parseFloat(pkg.basePrice);
+    let discount = 0;
+    
+    if (pkg.discountRules) {
+      const rules = pkg.discountRules as any;
+      
+      // Check if participants meet minimum for discount
+      if (rules.minParticipants && participants >= Number(rules.minParticipants)) {
+        if (rules.type === 'percentage') {
+          discount = (basePrice * Number(rules.value)) / 100;
+        } else if (rules.type === 'fixed') {
+          discount = Number(rules.value);
+        }
+      }
+    }
+    
+    const finalPrice = Math.max(0, basePrice - discount);
+    const discountPercentage = basePrice > 0 ? (discount / basePrice) * 100 : 0;
+    
+    return {
+      basePrice,
+      discount,
+      finalPrice,
+      discountPercentage: Math.round(discountPercentage * 100) / 100,
+    };
+  }
+
+  // ============= PACKAGE BOOKINGS METHODS =============
+
+  async createPackageBooking(data: InsertPackageBooking): Promise<PackageBooking> {
+    const [booking] = await db.insert(packageBookings).values(data).returning();
+    
+    // Track booking event
+    await this.trackEvent({
+      eventType: "conversion",
+      eventCategory: "package_booking",
+      targetId: data.packageId,
+      targetType: "package",
+      userId: data.userId,
+    });
+    
+    return booking;
+  }
+
+  async getPackageBooking(bookingId: string): Promise<PackageBooking | undefined> {
+    const [booking] = await db
+      .select()
+      .from(packageBookings)
+      .where(eq(packageBookings.id, bookingId));
+    return booking;
+  }
+
+  async getUserPackageBookings(userId: string): Promise<PackageBooking[]> {
+    return await db
+      .select()
+      .from(packageBookings)
+      .where(eq(packageBookings.userId, userId))
+      .orderBy(desc(packageBookings.createdAt));
+  }
+
+  async getPartnerPackageBookings(partnerId: string): Promise<PackageBooking[]> {
+    // Get all packages for this partner
+    const partnerPkgs = await this.getPartnerPackages(partnerId);
+    const packageIds = partnerPkgs.map(p => p.id);
+    
+    if (packageIds.length === 0) return [];
+    
+    return await db
+      .select()
+      .from(packageBookings)
+      .where(inArray(packageBookings.packageId, packageIds))
+      .orderBy(desc(packageBookings.createdAt));
+  }
+
+  async updatePackageBooking(bookingId: string, data: Partial<InsertPackageBooking>): Promise<PackageBooking> {
+    const [updated] = await db
+      .update(packageBookings)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(packageBookings.id, bookingId))
+      .returning();
+    return updated;
+  }
+
+  // Apply coupon to booking
+  async applyCoupon(couponCode: string, packageId: string, basePrice: number): Promise<{
+    valid: boolean;
+    discount: number;
+    finalPrice: number;
+    message?: string;
+  }> {
+    const [coupon] = await db
+      .select()
+      .from(coupons)
+      .where(eq(coupons.code, couponCode.toUpperCase()));
+    
+    if (!coupon) {
+      return { valid: false, discount: 0, finalPrice: basePrice, message: 'Invalid coupon code' };
+    }
+    
+    if (!coupon.isActive) {
+      return { valid: false, discount: 0, finalPrice: basePrice, message: 'Coupon is inactive' };
+    }
+    
+    const now = new Date();
+    if (now < coupon.validFrom || now > coupon.validTo) {
+      return { valid: false, discount: 0, finalPrice: basePrice, message: 'Coupon expired or not yet valid' };
+    }
+    
+    if (coupon.usageLimit && (coupon.usageCount || 0) >= coupon.usageLimit) {
+      return { valid: false, discount: 0, finalPrice: basePrice, message: 'Coupon usage limit reached' };
+    }
+    
+    // Calculate discount
+    let discount = 0;
+    if (coupon.type === 'percentage') {
+      discount = (basePrice * parseFloat(coupon.value)) / 100;
+    } else {
+      discount = parseFloat(coupon.value);
+    }
+    
+    const finalPrice = Math.max(0, basePrice - discount);
+    
+    // Increment usage count
+    await db
+      .update(coupons)
+      .set({ usageCount: (coupon.usageCount || 0) + 1 })
+      .where(eq(coupons.id, coupon.id));
+    
+    return {
+      valid: true,
+      discount,
+      finalPrice,
+    };
+  }
+
+  // Track affiliate click
+  async trackAffiliateClick(affiliateCode: string): Promise<void> {
+    const [link] = await db
+      .select()
+      .from(affiliateLinks)
+      .where(eq(affiliateLinks.affiliateCode, affiliateCode.toUpperCase()));
+    
+    if (link) {
+      await db
+        .update(affiliateLinks)
+        .set({ clicks: (link.clicks || 0) + 1 })
+        .where(eq(affiliateLinks.id, link.id));
+    }
+  }
+
+  // Track affiliate conversion
+  async trackAffiliateConversion(affiliateCode: string, revenue: number): Promise<void> {
+    const [link] = await db
+      .select()
+      .from(affiliateLinks)
+      .where(eq(affiliateLinks.affiliateCode, affiliateCode.toUpperCase()));
+    
+    if (link) {
+      const currentRevenue = link.revenue ? parseFloat(link.revenue) : 0;
+      const newRevenue = currentRevenue + revenue;
+      const commission = (revenue * parseFloat(link.commissionPct)) / 100;
+      
+      await db
+        .update(affiliateLinks)
+        .set({
+          conversions: (link.conversions || 0) + 1,
+          revenue: newRevenue.toFixed(2),
+        })
+        .where(eq(affiliateLinks.id, link.id));
+      
+      // Award points to affiliate user if exists
+      if (link.userId) {
+        await this.awardPoints(link.userId, 'affiliate_conversion', {
+          description: `Affiliate commission: €${commission.toFixed(2)}`,
+          targetId: link.id,
+        });
+      }
+    }
+  }
+
+  // ============= COUPONS METHODS (Phase 12) =============
+
+  async createCoupon(data: InsertCoupon): Promise<Coupon> {
+    const [coupon] = await db.insert(coupons).values(data).returning();
+    return coupon;
+  }
+
+  async getCoupon(couponId: string): Promise<Coupon | undefined> {
+    const [coupon] = await db.select().from(coupons).where(eq(coupons.id, couponId));
+    return coupon;
+  }
+
+  async getCouponByCode(code: string): Promise<Coupon | undefined> {
+    const [coupon] = await db
+      .select()
+      .from(coupons)
+      .where(eq(coupons.code, code.toUpperCase()));
+    return coupon;
+  }
+
+  async getPartnerCoupons(partnerId: string): Promise<Coupon[]> {
+    return await db
+      .select()
+      .from(coupons)
+      .where(eq(coupons.partnerId, partnerId))
+      .orderBy(desc(coupons.createdAt));
+  }
+
+  async updateCoupon(couponId: string, data: Partial<InsertCoupon>): Promise<Coupon> {
+    const [updated] = await db
+      .update(coupons)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(coupons.id, couponId))
+      .returning();
+    return updated;
+  }
+
+  async deleteCoupon(couponId: string): Promise<void> {
+    await db.delete(coupons).where(eq(coupons.id, couponId));
+  }
+
+  async deactivateCoupon(couponId: string): Promise<Coupon> {
+    const [updated] = await db
+      .update(coupons)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(coupons.id, couponId))
+      .returning();
+    return updated;
+  }
+
+  // ============= AFFILIATE LINKS METHODS (Phase 12) =============
+
+  async createAffiliateLink(data: InsertAffiliateLink): Promise<AffiliateLink> {
+    const [link] = await db.insert(affiliateLinks).values(data).returning();
+    return link;
+  }
+
+  async getAffiliateLink(linkId: string): Promise<AffiliateLink | undefined> {
+    const [link] = await db.select().from(affiliateLinks).where(eq(affiliateLinks.id, linkId));
+    return link;
+  }
+
+  async getAffiliateLinkByCode(code: string): Promise<AffiliateLink | undefined> {
+    const [link] = await db
+      .select()
+      .from(affiliateLinks)
+      .where(eq(affiliateLinks.affiliateCode, code.toUpperCase()));
+    return link;
+  }
+
+  async getPartnerAffiliateLinks(partnerId: string): Promise<AffiliateLink[]> {
+    return await db
+      .select()
+      .from(affiliateLinks)
+      .where(eq(affiliateLinks.partnerId, partnerId))
+      .orderBy(desc(affiliateLinks.createdAt));
+  }
+
+  async getUserAffiliateLinks(userId: string): Promise<AffiliateLink[]> {
+    return await db
+      .select()
+      .from(affiliateLinks)
+      .where(eq(affiliateLinks.userId, userId))
+      .orderBy(desc(affiliateLinks.createdAt));
+  }
+
+  async updateAffiliateLink(linkId: string, data: Partial<InsertAffiliateLink>): Promise<AffiliateLink> {
+    const [updated] = await db
+      .update(affiliateLinks)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(affiliateLinks.id, linkId))
+      .returning();
+    return updated;
+  }
+
+  async deleteAffiliateLink(linkId: string): Promise<void> {
+    await db.delete(affiliateLinks).where(eq(affiliateLinks.id, linkId));
+  }
+
+  async deactivateAffiliateLink(linkId: string): Promise<AffiliateLink> {
+    const [updated] = await db
+      .update(affiliateLinks)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(affiliateLinks.id, linkId))
+      .returning();
+    return updated;
+  }
+
+  async getAffiliateStats(affiliateCode: string): Promise<{
+    clicks: number;
+    conversions: number;
+    revenue: string;
+    conversionRate: number;
+    averageOrderValue: string;
+  }> {
+    const link = await this.getAffiliateLinkByCode(affiliateCode);
+    
+    if (!link) {
+      return {
+        clicks: 0,
+        conversions: 0,
+        revenue: '0',
+        conversionRate: 0,
+        averageOrderValue: '0',
+      };
+    }
+    
+    const clicks = link.clicks ?? 0;
+    const conversions = link.conversions ?? 0;
+    const revenue = link.revenue ?? '0';
+    
+    const conversionRate = clicks > 0 
+      ? (conversions / clicks) * 100 
+      : 0;
+    
+    const averageOrderValue = conversions > 0
+      ? (parseFloat(revenue) / conversions).toFixed(2)
+      : '0';
+    
+    return {
+      clicks,
+      conversions,
+      revenue,
+      conversionRate: Math.round(conversionRate * 100) / 100,
+      averageOrderValue,
+    };
+  }
+
+  // ============= PARTNER ACCOUNTS & PAYOUTS (Phase 12 - Stripe Connect) =============
+
+  async createPartnerAccount(data: { partnerId: string; stripeAccountId: string }): Promise<PartnerAccount> {
+    const [account] = await db.insert(partnerAccounts).values({
+      partnerId: data.partnerId,
+      stripeAccountId: data.stripeAccountId,
+      status: 'pending',
+      onboardingComplete: false,
+    }).returning();
+    return account;
+  }
+
+  async getPartnerAccount(partnerId: string): Promise<PartnerAccount | undefined> {
+    const [account] = await db
+      .select()
+      .from(partnerAccounts)
+      .where(eq(partnerAccounts.partnerId, partnerId));
+    return account;
+  }
+
+  async updatePartnerAccount(accountId: string, data: Partial<{
+    stripeAccountId: string;
+    status: string;
+    onboardingComplete: boolean;
+  }>): Promise<PartnerAccount> {
+    const [updated] = await db
+      .update(partnerAccounts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(partnerAccounts.id, accountId))
+      .returning();
+    return updated;
+  }
+
+  async createPayout(data: {
+    partnerId: string;
+    amount: string;
+    currency: string;
+    periodStart: Date;
+    periodEnd: Date;
+    stripePayoutId?: string;
+  }): Promise<Payout> {
+    const [payout] = await db.insert(payouts).values({
+      ...data,
+      status: 'pending',
+    }).returning();
+    return payout;
+  }
+
+  async getPartnerPayouts(partnerId: string): Promise<Payout[]> {
+    return await db
+      .select()
+      .from(payouts)
+      .where(eq(payouts.partnerId, partnerId))
+      .orderBy(desc(payouts.createdAt));
+  }
+
+  async updatePayoutStatus(payoutId: string, status: string, stripePayoutId?: string): Promise<Payout> {
+    const [updated] = await db
+      .update(payouts)
+      .set({ 
+        status, 
+        stripePayoutId,
+        processedAt: status === 'completed' ? new Date() : undefined 
+      })
+      .where(eq(payouts.id, payoutId))
+      .returning();
+    return updated;
+  }
+
+  // Calculate partner revenue for a period
+  async calculatePartnerRevenue(partnerId: string, periodStart: Date, periodEnd: Date): Promise<{
+    totalRevenue: string;
+    platformFee: string;
+    partnerAmount: string;
+    bookingsCount: number;
+  }> {
+    const packages = await this.getPartnerPackages(partnerId);
+    const packageIds = packages.map(p => p.id);
+    
+    if (packageIds.length === 0) {
+      return {
+        totalRevenue: '0',
+        platformFee: '0',
+        partnerAmount: '0',
+        bookingsCount: 0,
+      };
+    }
+    
+    const bookings = await db
+      .select()
+      .from(packageBookings)
+      .where(
+        and(
+          inArray(packageBookings.packageId, packageIds),
+          eq(packageBookings.paymentStatus, 'paid'),
+          gte(packageBookings.createdAt, periodStart),
+          lte(packageBookings.createdAt, periodEnd)
+        )
+      );
+    
+    const totalRevenue = bookings.reduce((sum, b) => sum + parseFloat(b.totalPrice), 0);
+    const platformFeePercentage = 0.15; // 15% platform fee
+    const platformFee = totalRevenue * platformFeePercentage;
+    const partnerAmount = totalRevenue - platformFee;
+    
+    return {
+      totalRevenue: totalRevenue.toFixed(2),
+      platformFee: platformFee.toFixed(2),
+      partnerAmount: partnerAmount.toFixed(2),
+      bookingsCount: bookings.length,
+    };
+  }
+
+  // ============= ADVANCED PARTNER ANALYTICS (Phase 12) =============
+
+  async getPartnerTopPackages(partnerId: string, limit: number = 10): Promise<Array<{
+    package: Package;
+    totalBookings: number;
+    totalRevenue: string;
+    averageRating?: number;
+  }>> {
+    const packages = await this.getPartnerPackages(partnerId);
+    const packageIds = packages.map(p => p.id);
+    
+    if (packageIds.length === 0) return [];
+    
+    // Get all bookings for these packages
+    const bookings = await db
+      .select()
+      .from(packageBookings)
+      .where(
+        and(
+          inArray(packageBookings.packageId, packageIds),
+          eq(packageBookings.paymentStatus, 'paid')
+        )
+      );
+    
+    // Calculate stats per package
+    const packageStats = new Map<string, { totalBookings: number; totalRevenue: number }>();
+    
+    bookings.forEach(booking => {
+      const current = packageStats.get(booking.packageId) || { totalBookings: 0, totalRevenue: 0 };
+      current.totalBookings++;
+      current.totalRevenue += parseFloat(booking.totalPrice);
+      packageStats.set(booking.packageId, current);
+    });
+    
+    // Build results
+    const results = packages
+      .map(pkg => {
+        const stats = packageStats.get(pkg.id) || { totalBookings: 0, totalRevenue: 0 };
+        return {
+          package: pkg,
+          totalBookings: stats.totalBookings,
+          totalRevenue: stats.totalRevenue.toFixed(2),
+        };
+      })
+      .sort((a, b) => parseFloat(b.totalRevenue) - parseFloat(a.totalRevenue))
+      .slice(0, limit);
+    
+    return results;
+  }
+
+  async getPartnerMonthlyTrends(partnerId: string, months: number = 6): Promise<Array<{
+    month: string;
+    bookings: number;
+    revenue: string;
+    newCustomers: number;
+  }>> {
+    const packages = await this.getPartnerPackages(partnerId);
+    const packageIds = packages.map(p => p.id);
+    
+    if (packageIds.length === 0) return [];
+    
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - months);
+    
+    const bookings = await db
+      .select()
+      .from(packageBookings)
+      .where(
+        and(
+          inArray(packageBookings.packageId, packageIds),
+          eq(packageBookings.paymentStatus, 'paid'),
+          gte(packageBookings.createdAt, startDate)
+        )
+      )
+      .orderBy(asc(packageBookings.createdAt));
+    
+    // Group by month
+    const monthlyData = new Map<string, {
+      bookings: number;
+      revenue: number;
+      customers: Set<string>;
+    }>();
+    
+    bookings.forEach(booking => {
+      const monthKey = new Date(booking.createdAt).toISOString().substring(0, 7);
+      const current = monthlyData.get(monthKey) || {
+        bookings: 0,
+        revenue: 0,
+        customers: new Set<string>(),
+      };
+      
+      current.bookings++;
+      current.revenue += parseFloat(booking.totalPrice);
+      current.customers.add(booking.userId);
+      
+      monthlyData.set(monthKey, current);
+    });
+    
+    // Convert to array
+    const results: Array<{
+      month: string;
+      bookings: number;
+      revenue: string;
+      newCustomers: number;
+    }> = [];
+    
+    monthlyData.forEach((data, month) => {
+      results.push({
+        month,
+        bookings: data.bookings,
+        revenue: data.revenue.toFixed(2),
+        newCustomers: data.customers.size,
+      });
+    });
+    
+    return results.sort((a, b) => a.month.localeCompare(b.month));
+  }
+
+  async exportPartnerData(partnerId: string): Promise<{
+    partner: Partner;
+    packages: Package[];
+    bookings: PackageBooking[];
+    analytics: any;
+    coupons: Coupon[];
+    affiliates: AffiliateLink[];
+  }> {
+    const [
+      partner,
+      packages,
+      bookings,
+      analytics,
+      coupons,
+      affiliates,
+    ] = await Promise.all([
+      this.getPartner(partnerId),
+      this.getPartnerPackages(partnerId),
+      this.getPartnerPackageBookings(partnerId),
+      this.getPartnerAnalytics(partnerId),
+      this.getPartnerCoupons(partnerId),
+      this.getPartnerAffiliateLinks(partnerId),
+    ]);
+    
+    return {
+      partner: partner!,
+      packages,
+      bookings,
+      analytics,
+      coupons,
+      affiliates,
+    };
+  }
+
+  // ============= EXTERNAL CONNECTORS (OTA/DMO) - Phase 12 =============
+
+  async createExternalConnector(data: InsertExternalConnector): Promise<ExternalConnector> {
+    const [connector] = await this.db.insert(externalConnectors).values(data).returning();
+    
+    // Log audit trail
+    await this.createAuditLog({
+      userId: null,
+      action: 'create_connector',
+      entityType: 'external_connector',
+      entityId: connector.id,
+      changes: { after: connector },
+    });
+    
+    return connector;
+  }
+
+  async getExternalConnector(connectorId: string): Promise<ExternalConnector | undefined> {
+    const [connector] = await this.db
+      .select()
+      .from(externalConnectors)
+      .where(eq(externalConnectors.id, connectorId));
+    return connector;
+  }
+
+  async getPartnerConnectors(partnerId: string): Promise<ExternalConnector[]> {
+    return await this.db
+      .select()
+      .from(externalConnectors)
+      .where(eq(externalConnectors.partnerId, partnerId))
+      .orderBy(desc(externalConnectors.createdAt));
+  }
+
+  async updateExternalConnector(connectorId: string, data: Partial<InsertExternalConnector>): Promise<ExternalConnector> {
+    const [updated] = await this.db
+      .update(externalConnectors)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(externalConnectors.id, connectorId))
+      .returning();
+    return updated;
+  }
+
+  async updateConnectorStatus(connectorId: string, status: string, lastSyncAt?: Date): Promise<ExternalConnector> {
+    const [updated] = await this.db
+      .update(externalConnectors)
+      .set({ 
+        status, 
+        lastSyncAt: lastSyncAt || new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(externalConnectors.id, connectorId))
+      .returning();
+    return updated;
+  }
+
+  async deleteExternalConnector(connectorId: string): Promise<void> {
+    await this.db.delete(externalConnectors).where(eq(externalConnectors.id, connectorId));
+  }
+
+  // ============= INVENTORY MAPPING =============
+
+  async createInventoryMap(data: {
+    connectorId: string;
+    externalId: string;
+    localType: string;
+    localId: string;
+  }): Promise<ExternalInventoryMapping> {
+    const [mapping] = await this.db.insert(externalInventoryMap).values({
+      ...data,
+      lastSyncAt: new Date(),
+      syncStatus: 'synced',
+    }).returning();
+    return mapping;
+  }
+
+  async getInventoryMap(connectorId: string, externalId: string): Promise<ExternalInventoryMapping | undefined> {
+    const [mapping] = await this.db
+      .select()
+      .from(externalInventoryMap)
+      .where(
+        and(
+          eq(externalInventoryMap.connectorId, connectorId),
+          eq(externalInventoryMap.externalId, externalId)
+        )
+      );
+    return mapping;
+  }
+
+  async getConnectorMappings(connectorId: string): Promise<ExternalInventoryMapping[]> {
+    return await this.db
+      .select()
+      .from(externalInventoryMap)
+      .where(eq(externalInventoryMap.connectorId, connectorId))
+      .orderBy(desc(externalInventoryMap.lastSyncAt));
+  }
+
+  async updateInventoryMapStatus(
+    connectorId: string,
+    externalId: string,
+    syncStatus: string
+  ): Promise<ExternalInventoryMapping> {
+    const [updated] = await this.db
+      .update(externalInventoryMap)
+      .set({
+        syncStatus,
+        lastSyncAt: new Date(),
+      })
+      .where(
+        and(
+          eq(externalInventoryMap.connectorId, connectorId),
+          eq(externalInventoryMap.externalId, externalId)
+        )
+      )
+      .returning();
+    return updated;
+  }
+
+  async deleteInventoryMap(connectorId: string, externalId: string): Promise<void> {
+    await this.db
+      .delete(externalInventoryMap)
+      .where(
+        and(
+          eq(externalInventoryMap.connectorId, connectorId),
+          eq(externalInventoryMap.externalId, externalId)
+        )
+      );
+  }
+
+  // Sync scheduler simulation
+  async syncConnector(connectorId: string): Promise<{
+    success: boolean;
+    itemsSynced: number;
+    errors: string[];
+  }> {
+    const connector = await this.getExternalConnector(connectorId);
+    
+    if (!connector) {
+      return { success: false, itemsSynced: 0, errors: ['Connector not found'] };
+    }
+    
+    if (connector.status !== 'active') {
+      return { success: false, itemsSynced: 0, errors: ['Connector not active'] };
+    }
+    
+    try {
+      // Get partner packages to sync
+      const packages = await this.getPartnerPackages(connector.partnerId);
+      
+      const errors: string[] = [];
+      let itemsSynced = 0;
+      
+      for (const pkg of packages) {
+        try {
+          // Check if mapping exists
+          const externalId = `ext_${pkg.id.substring(0, 8)}`;
+          let mapping = await this.getInventoryMap(connector.id, externalId);
+          
+          if (!mapping) {
+            // Create new mapping
+            await this.createInventoryMap({
+              connectorId: connector.id,
+              externalId,
+              localType: 'package',
+              localId: pkg.id,
+            });
+          } else {
+            // Update existing mapping
+            await this.updateInventoryMapStatus(connector.id, externalId, 'synced');
+          }
+          
+          itemsSynced++;
+        } catch (err: any) {
+          errors.push(`Failed to sync package ${pkg.id}: ${err.message}`);
+        }
+      }
+      
+      // Update connector last sync
+      await this.updateConnectorStatus(
+        connector.id,
+        errors.length > 0 ? 'error' : 'active',
+        new Date()
+      );
+      
+      return {
+        success: errors.length === 0,
+        itemsSynced,
+        errors,
+      };
+    } catch (error: any) {
+      await this.updateConnectorStatus(connector.id, 'error');
+      return {
+        success: false,
+        itemsSynced: 0,
+        errors: [error.message],
+      };
+    }
   }
 }
 

@@ -73,7 +73,7 @@ export const trustLevels = ["explorer", "pathfinder", "trailblazer", "navigator"
 export type TrustLevel = typeof trustLevels[number];
 
 // Reward action types enum (Phase 6, expanded in Phase 8, Phase 9, Phase 10, Phase 11)
-export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share", "search_like", "search_review", "subscription_complete", "partnership_confirmed", "create_public_group", "join_group", "community_interaction", "complete_tour_100", "community_leader_badge", "share_completed_tour"] as const;
+export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share", "search_like", "search_review", "subscription_complete", "partnership_confirmed", "create_public_group", "join_group", "community_interaction", "complete_tour_100", "community_leader_badge", "share_completed_tour", "partner_sale", "package_created", "affiliate_conversion"] as const;
 export type RewardActionType = typeof rewardActionTypes[number];
 
 // Reward level tiers enum (Phase 6)
@@ -99,6 +99,42 @@ export type GroupEventType = typeof groupEventTypes[number];
 // Group event status enum (Phase 9)
 export const groupEventStatuses = ["pending", "notified", "completed", "cancelled"] as const;
 export type GroupEventStatus = typeof groupEventStatuses[number];
+
+// Partner types enum (Phase 12)
+export const partnerTypes = ["agency", "hotel", "dmo", "ota", "transport"] as const;
+export type PartnerType = typeof partnerTypes[number];
+
+// Package item types enum (Phase 12)
+export const packageItemTypes = ["tour", "service", "transport", "extra"] as const;
+export type PackageItemType = typeof packageItemTypes[number];
+
+// Package booking status enum (Phase 12)
+export const packageBookingStatuses = ["pending", "confirmed", "cancelled", "completed"] as const;
+export type PackageBookingStatus = typeof packageBookingStatuses[number];
+
+// Payment status enum (Phase 12)
+export const paymentStatuses = ["pending", "paid", "refunded", "failed"] as const;
+export type PaymentStatus = typeof paymentStatuses[number];
+
+// Partner account status enum (Phase 12)
+export const partnerAccountStatuses = ["pending", "active", "suspended"] as const;
+export type PartnerAccountStatus = typeof partnerAccountStatuses[number];
+
+// Payout status enum (Phase 12)
+export const payoutStatuses = ["pending", "processing", "completed", "failed"] as const;
+export type PayoutStatus = typeof payoutStatuses[number];
+
+// Coupon type enum (Phase 12)
+export const couponTypes = ["percentage", "fixed"] as const;
+export type CouponType = typeof couponTypes[number];
+
+// Connector type enum (Phase 12)
+export const connectorTypes = ["ota", "dmo", "custom"] as const;
+export type ConnectorType = typeof connectorTypes[number];
+
+// Sync status enum (Phase 12)
+export const syncStatuses = ["synced", "pending", "error"] as const;
+export type SyncStatus = typeof syncStatuses[number];
 
 // Points awarded for each action (Phase 6, expanded in Phase 9, Phase 10, Phase 11)
 export const rewardPoints = {
@@ -128,6 +164,10 @@ export const rewardPoints = {
   complete_tour_100: 200,
   community_leader_badge: 150,
   share_completed_tour: 25,
+  // Phase 12 - Partner rewards
+  partner_sale: 100,
+  package_created: 50,
+  affiliate_conversion: 75,
 } as const;
 
 // Points required for each level
@@ -1376,6 +1416,327 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   }),
 }));
 
+// Partners table (Phase 12 - Business Integration)
+export const partners = pgTable("partners", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ownerUserId: varchar("owner_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  type: varchar("type", { length: 20 }).notNull(), // agency, hotel, dmo, ota, transport
+  name: text("name").notNull(),
+  logoUrl: varchar("logo_url"),
+  description: text("description"),
+  
+  verified: boolean("verified").default(false),
+  regions: text("regions").array().default(sql`ARRAY[]::text[]`), // served regions
+  languages: text("languages").array().default(sql`ARRAY[]::text[]`), // supported languages
+  
+  contactEmail: varchar("contact_email"),
+  phone: varchar("phone", { length: 50 }),
+  website: varchar("website"),
+  documentsUrl: text("documents_url").array().default(sql`ARRAY[]::text[]`), // KYC documents
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_partners_owner").on(table.ownerUserId),
+  index("idx_partners_type").on(table.type),
+  index("idx_partners_verified").on(table.verified),
+]);
+
+export const partnersRelations = relations(partners, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [partners.ownerUserId],
+    references: [users.id],
+  }),
+  packages: many(packages),
+  account: one(partnerAccounts),
+  payouts: many(payouts),
+  coupons: many(coupons),
+  affiliateLinks: many(affiliateLinks),
+  connectors: many(externalConnectors),
+}));
+
+// Packages table (Phase 12 - Dynamic Bundling)
+export const packages = pgTable("packages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+  
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  
+  // Package items: [{type: 'tour|service|transport', id: 'uuid', quantity: 1}]
+  items: jsonb("items").$type<Array<{type: string; id: string; quantity: number}>>().notNull(),
+  
+  basePrice: decimal("base_price", { precision: 10, scale: 2 }).notNull(),
+  
+  // Discount rules: {type: 'percentage|fixed', value: 10, minParticipants: 2}
+  discountRules: jsonb("discount_rules").$type<{type: string; value: number; minParticipants?: number}>(),
+  
+  cancellationPolicy: text("cancellation_policy"),
+  
+  // Availability: {dates: ['2025-01-15', ...], maxBookings: 10}
+  availability: jsonb("availability").$type<{dates?: string[]; maxBookings?: number}>(),
+  
+  isActive: boolean("is_active").default(true),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_packages_partner").on(table.partnerId),
+  index("idx_packages_active").on(table.isActive),
+]);
+
+export const packagesRelations = relations(packages, ({ one, many }) => ({
+  partner: one(partners, {
+    fields: [packages.partnerId],
+    references: [partners.id],
+  }),
+  bookings: many(packageBookings),
+}));
+
+// Package Bookings table (Phase 12)
+export const packageBookings = pgTable("package_bookings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  packageId: varchar("package_id").notNull().references(() => packages.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  participants: integer("participants").notNull().default(1),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  discountApplied: decimal("discount_applied", { precision: 10, scale: 2 }).default('0'),
+  
+  couponCode: varchar("coupon_code"),
+  affiliateCode: varchar("affiliate_code"),
+  
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, confirmed, cancelled, completed
+  paymentStatus: varchar("payment_status", { length: 20 }).notNull().default("pending"), // pending, paid, refunded, failed
+  
+  stripePaymentIntentId: varchar("stripe_payment_intent_id"),
+  specialRequests: text("special_requests"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_package_bookings_package").on(table.packageId),
+  index("idx_package_bookings_user").on(table.userId),
+  index("idx_package_bookings_status").on(table.status),
+]);
+
+export const packageBookingsRelations = relations(packageBookings, ({ one }) => ({
+  package: one(packages, {
+    fields: [packageBookings.packageId],
+    references: [packages.id],
+  }),
+  user: one(users, {
+    fields: [packageBookings.userId],
+    references: [users.id],
+  }),
+}));
+
+// Partner Accounts table (Phase 12 - Stripe Connect)
+export const partnerAccounts = pgTable("partner_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").notNull().unique().references(() => partners.id, { onDelete: "cascade" }),
+  
+  stripeAccountId: varchar("stripe_account_id").unique(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, active, suspended
+  onboardingComplete: boolean("onboarding_complete").default(false),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_partner_accounts_partner").on(table.partnerId),
+  index("idx_partner_accounts_stripe").on(table.stripeAccountId),
+]);
+
+export const partnerAccountsRelations = relations(partnerAccounts, ({ one }) => ({
+  partner: one(partners, {
+    fields: [partnerAccounts.partnerId],
+    references: [partners.id],
+  }),
+}));
+
+// Payouts table (Phase 12 - Revenue Sharing)
+export const payouts = pgTable("payouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+  
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("eur"),
+  
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, processing, completed, failed
+  
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  
+  stripePayoutId: varchar("stripe_payout_id"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+}, (table) => [
+  index("idx_payouts_partner").on(table.partnerId),
+  index("idx_payouts_status").on(table.status),
+  index("idx_payouts_period").on(table.periodStart, table.periodEnd),
+]);
+
+export const payoutsRelations = relations(payouts, ({ one }) => ({
+  partner: one(partners, {
+    fields: [payouts.partnerId],
+    references: [partners.id],
+  }),
+}));
+
+// Coupons table (Phase 12)
+export const coupons = pgTable("coupons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  partnerId: varchar("partner_id").references(() => partners.id, { onDelete: "cascade" }),
+  
+  type: varchar("type", { length: 20 }).notNull(), // percentage, fixed
+  value: decimal("value", { precision: 10, scale: 2 }).notNull(),
+  
+  validFrom: timestamp("valid_from").notNull(),
+  validTo: timestamp("valid_to").notNull(),
+  
+  usageLimit: integer("usage_limit"),
+  usageCount: integer("usage_count").default(0),
+  
+  isActive: boolean("is_active").default(true),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_coupons_code").on(table.code),
+  index("idx_coupons_partner").on(table.partnerId),
+  index("idx_coupons_active").on(table.isActive),
+]);
+
+export const couponsRelations = relations(coupons, ({ one }) => ({
+  partner: one(partners, {
+    fields: [coupons.partnerId],
+    references: [partners.id],
+  }),
+}));
+
+// Affiliate Links table (Phase 12)
+export const affiliateLinks = pgTable("affiliate_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }), // affiliate owner (influencer/blogger)
+  
+  affiliateCode: varchar("affiliate_code", { length: 50 }).notNull().unique(),
+  commissionPct: decimal("commission_pct", { precision: 5, scale: 2 }).notNull(), // 5.00 = 5%
+  
+  clicks: integer("clicks").default(0),
+  conversions: integer("conversions").default(0),
+  revenue: decimal("revenue", { precision: 10, scale: 2 }).default('0'),
+  
+  isActive: boolean("is_active").default(true),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_affiliate_links_partner").on(table.partnerId),
+  index("idx_affiliate_links_code").on(table.affiliateCode),
+  index("idx_affiliate_links_user").on(table.userId),
+]);
+
+export const affiliateLinksRelations = relations(affiliateLinks, ({ one }) => ({
+  partner: one(partners, {
+    fields: [affiliateLinks.partnerId],
+    references: [partners.id],
+  }),
+  user: one(users, {
+    fields: [affiliateLinks.userId],
+    references: [users.id],
+  }),
+}));
+
+// External Connectors table (Phase 12 - OTA/DMO Integration)
+export const externalConnectors = pgTable("external_connectors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  partnerId: varchar("partner_id").notNull().references(() => partners.id, { onDelete: "cascade" }),
+  
+  connectorType: varchar("connector_type", { length: 20 }).notNull(), // ota, dmo, custom
+  name: text("name").notNull(),
+  
+  apiEndpoint: varchar("api_endpoint"),
+  apiKey: text("api_key"), // Should be encrypted
+  webhookUrl: varchar("webhook_url"),
+  
+  status: varchar("status", { length: 20 }).notNull().default("active"), // active, inactive, error
+  lastSyncAt: timestamp("last_sync_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_connectors_partner").on(table.partnerId),
+  index("idx_external_connectors_type").on(table.connectorType),
+]);
+
+export const externalConnectorsRelations = relations(externalConnectors, ({ one, many }) => ({
+  partner: one(partners, {
+    fields: [externalConnectors.partnerId],
+    references: [partners.id],
+  }),
+  inventoryMaps: many(externalInventoryMap),
+}));
+
+// External Inventory Map table (Phase 12 - Inventory Sync)
+export const externalInventoryMap = pgTable("external_inventory_map", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  connectorId: varchar("connector_id").notNull().references(() => externalConnectors.id, { onDelete: "cascade" }),
+  
+  externalId: varchar("external_id").notNull(), // ID in external system
+  localType: varchar("local_type", { length: 20 }).notNull(), // tour, service, package
+  localId: varchar("local_id").notNull(), // ID in TourConnect
+  
+  lastSyncAt: timestamp("last_sync_at"),
+  syncStatus: varchar("sync_status", { length: 20 }).default("synced"), // synced, pending, error
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_inventory_map_connector").on(table.connectorId),
+  index("idx_inventory_map_external").on(table.externalId),
+  index("idx_inventory_map_local").on(table.localType, table.localId),
+  uniqueIndex("idx_inventory_map_unique").on(table.connectorId, table.externalId),
+]);
+
+export const externalInventoryMapRelations = relations(externalInventoryMap, ({ one }) => ({
+  connector: one(externalConnectors, {
+    fields: [externalInventoryMap.connectorId],
+    references: [externalConnectors.id],
+  }),
+}));
+
+// Audit Logs table (Phase 12 - Security & Compliance)
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  
+  action: varchar("action", { length: 50 }).notNull(), // create, update, delete, payment, payout, etc.
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // partner, package, booking, payout, etc.
+  entityId: varchar("entity_id"),
+  
+  changes: jsonb("changes").$type<{before?: any; after?: any; metadata?: any}>(),
+  
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_audit_logs_user").on(table.userId),
+  index("idx_audit_logs_entity").on(table.entityType, table.entityId),
+  index("idx_audit_logs_action").on(table.action),
+  index("idx_audit_logs_created").on(table.createdAt),
+]);
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLogs.userId],
+    references: [users.id],
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -1704,9 +2065,93 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   readAt: true,
   createdAt: true,
 }).extend({
-  type: z.enum(['comment', 'like', 'group_invite', 'group_almost_full', 'group_confirmed', 'reply']),
+  type: z.enum(['comment', 'like', 'group_invite', 'group_almost_full', 'group_confirmed', 'reply', 'partner_verified']),
   title: z.string().min(1).max(200),
   message: z.string().min(1).max(500),
+});
+
+// Partners (Phase 12)
+export const insertPartnerSchema = createInsertSchema(partners).omit({
+  id: true,
+  verified: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  type: z.enum(partnerTypes),
+  name: z.string().min(3).max(200),
+  description: z.string().max(2000).optional().nullable(),
+  contactEmail: z.string().email().optional().nullable(),
+});
+
+// Packages (Phase 12)
+export const insertPackageSchema = createInsertSchema(packages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  title: z.string().min(3).max(200),
+  description: z.string().min(20).max(5000),
+  items: z.array(z.object({
+    type: z.enum(packageItemTypes),
+    id: z.string().uuid(),
+    quantity: z.number().int().min(1).max(100),
+  })).min(1).max(20),
+  basePrice: z.string().refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 1000000;
+  }),
+});
+
+// Package Bookings (Phase 12)
+export const insertPackageBookingSchema = createInsertSchema(packageBookings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Coupons (Phase 12)
+export const insertCouponSchema = createInsertSchema(coupons).omit({
+  id: true,
+  usageCount: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  code: z.string().min(3).max(50).toUpperCase(),
+  type: z.enum(couponTypes),
+  value: z.string().refine((val) => parseFloat(val) > 0),
+});
+
+// Affiliate Links (Phase 12)
+export const insertAffiliateLinkSchema = createInsertSchema(affiliateLinks).omit({
+  id: true,
+  clicks: true,
+  conversions: true,
+  revenue: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  affiliateCode: z.string().min(3).max(50).toUpperCase(),
+  commissionPct: z.string().refine((val) => {
+    const num = parseFloat(val);
+    return num >= 0 && num <= 100;
+  }),
+});
+
+// External Connectors (Phase 12)
+export const insertExternalConnectorSchema = createInsertSchema(externalConnectors).omit({
+  id: true,
+  lastSyncAt: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  connectorType: z.enum(connectorTypes),
+  name: z.string().min(3).max(200),
+});
+
+// Audit Logs (Phase 12)
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
 });
 
 // Group Booking API validation schemas
@@ -1789,6 +2234,23 @@ export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
 export type ContentReport = typeof contentReports.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+export type InsertPartner = z.infer<typeof insertPartnerSchema>;
+export type Partner = typeof partners.$inferSelect;
+export type InsertPackage = z.infer<typeof insertPackageSchema>;
+export type Package = typeof packages.$inferSelect;
+export type InsertPackageBooking = z.infer<typeof insertPackageBookingSchema>;
+export type PackageBooking = typeof packageBookings.$inferSelect;
+export type InsertCoupon = z.infer<typeof insertCouponSchema>;
+export type Coupon = typeof coupons.$inferSelect;
+export type InsertAffiliateLink = z.infer<typeof insertAffiliateLinkSchema>;
+export type AffiliateLink = typeof affiliateLinks.$inferSelect;
+export type InsertExternalConnector = z.infer<typeof insertExternalConnectorSchema>;
+export type ExternalConnector = typeof externalConnectors.$inferSelect;
+export type ExternalInventoryMapping = typeof externalInventoryMap.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type PartnerAccount = typeof partnerAccounts.$inferSelect;
+export type Payout = typeof payouts.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {

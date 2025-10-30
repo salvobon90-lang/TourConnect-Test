@@ -168,3 +168,207 @@ export async function handleStripeWebhook(
       console.log(`[Stripe] Unhandled event type: ${event.type}`);
   }
 }
+
+// ============= STRIPE CONNECT (Phase 12) =============
+
+/**
+ * Create Stripe Connect Account for Partner
+ */
+export async function createConnectAccount(
+  email: string,
+  businessType: 'individual' | 'company' = 'individual'
+): Promise<string> {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
+  
+  const account = await stripe.accounts.create({
+    type: 'express',
+    email,
+    business_type: businessType,
+    capabilities: {
+      card_payments: { requested: true },
+      transfers: { requested: true },
+    },
+  });
+  
+  return account.id;
+}
+
+/**
+ * Create Stripe Connect Onboarding Link
+ */
+export async function createAccountLink(
+  accountId: string,
+  refreshUrl: string,
+  returnUrl: string
+): Promise<string> {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
+  
+  const accountLink = await stripe.accountLinks.create({
+    account: accountId,
+    refresh_url: refreshUrl,
+    return_url: returnUrl,
+    type: 'account_onboarding',
+  });
+  
+  return accountLink.url;
+}
+
+/**
+ * Check Stripe Connect Account Status
+ */
+export async function getAccountStatus(accountId: string): Promise<{
+  onboardingComplete: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+}> {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
+  
+  const account = await stripe.accounts.retrieve(accountId);
+  
+  return {
+    onboardingComplete: account.details_submitted || false,
+    chargesEnabled: account.charges_enabled || false,
+    payoutsEnabled: account.payouts_enabled || false,
+  };
+}
+
+/**
+ * Create Package Checkout Session with Split Payment
+ */
+export async function createPackageCheckoutSession(
+  packageBookingId: string,
+  amount: number, // in euros
+  currency: string,
+  partnerAccountId: string,
+  platformFeePercentage: number, // 0.15 = 15%
+  successUrl: string,
+  cancelUrl: string,
+  metadata: any
+): Promise<string> {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
+  
+  const amountCents = Math.round(amount * 100);
+  const platformFeeCents = Math.round(amountCents * platformFeePercentage);
+  
+  const session = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    payment_method_types: ['card'],
+    line_items: [
+      {
+        price_data: {
+          currency: currency,
+          product_data: {
+            name: 'Package Booking',
+            description: `Package booking #${packageBookingId}`,
+          },
+          unit_amount: amountCents,
+        },
+        quantity: 1,
+      },
+    ],
+    payment_intent_data: {
+      application_fee_amount: platformFeeCents,
+      transfer_data: {
+        destination: partnerAccountId,
+      },
+      metadata,
+    },
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: {
+      packageBookingId,
+      ...metadata,
+    },
+  });
+  
+  return session.url!;
+}
+
+/**
+ * Process Payout to Partner
+ */
+export async function createPayout(
+  accountId: string,
+  amount: number, // in euros
+  currency: string = 'eur'
+): Promise<string> {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
+  
+  const amountCents = Math.round(amount * 100);
+  
+  const payout = await stripe.payouts.create(
+    {
+      amount: amountCents,
+      currency: currency,
+    },
+    {
+      stripeAccount: accountId,
+    }
+  );
+  
+  return payout.id;
+}
+
+/**
+ * Handle Stripe Connect Webhooks
+ */
+export async function handleConnectWebhook(
+  event: Stripe.Event,
+  storage: any
+): Promise<void> {
+  const { partnerAccounts, payouts } = await import("@shared/schema");
+  const { eq } = await import("drizzle-orm");
+  
+  switch (event.type) {
+    case 'account.updated': {
+      const account = event.data.object as Stripe.Account;
+      
+      // Find partner account by Stripe ID
+      const [partnerAccount] = await storage.db
+        .select()
+        .from(partnerAccounts)
+        .where(eq(partnerAccounts.stripeAccountId, account.id));
+      
+      if (partnerAccount) {
+        const status = account.charges_enabled ? 'active' : 'pending';
+        const onboardingComplete = account.details_submitted || false;
+        
+        await storage.updatePartnerAccount(partnerAccount.id, {
+          status,
+          onboardingComplete,
+        });
+      }
+      break;
+    }
+    
+    case 'payout.paid':
+    case 'payout.failed': {
+      const payout = event.data.object as Stripe.Payout;
+      const status = event.type === 'payout.paid' ? 'completed' : 'failed';
+      
+      // Find our payout record by Stripe ID
+      const [partnerPayout] = await storage.db
+        .select()
+        .from(payouts)
+        .where(eq(payouts.stripePayoutId, payout.id));
+      
+      if (partnerPayout) {
+        await storage.updatePayoutStatus(partnerPayout.id, status);
+      }
+      break;
+    }
+    
+    default:
+      console.log(`[Stripe Connect] Unhandled event type: ${event.type}`);
+  }
+}

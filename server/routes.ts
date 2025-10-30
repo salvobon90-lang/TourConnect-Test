@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey } from "@shared/schema";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey, insertPartnerSchema, type InsertPartner, type Partner, insertPackageSchema, type InsertPackage, type Package, insertCouponSchema, insertAffiliateLinkSchema, type InsertCoupon, type Coupon, type InsertAffiliateLink, type AffiliateLink, insertExternalConnectorSchema, type InsertExternalConnector, type ExternalConnector } from "@shared/schema";
 import { randomUUID, createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { 
@@ -36,7 +36,7 @@ import { db } from "./db";
 import { sql, eq, and, ne } from "drizzle-orm";
 import { broadcastToUser, broadcastToAll } from "./websocket";
 import express from "express";
-import { createSubscriptionCheckout, cancelSubscription, handleStripeWebhook, SUBSCRIPTION_TIERS } from './stripe-service';
+import { createSubscriptionCheckout, cancelSubscription, handleStripeWebhook, SUBSCRIPTION_TIERS, createConnectAccount, createAccountLink, getAccountStatus, createPackageCheckoutSession, handleConnectWebhook } from './stripe-service';
 import { checkRateLimit as checkPostRateLimit } from './moderation';
 import { sendNotification, setWebSocketServer } from './notifications';
 import { insertContentReportSchema, insertNotificationSchema } from "@shared/schema";
@@ -1201,14 +1201,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).send('Webhook signature missing');
     }
 
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    
+    if (!webhookSecret) {
+      console.error('[Stripe] Webhook secret not configured');
+      return res.status(500).send('Webhook secret not configured');
+    }
+
     let event;
     try {
-      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-      if (webhookSecret) {
-        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-      } else {
-        event = req.body;
-      }
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } catch (err: any) {
       console.error('Webhook signature verification failed:', err.message);
       return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -2904,7 +2906,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Add reward points for community interaction (only on like, not unlike)
       if (result.liked) {
-        await storage.addRewardPoints(user.id, 10, 'community_interaction', 'Engaged with community post');
+        await storage.awardPoints(user.id, 'community_interaction', {
+          description: 'Engaged with community post',
+        });
       }
       
       // Broadcast like notification via WebSocket (only if liked, not unliked)
@@ -2956,7 +2960,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Add reward points for community interaction
-      await storage.addRewardPoints(user.id, 10, 'community_interaction', 'Engaged with community post');
+      await storage.awardPoints(user.id, 'community_interaction', {
+        description: 'Engaged with community post',
+      });
       
       // Send push notification for comment
       await sendNotification({
@@ -3154,6 +3160,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         case 'checkout.session.completed': {
           const session = event.data.object as Stripe.Checkout.Session;
+          
+          // Check if this is a package booking
+          if (session.metadata?.packageBookingId) {
+            const bookingId = session.metadata.packageBookingId;
+            
+            try {
+              await storage.updatePackageBooking(bookingId, {
+                paymentStatus: 'paid',
+                status: 'confirmed',
+                stripePaymentIntentId: session.payment_intent as string,
+              });
+              
+              // Track affiliate conversion if applicable
+              const booking = await storage.getPackageBooking(bookingId);
+              if (booking?.affiliateCode) {
+                await storage.trackAffiliateConversion(
+                  booking.affiliateCode,
+                  parseFloat(booking.totalPrice)
+                );
+              }
+              
+              // Award partner sale points
+              if (booking) {
+                const pkg = await storage.getPackage(booking.packageId);
+                if (pkg) {
+                  const partner = await storage.getPartner(pkg.partnerId);
+                  if (partner) {
+                    await storage.awardPoints(partner.ownerUserId, 'partner_sale', {
+                      description: 'Package sale completed',
+                      targetId: booking.id,
+                    });
+                  }
+                }
+              }
+              
+              console.log(`[Stripe] Package booking ${bookingId} payment completed`);
+            } catch (error) {
+              console.error(`[Stripe] Error processing package booking:`, error);
+            }
+          }
           
           // Event ticket payment - WITH CAPACITY RECHECK
           if (session.metadata?.type === "event_ticket") {
@@ -4278,10 +4324,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const group = await storage.createSmartGroup(userId, validationResult.data);
       
-      // Add reward points for creating public group (+20 points)
-      if (validationResult.data.visibility === 'public') {
-        await storage.addRewardPoints(userId, 20, 'create_public_group', `Created public group: ${group.name}`);
-      }
+      // Add reward points for creating group
+      await storage.awardPoints(userId, 'smart_group_create', {
+        description: `Created smart group: ${group.name}`,
+        targetId: group.id,
+      });
       
       res.status(201).json(group);
     } catch (error: any) {
@@ -4337,10 +4384,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const member = await storage.joinSmartGroup(id, userId, inviteCode);
       
-      // Add reward points for joining group (+15 points)
-      const group = await storage.getSmartGroupById(id);
+      // Add reward points for joining group
+      const group = await storage.getSmartGroup(id);
       if (group) {
-        await storage.addRewardPoints(userId, 15, 'join_group', `Joined group: ${group.name}`);
+        await storage.awardPoints(userId, 'smart_group_join', {
+          description: `Joined group: ${group.name}`,
+          targetId: id,
+        });
       }
       
       res.status(201).json(member);
@@ -5238,6 +5288,339 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============= PARTNER ONBOARDING & MANAGEMENT (Phase 12) =============
+
+  // Register as Partner
+  app.post('/api/partners/register', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if user already has a partner profile
+      const existing = await storage.getPartnerByOwner(userId);
+      if (existing) {
+        return res.status(400).json({ message: "You already have a partner profile" });
+      }
+      
+      // Validate with Zod
+      const validatedData = insertPartnerSchema.parse({
+        ...req.body,
+        ownerUserId: userId,
+      });
+      
+      const partner = await storage.createPartner(validatedData);
+      
+      // Award reward points for partner registration
+      await storage.awardPoints(userId, 'partner_sale', {
+        description: 'Partner account created',
+        targetId: partner.id,
+      });
+      
+      res.json(partner);
+    } catch (error: any) {
+      console.error("Error creating partner:", error);
+      res.status(400).json({ message: error.message || "Failed to create partner" });
+    }
+  });
+
+  // Get My Partner Profile
+  app.get('/api/partners/me', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(404).json({ message: "Partner profile not found" });
+      }
+      
+      res.json(partner);
+    } catch (error) {
+      console.error("Error fetching partner:", error);
+      res.status(500).json({ message: "Failed to fetch partner" });
+    }
+  });
+
+  // Update My Partner Profile
+  app.patch('/api/partners/me', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(404).json({ message: "Partner profile not found" });
+      }
+      
+      // Don't allow changing verified status through this endpoint
+      const { verified, ownerUserId, ...updateData } = req.body;
+      
+      const updated = await storage.updatePartner(partner.id, updateData);
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating partner:", error);
+      res.status(400).json({ message: error.message || "Failed to update partner" });
+    }
+  });
+
+  // Get All Partners (with filters) - Public endpoint for discovery
+  app.get('/api/partners', async (req, res) => {
+    try {
+      const { type, verified } = req.query;
+      
+      const filters: { type?: string; verified?: boolean } = {};
+      
+      if (type && typeof type === 'string') {
+        filters.type = type;
+      }
+      
+      if (verified !== undefined) {
+        filters.verified = verified === 'true';
+      }
+      
+      const partners = await storage.getAllPartners(filters);
+      
+      res.json(partners);
+    } catch (error) {
+      console.error("Error fetching partners:", error);
+      res.status(500).json({ message: "Failed to fetch partners" });
+    }
+  });
+
+  // Get Partner by ID - Public endpoint
+  app.get('/api/partners/:id', async (req, res) => {
+    try {
+      const partner = await storage.getPartner(req.params.id);
+      
+      if (!partner) {
+        return res.status(404).json({ message: "Partner not found" });
+      }
+      
+      res.json(partner);
+    } catch (error) {
+      console.error("Error fetching partner:", error);
+      res.status(500).json({ message: "Failed to fetch partner" });
+    }
+  });
+
+  // Verify Partner (Supervisor Only)
+  app.post('/api/partners/:id/verify', isAuthenticated, requireRole('supervisor'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partnerId = req.params.id;
+      
+      const partner = await storage.getPartner(partnerId);
+      if (!partner) {
+        return res.status(404).json({ message: "Partner not found" });
+      }
+      
+      if (partner.verified) {
+        return res.status(400).json({ message: "Partner already verified" });
+      }
+      
+      const verified = await storage.verifyPartner(partnerId, userId);
+      
+      // Send notification to partner owner
+      const notification = await storage.createNotification({
+        userId: partner.ownerUserId,
+        type: 'partner_verified',
+        title: 'Partner Verified!',
+        message: 'Your partner profile has been verified. You can now create packages and receive payouts.',
+        relatedId: partnerId,
+        relatedType: 'partner',
+      });
+      
+      // Send real-time notification if WebSocket available
+      if (req.app.locals.wss) {
+        sendNotification({ 
+          userId: partner.ownerUserId, 
+          type: 'partner_verified',
+          title: notification.title,
+          message: notification.message,
+          relatedId: partnerId,
+          relatedType: 'partner'
+        });
+      }
+      
+      res.json(verified);
+    } catch (error: any) {
+      console.error("Error verifying partner:", error);
+      res.status(400).json({ message: error.message || "Failed to verify partner" });
+    }
+  });
+
+  // Get Partner Analytics
+  app.get('/api/partners/me/analytics', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(404).json({ message: "Partner profile not found" });
+      }
+      
+      const analytics = await storage.getPartnerAnalytics(partner.id);
+      
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching partner analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  // ============= ADVANCED PARTNER ANALYTICS (Phase 12) =============
+
+  // Get Top Packages (Partner only)
+  app.get('/api/partners/analytics/top-products', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+      const topPackages = await storage.getPartnerTopPackages(partner.id, limit);
+      
+      res.json(topPackages);
+    } catch (error) {
+      console.error("Error fetching top products:", error);
+      res.status(500).json({ message: "Failed to fetch top products" });
+    }
+  });
+
+  // Get Monthly Trends (Partner only)
+  app.get('/api/partners/analytics/trends', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      const months = req.query.months ? parseInt(req.query.months as string, 10) : 6;
+      const trends = await storage.getPartnerMonthlyTrends(partner.id, months);
+      
+      res.json(trends);
+    } catch (error) {
+      console.error("Error fetching trends:", error);
+      res.status(500).json({ message: "Failed to fetch trends" });
+    }
+  });
+
+  // Export Partner Data (CSV/JSON) (Partner only)
+  app.get('/api/partners/analytics/export', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      const format = (req.query.format as string) || 'json';
+      const data = await storage.exportPartnerData(partner.id);
+      
+      if (format === 'csv') {
+        // Generate CSV for bookings (most useful for partners)
+        const csvHeaders = [
+          'Booking ID',
+          'Package Title',
+          'Date',
+          'Participants',
+          'Total Price',
+          'Discount',
+          'Coupon',
+          'Affiliate',
+          'Status',
+          'Payment Status',
+        ].join(',');
+        
+        const csvRows = data.bookings.map(booking => {
+          const pkg = data.packages.find(p => p.id === booking.packageId);
+          return [
+            booking.id,
+            pkg?.title || 'N/A',
+            new Date(booking.createdAt).toISOString().split('T')[0],
+            booking.participants,
+            booking.totalPrice,
+            booking.discountApplied || '0',
+            booking.couponCode || '',
+            booking.affiliateCode || '',
+            booking.status,
+            booking.paymentStatus,
+          ].join(',');
+        });
+        
+        const csv = [csvHeaders, ...csvRows].join('\n');
+        
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="partner-bookings-${Date.now()}.csv"`);
+        res.send(csv);
+      } else {
+        // Return JSON
+        res.json(data);
+      }
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      res.status(500).json({ message: "Failed to export data" });
+    }
+  });
+
+  // Get Complete Analytics Dashboard (Partner only)
+  app.get('/api/partners/analytics/dashboard', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      // Gather all analytics in parallel
+      const [
+        overview,
+        topPackages,
+        trends,
+        payouts,
+      ] = await Promise.all([
+        storage.getPartnerAnalytics(partner.id),
+        storage.getPartnerTopPackages(partner.id, 5),
+        storage.getPartnerMonthlyTrends(partner.id, 6),
+        storage.getPartnerPayouts(partner.id),
+      ]);
+      
+      // Calculate additional metrics
+      const totalPayouts = payouts
+        .filter(p => p.status === 'completed')
+        .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      
+      const pendingPayouts = payouts
+        .filter(p => p.status === 'pending' || p.status === 'processing')
+        .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      
+      res.json({
+        overview,
+        topPackages,
+        trends,
+        payouts: {
+          total: totalPayouts.toFixed(2),
+          pending: pendingPayouts.toFixed(2),
+          count: payouts.length,
+          recent: payouts.slice(0, 5),
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard" });
+    }
+  });
+
   // ========== GROUP MARKETPLACE (Phase 11) ==========
 
   // Group Marketplace - Get all open groups with filters
@@ -5670,6 +6053,954 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error marking all notifications as read:", error);
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ============= PACKAGES ENGINE (Phase 12) =============
+
+  // Create Package (Partner only)
+  app.post('/api/packages/create', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "You must be a registered partner to create packages" });
+      }
+      
+      if (!partner.verified) {
+        return res.status(403).json({ message: "Partner account must be verified to create packages" });
+      }
+      
+      // Validate with Zod
+      const validatedData = insertPackageSchema.parse({
+        ...req.body,
+        partnerId: partner.id,
+      });
+      
+      const pkg = await storage.createPackage(validatedData);
+      
+      res.json(pkg);
+    } catch (error: any) {
+      console.error("Error creating package:", error);
+      res.status(400).json({ message: error.message || "Failed to create package" });
+    }
+  });
+
+  // Search Packages
+  app.get('/api/packages/search', async (req, res) => {
+    try {
+      const {
+        destination,
+        minPrice,
+        maxPrice,
+        dateFrom,
+        verified,
+        sortBy,
+        limit,
+      } = req.query;
+      
+      const filters: any = {};
+      
+      if (destination) filters.destination = destination as string;
+      if (minPrice) filters.minPrice = parseFloat(minPrice as string);
+      if (maxPrice) filters.maxPrice = parseFloat(maxPrice as string);
+      if (dateFrom) filters.dateFrom = dateFrom as string;
+      if (verified !== undefined) filters.verified = verified === 'true';
+      if (sortBy) filters.sortBy = sortBy as string;
+      if (limit) filters.limit = parseInt(limit as string, 10);
+      
+      const packages = await storage.searchPackages(filters);
+      
+      res.json(packages);
+    } catch (error) {
+      console.error("Error searching packages:", error);
+      res.status(500).json({ message: "Failed to search packages" });
+    }
+  });
+
+  // Get Package Details
+  app.get('/api/packages/:id', async (req, res) => {
+    try {
+      const pkg = await storage.getPackageWithDetails(req.params.id);
+      
+      if (!pkg) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      
+      res.json(pkg);
+    } catch (error) {
+      console.error("Error fetching package:", error);
+      res.status(500).json({ message: "Failed to fetch package" });
+    }
+  });
+
+  // Book Package
+  app.post('/api/packages/:id/book', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const packageId = req.params.id;
+      
+      const pkg = await storage.getPackage(packageId);
+      if (!pkg) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      
+      const { participants, couponCode, affiliateCode, specialRequests } = req.body;
+      
+      // Calculate price with package discount
+      const pricing = storage.calculatePackagePrice(pkg, participants || 1);
+      let finalPrice = pricing.finalPrice;
+      let discountApplied = pricing.discount;
+      
+      // Apply coupon if provided
+      if (couponCode) {
+        const couponResult = await storage.applyCoupon(couponCode, packageId, finalPrice);
+        if (couponResult.valid) {
+          finalPrice = couponResult.finalPrice;
+          discountApplied += couponResult.discount;
+        }
+      }
+      
+      // Track affiliate click if provided
+      if (affiliateCode) {
+        await storage.trackAffiliateClick(affiliateCode);
+      }
+      
+      // Create booking
+      const booking = await storage.createPackageBooking({
+        packageId,
+        userId,
+        participants: participants || 1,
+        totalPrice: finalPrice.toFixed(2),
+        discountApplied: discountApplied.toFixed(2),
+        couponCode: couponCode || null,
+        affiliateCode: affiliateCode || null,
+        specialRequests: specialRequests || null,
+      });
+      
+      res.json({
+        booking,
+        pricing: {
+          basePrice: pricing.basePrice,
+          discount: discountApplied,
+          finalPrice,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error booking package:", error);
+      res.status(400).json({ message: error.message || "Failed to book package" });
+    }
+  });
+
+  // Get My Package Bookings
+  app.get('/api/packages/bookings/my', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const bookings = await storage.getUserPackageBookings(userId);
+      
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+      res.status(500).json({ message: "Failed to fetch bookings" });
+    }
+  });
+
+  // Get Partner Packages (Partner only)
+  app.get('/api/packages/my', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      const packages = await storage.getPartnerPackages(partner.id);
+      
+      res.json(packages);
+    } catch (error) {
+      console.error("Error fetching partner packages:", error);
+      res.status(500).json({ message: "Failed to fetch packages" });
+    }
+  });
+
+  // Update Package (Partner only)
+  app.patch('/api/packages/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const packageId = req.params.id;
+      
+      const pkg = await storage.getPackage(packageId);
+      if (!pkg) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      
+      const partner = await storage.getPartner(pkg.partnerId);
+      if (!partner || partner.ownerUserId !== userId) {
+        return res.status(403).json({ message: "You can only update your own packages" });
+      }
+      
+      const updated = await storage.updatePackage(packageId, req.body);
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating package:", error);
+      res.status(400).json({ message: error.message || "Failed to update package" });
+    }
+  });
+
+  // Delete Package (Partner only)
+  app.delete('/api/packages/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const packageId = req.params.id;
+      
+      const pkg = await storage.getPackage(packageId);
+      if (!pkg) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      
+      const partner = await storage.getPartner(pkg.partnerId);
+      if (!partner || partner.ownerUserId !== userId) {
+        return res.status(403).json({ message: "You can only delete your own packages" });
+      }
+      
+      await storage.deletePackage(packageId);
+      
+      res.json({ message: "Package deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting package:", error);
+      res.status(400).json({ message: error.message || "Failed to delete package" });
+    }
+  });
+
+  // ============= COUPONS MANAGEMENT (Phase 12) =============
+
+  // Create Coupon (Partner only)
+  app.post('/api/coupons/create', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      const validatedData = insertCouponSchema.parse({
+        ...req.body,
+        partnerId: partner.id,
+      });
+      
+      const coupon = await storage.createCoupon(validatedData);
+      
+      res.json(coupon);
+    } catch (error: any) {
+      console.error("Error creating coupon:", error);
+      res.status(400).json({ message: error.message || "Failed to create coupon" });
+    }
+  });
+
+  // Get My Coupons (Partner only)
+  app.get('/api/coupons/my', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      const coupons = await storage.getPartnerCoupons(partner.id);
+      
+      res.json(coupons);
+    } catch (error) {
+      console.error("Error fetching coupons:", error);
+      res.status(500).json({ message: "Failed to fetch coupons" });
+    }
+  });
+
+  // Get Coupon by Code (Public for validation)
+  app.get('/api/coupons/validate/:code', async (req, res) => {
+    try {
+      const coupon = await storage.getCouponByCode(req.params.code);
+      
+      if (!coupon) {
+        return res.status(404).json({ valid: false, message: "Coupon not found" });
+      }
+      
+      if (!coupon.isActive) {
+        return res.json({ valid: false, message: "Coupon is inactive" });
+      }
+      
+      const now = new Date();
+      if (now < coupon.validFrom || now > coupon.validTo) {
+        return res.json({ valid: false, message: "Coupon expired or not yet valid" });
+      }
+      
+      if (coupon.usageLimit && (coupon.usageCount ?? 0) >= coupon.usageLimit) {
+        return res.json({ valid: false, message: "Coupon usage limit reached" });
+      }
+      
+      res.json({
+        valid: true,
+        coupon: {
+          code: coupon.code,
+          type: coupon.type,
+          value: coupon.value,
+        },
+      });
+    } catch (error) {
+      console.error("Error validating coupon:", error);
+      res.status(500).json({ message: "Failed to validate coupon" });
+    }
+  });
+
+  // Update Coupon (Partner only)
+  app.patch('/api/coupons/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const couponId = req.params.id;
+      
+      const coupon = await storage.getCoupon(couponId);
+      if (!coupon) {
+        return res.status(404).json({ message: "Coupon not found" });
+      }
+      
+      const partner = await storage.getPartner(coupon.partnerId!);
+      if (!partner || partner.ownerUserId !== userId) {
+        return res.status(403).json({ message: "You can only update your own coupons" });
+      }
+      
+      const updated = await storage.updateCoupon(couponId, req.body);
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating coupon:", error);
+      res.status(400).json({ message: error.message || "Failed to update coupon" });
+    }
+  });
+
+  // Deactivate Coupon (Partner only)
+  app.post('/api/coupons/:id/deactivate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const couponId = req.params.id;
+      
+      const coupon = await storage.getCoupon(couponId);
+      if (!coupon) {
+        return res.status(404).json({ message: "Coupon not found" });
+      }
+      
+      const partner = await storage.getPartner(coupon.partnerId!);
+      if (!partner || partner.ownerUserId !== userId) {
+        return res.status(403).json({ message: "You can only deactivate your own coupons" });
+      }
+      
+      const deactivated = await storage.deactivateCoupon(couponId);
+      
+      res.json(deactivated);
+    } catch (error: any) {
+      console.error("Error deactivating coupon:", error);
+      res.status(400).json({ message: error.message || "Failed to deactivate coupon" });
+    }
+  });
+
+  // ============= AFFILIATE LINKS MANAGEMENT (Phase 12) =============
+
+  // Register as Affiliate (Any authenticated user)
+  app.post('/api/affiliates/register', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { partnerId, affiliateCode, commissionPct } = req.body;
+      
+      const existing = await storage.getAffiliateLinkByCode(affiliateCode);
+      if (existing) {
+        return res.status(400).json({ message: "Affiliate code already in use" });
+      }
+      
+      const validatedData = insertAffiliateLinkSchema.parse({
+        partnerId,
+        userId,
+        affiliateCode,
+        commissionPct,
+      });
+      
+      const link = await storage.createAffiliateLink(validatedData);
+      
+      res.json(link);
+    } catch (error: any) {
+      console.error("Error registering affiliate:", error);
+      res.status(400).json({ message: error.message || "Failed to register affiliate" });
+    }
+  });
+
+  // Get My Affiliate Links
+  app.get('/api/affiliates/my', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const links = await storage.getUserAffiliateLinks(userId);
+      
+      res.json(links);
+    } catch (error) {
+      console.error("Error fetching affiliate links:", error);
+      res.status(500).json({ message: "Failed to fetch affiliate links" });
+    }
+  });
+
+  // Get Partner's Affiliate Links (Partner only)
+  app.get('/api/affiliates/partner/my', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      const links = await storage.getPartnerAffiliateLinks(partner.id);
+      
+      res.json(links);
+    } catch (error) {
+      console.error("Error fetching partner affiliates:", error);
+      res.status(500).json({ message: "Failed to fetch affiliates" });
+    }
+  });
+
+  // Get Affiliate Stats
+  app.get('/api/affiliates/stats/:code', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const affiliateCode = req.params.code;
+      
+      const link = await storage.getAffiliateLinkByCode(affiliateCode);
+      if (!link) {
+        return res.status(404).json({ message: "Affiliate link not found" });
+      }
+      
+      if (link.userId !== userId) {
+        const partner = await storage.getPartner(link.partnerId);
+        if (!partner || partner.ownerUserId !== userId) {
+          return res.status(403).json({ message: "Not your affiliate link" });
+        }
+      }
+      
+      const stats = await storage.getAffiliateStats(affiliateCode);
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching affiliate stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Update Affiliate Link
+  app.patch('/api/affiliates/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const linkId = req.params.id;
+      
+      const link = await storage.getAffiliateLink(linkId);
+      if (!link) {
+        return res.status(404).json({ message: "Affiliate link not found" });
+      }
+      
+      if (link.userId !== userId) {
+        const partner = await storage.getPartner(link.partnerId);
+        if (!partner || partner.ownerUserId !== userId) {
+          return res.status(403).json({ message: "You can only update your own affiliate links" });
+        }
+      }
+      
+      const updated = await storage.updateAffiliateLink(linkId, req.body);
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating affiliate link:", error);
+      res.status(400).json({ message: error.message || "Failed to update affiliate link" });
+    }
+  });
+
+  // Deactivate Affiliate Link
+  app.post('/api/affiliates/:id/deactivate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const linkId = req.params.id;
+      
+      const link = await storage.getAffiliateLink(linkId);
+      if (!link) {
+        return res.status(404).json({ message: "Affiliate link not found" });
+      }
+      
+      if (link.userId !== userId) {
+        const partner = await storage.getPartner(link.partnerId);
+        if (!partner || partner.ownerUserId !== userId) {
+          return res.status(403).json({ message: "You can only deactivate your own affiliate links" });
+        }
+      }
+      
+      const deactivated = await storage.deactivateAffiliateLink(linkId);
+      
+      res.json(deactivated);
+    } catch (error: any) {
+      console.error("Error deactivating affiliate link:", error);
+      res.status(400).json({ message: error.message || "Failed to deactivate affiliate link" });
+    }
+  });
+
+  // ============= STRIPE CONNECT BILLING (Phase 12) =============
+
+  // Onboard Partner to Stripe Connect
+  app.post('/api/billing/connect/onboard', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      if (!partner.verified) {
+        return res.status(403).json({ message: "Partner must be verified first" });
+      }
+      
+      // Check if account already exists
+      let account = await storage.getPartnerAccount(partner.id);
+      
+      let accountId: string;
+      
+      if (!account) {
+        // Create new Stripe Connect account
+        accountId = await createConnectAccount(
+          user?.email || partner.contactEmail || '',
+          'individual'
+        );
+        
+        // Save to database
+        account = await storage.createPartnerAccount({
+          partnerId: partner.id,
+          stripeAccountId: accountId,
+        });
+      } else {
+        accountId = account.stripeAccountId!;
+      }
+      
+      // Create onboarding link
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+      const onboardingLink = await createAccountLink(
+        accountId,
+        `${baseUrl}/partner-portal?tab=billing&refresh=true`,
+        `${baseUrl}/partner-portal?tab=billing&success=true`
+      );
+      
+      res.json({
+        accountId,
+        onboardingLink,
+        account,
+      });
+    } catch (error: any) {
+      console.error("Error onboarding partner:", error);
+      res.status(500).json({ message: error.message || "Failed to onboard partner" });
+    }
+  });
+
+  // Check Partner Connect Status
+  app.get('/api/billing/connect/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      const account = await storage.getPartnerAccount(partner.id);
+      
+      if (!account || !account.stripeAccountId) {
+        return res.json({
+          connected: false,
+          onboardingComplete: false,
+        });
+      }
+      
+      const status = await getAccountStatus(account.stripeAccountId);
+      
+      // Update database if status changed
+      if (status.onboardingComplete !== account.onboardingComplete) {
+        await storage.updatePartnerAccount(account.id, {
+          onboardingComplete: status.onboardingComplete,
+          status: status.chargesEnabled ? 'active' : 'pending',
+        });
+      }
+      
+      res.json({
+        connected: true,
+        ...status,
+      });
+    } catch (error: any) {
+      console.error("Error checking connect status:", error);
+      res.status(500).json({ message: error.message || "Failed to check status" });
+    }
+  });
+
+  // Create Package Checkout with Split Payment
+  app.post('/api/billing/packages/:id/checkout', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const bookingId = req.params.id;
+      
+      const booking = await storage.getPackageBooking(bookingId);
+      
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      
+      if (booking.userId !== userId) {
+        return res.status(403).json({ message: "Not your booking" });
+      }
+      
+      // Check if already paid
+      if (booking.paymentStatus === 'paid') {
+        return res.status(400).json({ message: "Booking already paid" });
+      }
+      
+      // Get package and partner
+      const pkg = await storage.getPackage(booking.packageId);
+      if (!pkg) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      
+      const partner = await storage.getPartner(pkg.partnerId);
+      if (!partner) {
+        return res.status(404).json({ message: "Partner not found" });
+      }
+      
+      const partnerAccount = await storage.getPartnerAccount(partner.id);
+      if (!partnerAccount || !partnerAccount.stripeAccountId || !partnerAccount.onboardingComplete) {
+        return res.status(400).json({ message: "Partner payment setup incomplete" });
+      }
+      
+      // Verify partner account is active
+      if (partnerAccount.status !== 'active') {
+        return res.status(400).json({ message: "Partner account not active" });
+      }
+      
+      // Create checkout session with split payment
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+      const platformFee = 0.15; // 15%
+      
+      const checkoutUrl = await createPackageCheckoutSession(
+        booking.id,
+        parseFloat(booking.totalPrice),
+        'eur',
+        partnerAccount.stripeAccountId,
+        platformFee,
+        `${baseUrl}/booking-success?booking_id=${booking.id}`,
+        `${baseUrl}/packages/${pkg.id}`,
+        {
+          partnerId: partner.id,
+          packageId: pkg.id,
+          userId,
+        }
+      );
+      
+      // Store checkout session ID in booking
+      const sessionId = checkoutUrl.split('/').pop();
+      await storage.updatePackageBooking(booking.id, {
+        stripeCheckoutSessionId: sessionId,
+      });
+      
+      res.json({
+        checkoutUrl,
+        platformFee: (parseFloat(booking.totalPrice) * platformFee).toFixed(2),
+      });
+    } catch (error: any) {
+      console.error("Error creating package checkout:", error);
+      
+      // Update booking status on failure
+      try {
+        await storage.updatePackageBooking(req.params.id, {
+          paymentStatus: 'failed',
+        });
+      } catch (updateError) {
+        console.error("Error updating booking status on failure:", updateError);
+      }
+      
+      res.status(500).json({ message: error.message || "Failed to create checkout" });
+    }
+  });
+
+  // Get Partner Payouts
+  app.get('/api/billing/payouts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      const payouts = await storage.getPartnerPayouts(partner.id);
+      
+      res.json(payouts);
+    } catch (error) {
+      console.error("Error fetching payouts:", error);
+      res.status(500).json({ message: "Failed to fetch payouts" });
+    }
+  });
+
+  // Stripe Connect Webhook Handler
+  app.post('/api/webhooks/stripe-connect', async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    
+    if (!stripe || !sig) {
+      return res.status(400).send('Webhook signature missing');
+    }
+    
+    const webhookSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET;
+    
+    if (!webhookSecret) {
+      console.error('[Stripe Connect] Webhook secret not configured');
+      return res.status(500).send('Webhook secret not configured');
+    }
+    
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err: any) {
+      console.error('[Stripe Connect] Webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+    
+    try {
+      await handleConnectWebhook(event, storage);
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error('[Stripe Connect] Webhook handler error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============= OTA/DMO CONNECTORS (Phase 12) =============
+
+  // Register OTA Connector (Partner only)
+  app.post('/api/connectors/ota/register', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      // Validate with Zod
+      const validatedData = insertExternalConnectorSchema.parse({
+        ...req.body,
+        partnerId: partner.id,
+      });
+      
+      const connector = await storage.createExternalConnector(validatedData);
+      
+      res.json(connector);
+    } catch (error: any) {
+      console.error("Error registering connector:", error);
+      res.status(400).json({ message: error.message || "Failed to register connector" });
+    }
+  });
+
+  // Get My Connectors (Partner only)
+  app.get('/api/connectors/my', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partner = await storage.getPartnerByOwner(userId);
+      
+      if (!partner) {
+        return res.status(403).json({ message: "Partner profile required" });
+      }
+      
+      const connectors = await storage.getPartnerConnectors(partner.id);
+      
+      res.json(connectors);
+    } catch (error) {
+      console.error("Error fetching connectors:", error);
+      res.status(500).json({ message: "Failed to fetch connectors" });
+    }
+  });
+
+  // Get Connector Details
+  app.get('/api/connectors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const connectorId = req.params.id;
+      
+      const connector = await storage.getExternalConnector(connectorId);
+      
+      if (!connector) {
+        return res.status(404).json({ message: "Connector not found" });
+      }
+      
+      // Verify ownership
+      const partner = await storage.getPartner(connector.partnerId);
+      if (!partner || partner.ownerUserId !== userId) {
+        return res.status(403).json({ message: "Not your connector" });
+      }
+      
+      // Get mappings
+      const mappings = await storage.getConnectorMappings(connectorId);
+      
+      res.json({
+        connector,
+        mappings,
+        totalMappings: mappings.length,
+      });
+    } catch (error) {
+      console.error("Error fetching connector:", error);
+      res.status(500).json({ message: "Failed to fetch connector" });
+    }
+  });
+
+  // Push Availability to OTA (Simulate sync)
+  app.post('/api/connectors/ota/push-availability', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { connectorId } = req.body;
+      
+      const connector = await storage.getExternalConnector(connectorId);
+      
+      if (!connector) {
+        return res.status(404).json({ message: "Connector not found" });
+      }
+      
+      // Verify ownership
+      const partner = await storage.getPartner(connector.partnerId);
+      if (!partner || partner.ownerUserId !== userId) {
+        return res.status(403).json({ message: "Not your connector" });
+      }
+      
+      // Trigger sync
+      const syncResult = await storage.syncConnector(connectorId);
+      
+      res.json({
+        message: syncResult.success ? 'Sync completed successfully' : 'Sync completed with errors',
+        ...syncResult,
+      });
+    } catch (error: any) {
+      console.error("Error pushing availability:", error);
+      res.status(500).json({ message: error.message || "Failed to push availability" });
+    }
+  });
+
+  // OTA Webhook Handler (Simulate external system callback)
+  app.post('/api/connectors/ota/webhook', async (req, res) => {
+    try {
+      const { connectorId, externalId, event, data } = req.body;
+      
+      if (!connectorId || !externalId || !event) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      const connector = await storage.getExternalConnector(connectorId);
+      
+      if (!connector) {
+        return res.status(404).json({ message: "Connector not found" });
+      }
+      
+      // Process different event types
+      switch (event) {
+        case 'booking_created': {
+          // Update mapping status
+          await storage.updateInventoryMapStatus(connectorId, externalId, 'synced');
+          
+          // Log audit trail
+          await storage.createAuditLog({
+            userId: null,
+            action: 'ota_booking',
+            entityType: 'connector',
+            entityId: connectorId,
+            changes: { metadata: { event, externalId, data } },
+          });
+          
+          console.log(`[OTA Webhook] Booking created for connector ${connectorId}, external ID ${externalId}`);
+          break;
+        }
+        
+        case 'booking_cancelled': {
+          await storage.updateInventoryMapStatus(connectorId, externalId, 'synced');
+          
+          console.log(`[OTA Webhook] Booking cancelled for connector ${connectorId}, external ID ${externalId}`);
+          break;
+        }
+        
+        case 'inventory_updated': {
+          await storage.updateInventoryMapStatus(connectorId, externalId, 'pending');
+          
+          console.log(`[OTA Webhook] Inventory updated for connector ${connectorId}, external ID ${externalId}`);
+          break;
+        }
+        
+        default:
+          console.log(`[OTA Webhook] Unknown event type: ${event}`);
+      }
+      
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error("[OTA Webhook] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update Connector (Partner only)
+  app.patch('/api/connectors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const connectorId = req.params.id;
+      
+      const connector = await storage.getExternalConnector(connectorId);
+      
+      if (!connector) {
+        return res.status(404).json({ message: "Connector not found" });
+      }
+      
+      // Verify ownership
+      const partner = await storage.getPartner(connector.partnerId);
+      if (!partner || partner.ownerUserId !== userId) {
+        return res.status(403).json({ message: "You can only update your own connectors" });
+      }
+      
+      const updated = await storage.updateExternalConnector(connectorId, req.body);
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating connector:", error);
+      res.status(400).json({ message: error.message || "Failed to update connector" });
+    }
+  });
+
+  // Delete Connector (Partner only)
+  app.delete('/api/connectors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const connectorId = req.params.id;
+      
+      const connector = await storage.getExternalConnector(connectorId);
+      
+      if (!connector) {
+        return res.status(404).json({ message: "Connector not found" });
+      }
+      
+      // Verify ownership
+      const partner = await storage.getPartner(connector.partnerId);
+      if (!partner || partner.ownerUserId !== userId) {
+        return res.status(403).json({ message: "You can only delete your own connectors" });
+      }
+      
+      await storage.deleteExternalConnector(connectorId);
+      
+      res.json({ message: "Connector deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting connector:", error);
+      res.status(400).json({ message: error.message || "Failed to delete connector" });
     }
   });
 
