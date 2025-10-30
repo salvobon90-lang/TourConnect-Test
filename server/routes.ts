@@ -457,9 +457,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password } = req.body;
 
-      // Verify credentials against environment variables
-      const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
-      const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+      // Verify credentials against environment variables (with trim to remove spaces)
+      const ADMIN_USERNAME = process.env.ADMIN_USERNAME?.trim();
+      const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD?.trim();
 
       if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
         return res.status(500).json({ 
@@ -467,9 +467,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+      // Trim input credentials to handle accidental spaces
+      const inputUsername = username?.trim();
+      const inputPassword = password?.trim();
+
+      if (inputUsername !== ADMIN_USERNAME || inputPassword !== ADMIN_PASSWORD) {
+        console.log('[Admin Login] Failed attempt - credentials mismatch');
         return res.status(401).json({ message: 'Invalid admin credentials' });
       }
+
+      console.log('[Admin Login] Credentials verified successfully');
 
       // Check if admin user already exists in database
       let adminUser = await storage.getUserByUsername('admin@tourconnect.local');
