@@ -5358,6 +5358,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         targetId: partner.id,
       });
       
+      // Audit log for partner registration
+      await storage.createAuditLog({
+        userId,
+        action: 'partner_registration',
+        entityType: 'partner',
+        entityId: partner.id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        changes: { after: { name: partner.name, type: partner.type } }
+      });
+      
       res.json(partner);
     } catch (error: any) {
       console.error("Error creating partner:", error);
@@ -6083,6 +6094,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const pkg = await storage.createPackage(validatedData);
       
+      // Audit log for package creation
+      const userId = req.user.claims.sub;
+      await storage.createAuditLog({
+        userId,
+        action: 'package_created',
+        entityType: 'package',
+        entityId: pkg.id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        changes: { after: { title: pkg.title, basePrice: pkg.basePrice } }
+      });
+      
       res.json(pkg);
     } catch (error: any) {
       console.error("Error creating package:", error);
@@ -6157,11 +6180,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let discountApplied = pricing.discount;
       
       // Apply coupon if provided
+      let appliedCouponCode: string | null = null;
       if (couponCode) {
         const couponResult = await storage.applyCoupon(couponCode, packageId, finalPrice);
         if (couponResult.valid) {
           finalPrice = couponResult.finalPrice;
           discountApplied += couponResult.discount;
+          appliedCouponCode = couponCode;
         }
       }
       
@@ -6181,6 +6206,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         affiliateCode: affiliateCode || null,
         specialRequests: specialRequests || null,
       });
+      
+      // Audit log for coupon usage
+      if (appliedCouponCode) {
+        const appliedCoupon = await storage.getCouponByCode(appliedCouponCode);
+        if (appliedCoupon) {
+          await storage.createAuditLog({
+            userId,
+            action: 'coupon_used',
+            entityType: 'coupon',
+            entityId: appliedCoupon.id,
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent'],
+            changes: { metadata: { packageId: pkg.id, discountAmount: discountApplied, bookingId: booking.id } }
+          });
+        }
+      }
       
       res.json({
         booking,
@@ -6238,7 +6279,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only update your own packages" });
       }
       
+      // Store original package for audit log
+      const originalPackage = { title: pkg.title, basePrice: pkg.basePrice, isActive: pkg.isActive };
+      
       const updated = await storage.updatePackage(packageId, req.body);
+      
+      // Audit log for package update
+      const userId = req.user.claims.sub;
+      await storage.createAuditLog({
+        userId,
+        action: 'package_updated',
+        entityType: 'package',
+        entityId: packageId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        changes: { before: originalPackage, after: req.body }
+      });
       
       res.json(updated);
     } catch (error: any) {
@@ -6262,7 +6318,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only delete your own packages" });
       }
       
+      // Store package data for audit log before deletion
+      const packageData = { title: pkg.title, basePrice: pkg.basePrice, isActive: pkg.isActive };
+      
       await storage.deletePackage(packageId);
+      
+      // Audit log for package deletion
+      const userId = req.user.claims.sub;
+      await storage.createAuditLog({
+        userId,
+        action: 'package_deleted',
+        entityType: 'package',
+        entityId: packageId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        changes: { before: packageData }
+      });
       
       res.json({ message: "Package deleted successfully" });
     } catch (error: any) {
@@ -6284,6 +6355,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const coupon = await storage.createCoupon(validatedData);
+      
+      // Audit log for coupon creation
+      const userId = req.user.claims.sub;
+      await storage.createAuditLog({
+        userId,
+        action: 'coupon_created',
+        entityType: 'coupon',
+        entityId: coupon.id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        changes: { after: { code: coupon.code, type: coupon.type, value: coupon.value } }
+      });
       
       res.json(coupon);
     } catch (error: any) {
@@ -6416,6 +6499,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const link = await storage.createAffiliateLink(validatedData);
+      
+      // Audit log for affiliate link creation
+      await storage.createAuditLog({
+        userId,
+        action: 'affiliate_created',
+        entityType: 'affiliate_link',
+        entityId: link.id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        changes: { after: { code: link.affiliateCode, commissionPct: link.commissionPct } }
+      });
       
       res.json(link);
     } catch (error: any) {
@@ -6689,12 +6783,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       );
       
-      // Store checkout session ID in booking
-      const sessionId = checkoutUrl.split('/').pop();
-      await storage.updatePackageBooking(booking.id, {
-        stripeCheckoutSessionId: sessionId,
-      });
-      
       res.json({
         checkoutUrl,
         platformFee: (parseFloat(booking.totalPrice) * platformFee).toFixed(2),
@@ -6780,6 +6868,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const connector = await storage.createExternalConnector(validatedData);
+      
+      // Audit log for connector registration
+      const userId = req.user.claims.sub;
+      await storage.createAuditLog({
+        userId,
+        action: 'connector_registered',
+        entityType: 'connector',
+        entityId: connector.id,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        changes: { after: { name: connector.name, connectorType: connector.connectorType } }
+      });
       
       res.json(connector);
     } catch (error: any) {

@@ -1,0 +1,160 @@
+Prompt completo per Replit
+
+🚀 Task: Phase 12 — Service System Redesign & Expansion
+
+We need to fully redesign and expand the “Services” section of TourConnect to make it functional, engaging, and aligned with the rest of the app’s ecosystem (Group Booking, Likes, Reviews, Rewards System, Trust Levels, etc.).
+Currently, service creation and management are limited or non-functional. This phase must address both backend and frontend sides.
+
+🎯 Objectives
+
+1. Enable Full Service Creation & Management
+
+Allow registered providers to create, edit, and delete services.
+
+Required fields:
+
+Title
+
+Description (rich text support)
+
+Category (dropdown)
+
+Duration
+
+Price (base and group discounted)
+
+Languages supported
+
+Images (upload via object storage)
+
+Location (with map pin selector)
+
+Availability calendar
+
+Add backend validation and ownership checks.
+
+Implement moderation flags (e.g., “pending approval”, “verified”).
+
+2. Expand the Service Offering System
+
+Add a new database schema for service_categories (e.g. Food Experiences, Transport, Local Guides, Wellness, Art & Culture, Outdoor Activities).
+
+Each service must be linked to a category and a provider profile.
+
+Add search filters (by location, category, language, rating, price range).
+
+Integrate this into the existing Discover page (as “Tours & Services Nearby”).
+
+3. Visual & UX Enhancements
+
+Redesign the ServiceCard component with:
+
+Thumbnail
+
+Title + provider name (linked profile)
+
+Price and rating
+
+Like button + like count
+
+“Book” or “Join Group” CTA
+
+Trust badge if provider is verified
+
+On click → Open ServiceDetailPage with full info, gallery, provider profile, map view, and reviews.
+
+4. Integrate With Existing Systems
+
+Connect with Reward System:
+
+Provider earns +50 pts for each completed booking
+
+Tourist earns +25 pts for completing service and +10 for review
+
+Connect with Like System:
+
+Tourists can like services (adds +5 pts for provider, 1 like per user/service)
+
+Connect with Group Booking System (Phase 5):
+
+If a service supports it, allow users to “join group” and share cost dynamically.
+
+5. Admin & Moderation Tools
+
+Add new Admin route /admin/services to:
+
+Approve or reject submitted services
+
+Edit or remove inappropriate content
+
+Mark verified providers
+
+Add filtering options for approval status and category.
+
+6. Frontend Pages To Build/Update
+
+/services → Service listing page with filters and map
+
+/services/:id → Detailed service page with booking and review section
+
+/provider-dashboard/services → Provider’s own service manager
+
+/admin/services → Admin moderation panel
+
+7. Internationalization
+
+Translate all new UI strings and labels into 5 languages: English, Italian, French, German, Spanish.
+
+Update translation JSON files accordingly.
+
+8. Tech Stack & Standards
+
+Maintain current stack (React + TypeScript + Supabase + Stripe + Realtime WebSocket).
+
+Use the same dark grey + orange (#FF6600) theme.
+
+Keep all visual styles consistent with Tours and Profiles sections.
+
+Follow accessibility standards (ARIA labels, color contrast).
+
+9. Deliverables
+
+✅ Functional full-stack “Service Management System”
+
+✅ Updated database schema (services, service_categories, service_likes)
+
+✅ UI components: ServiceCard, ServiceDetailPage, ServiceForm, ServiceList
+
+✅ Integration with rewards, likes, trust, and booking logic
+
+✅ Multi-language translations
+
+✅ Admin moderation panel
+
+10. Testing & QA
+
+Add backend validation tests (service creation, permissions)
+
+Add integration tests for:
+
+Service creation flow
+
+Booking + group joining
+
+Like system consistency
+
+Add UI widget tests for ServiceList and ServiceDetailPage rendering.
+
+🧠 Notes
+
+Make sure all new services appear automatically in:
+
+Discover page (if within user geolocation radius)
+
+Provider’s profile
+
+Search bar (Phase 10 integration)
+
+Final Goal:
+
+“Transform the Services section into a complete, dynamic marketplace where providers can publish and manage their offers, and tourists can easily discover, like, join, and book experiences nearby — fully integrated with rewards, trust, and community engagement.”
