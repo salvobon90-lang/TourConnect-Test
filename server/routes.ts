@@ -452,6 +452,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Admin login endpoint - separate from regular OIDC login
+  app.post('/api/admin/login', authLimiter, async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      // Verify credentials against environment variables
+      const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+      const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+      if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
+        return res.status(500).json({ 
+          message: 'Admin credentials not configured. Please set ADMIN_USERNAME and ADMIN_PASSWORD in secrets.' 
+        });
+      }
+
+      if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ message: 'Invalid admin credentials' });
+      }
+
+      // Check if admin user already exists in database
+      let adminUser = await storage.getUserByUsername('admin@tourconnect.local');
+      
+      if (!adminUser) {
+        // Create admin user in database using upsertUser
+        adminUser = await storage.upsertUser({
+          id: 'admin_supervisor_' + Date.now(),
+          email: 'admin@tourconnect.local',
+          firstName: 'Admin',
+          lastName: 'Supervisor',
+          role: 'supervisor',
+          approvalStatus: 'approved',
+          profileImageUrl: null,
+          bio: 'System Administrator',
+          phone: null,
+          country: null,
+          city: null,
+          latitude: null,
+          longitude: null,
+          guideLanguages: [],
+          guideSpecialties: [],
+          guideExperience: null,
+          guideLicenseNumber: null,
+          businessName: null,
+          businessType: null,
+          businessAddress: null,
+          website: null,
+          socialLinks: null,
+          verified: true,
+          trustLevel: 5,
+          isOnline: true,
+          lastOnlineAt: new Date(),
+        });
+      }
+
+      // Set session
+      (req.session as any).userId = adminUser.id;
+      (req.session as any).role = 'supervisor';
+      
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      res.json({ 
+        message: 'Admin login successful',
+        user: {
+          id: adminUser.id,
+          firstName: adminUser.firstName,
+          lastName: adminUser.lastName,
+          role: adminUser.role,
+          email: adminUser.email,
+        }
+      });
+    } catch (error) {
+      console.error("Admin login error:", error);
+      res.status(500).json({ message: "Failed to process admin login" });
+    }
+  });
+
   // Supervisor routes
   app.get('/api/supervisor/pending-users', isAuthenticated, async (req: any, res) => {
     try {

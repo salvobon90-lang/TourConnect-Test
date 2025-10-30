@@ -57,6 +57,7 @@ const Discover = lazy(() => import("@/pages/discover"));
 const CommunityMapPage = lazy(() => import("@/pages/CommunityMapPage"));
 const SearchPage = lazy(() => import("@/pages/SearchPage"));
 const PartnershipsPage = lazy(() => import("@/pages/PartnershipsPage"));
+const AdminLoginPage = lazy(() => import("@/pages/AdminLoginPage"));
 
 // Loading fallback component
 function PageLoader() {
@@ -99,6 +100,7 @@ function Router() {
           <Suspense fallback={<PageLoader />}>
             <Switch location={location}>
               <Route path="/" component={Landing} />
+              <Route path="/admin/login" component={AdminLoginPage} />
               <Route path="/tours" component={Tours} />
               <Route path="/tours/:id/3d" component={Tour3DPage} />
               <Route path="/tours/:id" component={TourDetail} />

@@ -97,9 +97,9 @@ export default function Landing() {
               </a>
             </div>
             
-            <a href="/api/login" className="text-white/70 hover:text-white text-sm flex items-center gap-2 transition-colors" data-testid="link-supervisor-login">
+            <a href="/admin/login" className="text-white/70 hover:text-white text-sm flex items-center gap-2 transition-colors" data-testid="link-supervisor-login">
               <Shield className="w-4 h-4" />
-              {t('roles.supervisor')}
+              Admin Login
             </a>
           </div>
         </div>
