@@ -2,6 +2,7 @@ import {
   users,
   tours,
   services,
+  serviceCategories,
   bookings,
   reviews,
   sponsorships,
@@ -50,6 +51,8 @@ import {
   type InsertTour,
   type Service,
   type InsertService,
+  type ServiceCategory,
+  type InsertServiceCategory,
   type Booking,
   type InsertBooking,
   type Review,
@@ -217,6 +220,11 @@ export interface IStorage {
   updateService(id: string, service: Partial<InsertService>): Promise<Service>;
   deleteService(id: string): Promise<void>;
   updateServiceApprovalStatus(serviceId: string, status: 'approved' | 'rejected', supervisorId: string): Promise<Service>;
+  
+  // Phase 13 - Service Categories
+  getServiceCategories(): Promise<ServiceCategory[]>;
+  getServiceCategory(id: string): Promise<ServiceCategory | undefined>;
+  moderateService(id: string, moderatedBy: string, status: string, notes?: string): Promise<Service>;
   
   // Booking operations
   getBookings(userId: string): Promise<BookingWithDetails[]>;
@@ -801,6 +809,34 @@ export class DatabaseStorage implements IStorage {
 
   async deleteService(id: string): Promise<void> {
     await db.delete(services).where(eq(services.id, id));
+  }
+
+  // Phase 13 - Service Categories
+  async getServiceCategories(): Promise<ServiceCategory[]> {
+    return await db.query.serviceCategories.findMany({
+      orderBy: (categories, { asc }) => [asc(categories.name)],
+    });
+  }
+
+  async getServiceCategory(id: string): Promise<ServiceCategory | undefined> {
+    return await db.query.serviceCategories.findFirst({
+      where: eq(serviceCategories.id, id),
+    });
+  }
+
+  // Phase 13 - Service Moderation
+  async moderateService(id: string, moderatedBy: string, status: string, notes?: string): Promise<Service> {
+    const [moderated] = await db
+      .update(services)
+      .set({
+        moderationStatus: status,
+        moderatedBy,
+        moderatedAt: new Date(),
+        moderationNotes: notes,
+      })
+      .where(eq(services.id, id))
+      .returning();
+    return moderated;
   }
 
   async getPendingServices(): Promise<ServiceWithProvider[]> {
@@ -4585,22 +4621,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Partner GDPR operations
-  async getPartnerPackages(partnerId: string): Promise<Package[]> {
-    return await db.select().from(packages).where(eq(packages.partnerId, partnerId));
-  }
-
-  async getPartnerCoupons(partnerId: string): Promise<Coupon[]> {
-    return await db.select().from(coupons).where(eq(coupons.partnerId, partnerId));
-  }
-
-  async getUserAffiliateLinks(userId: string): Promise<AffiliateLink[]> {
-    return await db.select().from(affiliateLinks).where(eq(affiliateLinks.userId, userId));
-  }
-
-  async getPartnerPayouts(partnerId: string): Promise<Payout[]> {
-    return await db.select().from(payouts).where(eq(payouts.partnerId, partnerId));
-  }
-
   async deactivatePartnerPackages(partnerId: string): Promise<void> {
     await db.update(packages)
       .set({ isActive: false })
@@ -4616,22 +4636,18 @@ export class DatabaseStorage implements IStorage {
   async anonymizePartnerProfile(partnerId: string): Promise<void> {
     await db.update(partners)
       .set({
-        businessName: 'DELETED_USER',
+        name: 'DELETED_USER',
         contactEmail: 'deleted@example.com',
-        contactPhone: null,
+        phone: null,
         description: 'User data deleted per GDPR request',
         website: null,
-        socialLinks: null,
       })
       .where(eq(partners.id, partnerId));
   }
 
   async anonymizePartnerPayouts(partnerId: string): Promise<void> {
-    await db.update(payouts)
-      .set({
-        metadata: { anonymized: true, reason: 'GDPR deletion' }
-      })
-      .where(eq(payouts.partnerId, partnerId));
+    // Payouts table doesn't have metadata field, so nothing to anonymize
+    // Payouts are kept for financial/legal compliance
   }
 
   // ============= PARTNERS METHODS (Phase 12) =============
@@ -4768,7 +4784,7 @@ export class DatabaseStorage implements IStorage {
   // ============= PACKAGES METHODS (Phase 12) =============
 
   async createPackage(data: InsertPackage): Promise<Package> {
-    const [pkg] = await db.insert(packages).values([data]).returning();
+    const [pkg] = await db.insert(packages).values(data as any).returning();
     
     // Award points for package creation
     const partner = await this.getPartner(data.partnerId);

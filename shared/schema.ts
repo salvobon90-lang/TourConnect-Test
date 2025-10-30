@@ -288,6 +288,18 @@ export const toursRelations = relations(tours, ({ one, many }) => ({
   reviews: many(reviews),
 }));
 
+// Service Categories table (Phase 13)
+export const serviceCategories = pgTable("service_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  icon: varchar("icon", { length: 50 }), // Icon name (e.g., 'utensils', 'car', 'palette')
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ServiceCategory = typeof serviceCategories.$inferSelect;
+export type InsertServiceCategory = typeof serviceCategories.$inferInsert;
+
 // Services table - created by providers
 export const services = pgTable("services", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -306,6 +318,17 @@ export const services = pgTable("services", {
   operatingHours: text("operating_hours"),
   priceRange: varchar("price_range", { length: 10 }), // $, $$, $$$
   specialOffer: text("special_offer"),
+  
+  // Phase 13 - New service fields
+  categoryId: varchar("category_id").references(() => serviceCategories.id),
+  duration: integer("duration"), // minutes
+  languages: text("languages").array().default(sql`ARRAY[]::text[]`), // ['en', 'it', 'es']
+  availability: jsonb("availability"), // calendar/schedule data
+  moderationStatus: varchar("moderation_status", { length: 20 }).default("pending"), // 'pending' | 'approved' | 'rejected'
+  moderationNotes: text("moderation_notes"),
+  moderatedBy: varchar("moderated_by").references(() => users.id),
+  moderatedAt: timestamp("moderated_at"),
+  
   approvalStatus: varchar("approval_status", { length: 20 }).notNull().default("pending"), // pending, approved, rejected
   approvedBy: varchar("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),
@@ -318,6 +341,10 @@ export const servicesRelations = relations(services, ({ one, many }) => ({
   provider: one(users, {
     fields: [services.providerId],
     references: [users.id],
+  }),
+  category: one(serviceCategories, {
+    fields: [services.categoryId],
+    references: [serviceCategories.id],
   }),
   reviews: many(reviews),
 }));
