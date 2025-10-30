@@ -25,6 +25,8 @@ import {
   smartGroupMembers,
   smartGroupMessages,
   smartGroupInvites,
+  aiLogs,
+  groupEvents,
   rewardPoints,
   levelThresholds,
   type User,
@@ -78,6 +80,10 @@ import {
   type SmartGroupInvite,
   type InsertSmartGroupInvite,
   type SmartGroupWithDetails,
+  type AILog,
+  type InsertAILog,
+  type GroupEvent,
+  type InsertGroupEvent,
   type RewardActionType,
   type RewardLevel,
   type TourWithGuide,
@@ -309,6 +315,51 @@ export interface IStorage {
   getUserActiveGroupsCount(userId: string): Promise<number>;
   getUserLastGroupCreation(userId: string): Promise<Date | null>;
   isUserInSmartGroup(groupId: string, userId: string): Promise<boolean>;
+  
+  // AI Travel Companion operations (Phase 9)
+  logAIInteraction(params: {
+    userId: string;
+    groupId?: string;
+    actionType: string;
+    inputData: any;
+    outputData: any;
+    userConsent: boolean;
+    language?: string;
+    metadata?: any;
+  }): Promise<AILog>;
+  getAILogs(params: {
+    userId?: string;
+    groupId?: string;
+    actionType?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<AILog[]>;
+  createGroupEvent(params: {
+    groupId: string;
+    creatorId: string;
+    eventType: string;
+    title: string;
+    description?: string;
+    eventDate: Date;
+    location?: string;
+    latitude?: number;
+    longitude?: number;
+    notificationTimes?: Date[];
+  }): Promise<GroupEvent>;
+  getGroupEvents(params: {
+    groupId?: string;
+    creatorId?: string;
+    eventType?: string;
+    status?: string;
+    upcomingOnly?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<GroupEvent[]>;
+  updateEventStatus(eventId: string, status: string): Promise<GroupEvent | null>;
+  getUpcomingNotifications(windowMinutes?: number): Promise<GroupEvent[]>;
+  hasUserConsentedToAI(userId: string): Promise<boolean>;
+  updateAIConsent(userId: string, consent: boolean): Promise<void>;
+  getAIConsentStatus(userId: string): Promise<{ hasConsented: boolean; consentDate: Date | null }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3529,6 +3580,314 @@ export class DatabaseStorage implements IStorage {
       .returning({ id: smartGroups.id });
 
     return result.length;
+  }
+
+  // AI Travel Companion operations (Phase 9)
+  
+  // Log AI interactions with GDPR compliance
+  async logAIInteraction(params: {
+    userId: string;
+    groupId?: string;
+    actionType: string;
+    inputData: any;
+    outputData: any;
+    userConsent: boolean;
+    language?: string;
+    metadata?: any;
+  }): Promise<AILog> {
+    try {
+      if (!params.userConsent) {
+        throw new Error('User consent is required to log AI interactions');
+      }
+
+      const sanitizedInputData = this.sanitizeAIData(params.inputData);
+
+      const [log] = await db
+        .insert(aiLogs)
+        .values({
+          userId: params.userId,
+          groupId: params.groupId || null,
+          actionType: params.actionType,
+          inputData: sanitizedInputData,
+          outputData: params.outputData,
+          userConsent: params.userConsent,
+          language: params.language || null,
+          metadata: params.metadata || null,
+        })
+        .returning();
+
+      return log;
+    } catch (error) {
+      console.error('Error logging AI interaction:', error);
+      throw error;
+    }
+  }
+
+  // Get AI logs with filters and pagination
+  async getAILogs(params: {
+    userId?: string;
+    groupId?: string;
+    actionType?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<AILog[]> {
+    try {
+      const limit = params.limit || 50;
+      const offset = params.offset || 0;
+
+      const conditions = [];
+      
+      if (params.userId) {
+        conditions.push(eq(aiLogs.userId, params.userId));
+      }
+      
+      if (params.groupId) {
+        conditions.push(eq(aiLogs.groupId, params.groupId));
+      }
+      
+      if (params.actionType) {
+        conditions.push(eq(aiLogs.actionType, params.actionType));
+      }
+
+      const query = db
+        .select()
+        .from(aiLogs)
+        .orderBy(desc(aiLogs.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      if (conditions.length > 0) {
+        return await query.where(and(...conditions));
+      }
+
+      return await query;
+    } catch (error) {
+      console.error('Error getting AI logs:', error);
+      throw error;
+    }
+  }
+
+  // Create a group event (reminder, meeting, schedule)
+  async createGroupEvent(params: {
+    groupId: string;
+    creatorId: string;
+    eventType: string;
+    title: string;
+    description?: string;
+    eventDate: Date;
+    location?: string;
+    latitude?: number;
+    longitude?: number;
+    notificationTimes?: Date[];
+  }): Promise<GroupEvent> {
+    try {
+      const notificationTimesJson = params.notificationTimes 
+        ? params.notificationTimes.map(d => d.toISOString())
+        : null;
+
+      const [event] = await db
+        .insert(groupEvents)
+        .values({
+          groupId: params.groupId,
+          creatorId: params.creatorId,
+          eventType: params.eventType,
+          title: params.title,
+          description: params.description || null,
+          eventDate: params.eventDate,
+          location: params.location || null,
+          latitude: params.latitude || null,
+          longitude: params.longitude || null,
+          notificationTimes: notificationTimesJson,
+          status: 'pending',
+        })
+        .returning();
+
+      return event;
+    } catch (error) {
+      console.error('Error creating group event:', error);
+      throw error;
+    }
+  }
+
+  // Get group events with filters
+  async getGroupEvents(params: {
+    groupId?: string;
+    creatorId?: string;
+    eventType?: string;
+    status?: string;
+    upcomingOnly?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<GroupEvent[]> {
+    try {
+      const limit = params.limit || 50;
+      const offset = params.offset || 0;
+      const conditions = [];
+
+      if (params.groupId) {
+        conditions.push(eq(groupEvents.groupId, params.groupId));
+      }
+
+      if (params.creatorId) {
+        conditions.push(eq(groupEvents.creatorId, params.creatorId));
+      }
+
+      if (params.eventType) {
+        conditions.push(eq(groupEvents.eventType, params.eventType));
+      }
+
+      if (params.status) {
+        conditions.push(eq(groupEvents.status, params.status));
+      }
+
+      if (params.upcomingOnly) {
+        conditions.push(gte(groupEvents.eventDate, new Date()));
+      }
+
+      const query = db
+        .select()
+        .from(groupEvents)
+        .orderBy(asc(groupEvents.eventDate))
+        .limit(limit)
+        .offset(offset);
+
+      if (conditions.length > 0) {
+        return await query.where(and(...conditions));
+      }
+
+      return await query;
+    } catch (error) {
+      console.error('Error getting group events:', error);
+      throw error;
+    }
+  }
+
+  // Update event status
+  async updateEventStatus(eventId: string, status: string): Promise<GroupEvent | null> {
+    try {
+      const [event] = await db
+        .update(groupEvents)
+        .set({
+          status,
+          updatedAt: new Date(),
+        })
+        .where(eq(groupEvents.id, eventId))
+        .returning();
+
+      return event || null;
+    } catch (error) {
+      console.error('Error updating event status:', error);
+      throw error;
+    }
+  }
+
+  // Get upcoming notifications (for background job)
+  async getUpcomingNotifications(windowMinutes: number = 60): Promise<GroupEvent[]> {
+    try {
+      const now = new Date();
+      const futureTime = new Date(now.getTime() + windowMinutes * 60000);
+
+      const events = await db
+        .select()
+        .from(groupEvents)
+        .where(
+          and(
+            eq(groupEvents.status, 'pending'),
+            gte(groupEvents.eventDate, now),
+            lte(groupEvents.eventDate, futureTime)
+          )
+        )
+        .orderBy(asc(groupEvents.eventDate));
+
+      const eventsNeedingNotification = events.filter(event => {
+        if (!event.notificationTimes || event.notificationTimes.length === 0) {
+          return false;
+        }
+
+        const notificationDates = (event.notificationTimes as string[]).map(t => new Date(t));
+        
+        return notificationDates.some(notifTime => {
+          return notifTime >= now && notifTime <= futureTime;
+        });
+      });
+
+      return eventsNeedingNotification;
+    } catch (error) {
+      console.error('Error getting upcoming notifications:', error);
+      throw error;
+    }
+  }
+
+  // Check if user has consented to AI features (GDPR)
+  async hasUserConsentedToAI(userId: string): Promise<boolean> {
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        columns: { aiConsent: true }
+      });
+      return user?.aiConsent ?? false;
+    } catch (error) {
+      console.error('Error checking AI consent:', error);
+      return false;
+    }
+  }
+
+  // Update user's AI consent (GDPR)
+  async updateAIConsent(userId: string, consent: boolean): Promise<void> {
+    await db.update(users)
+      .set({ 
+        aiConsent: consent,
+        aiConsentDate: consent ? new Date() : null
+      })
+      .where(eq(users.id, userId));
+  }
+
+  // Get user's AI consent status (GDPR)
+  async getAIConsentStatus(userId: string): Promise<{ hasConsented: boolean; consentDate: Date | null }> {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: { aiConsent: true, aiConsentDate: true }
+    });
+    return {
+      hasConsented: user?.aiConsent ?? false,
+      consentDate: user?.aiConsentDate ?? null
+    };
+  }
+
+  // Helper: Sanitize AI input data to remove sensitive information
+  private sanitizeAIData(data: any): any {
+    if (!data) return data;
+    
+    const sanitized = { ...data };
+    
+    const sensitiveFields = [
+      'password', 'token', 'secret', 'apiKey', 'creditCard', 
+      'ssn', 'socialSecurity', 'passport', 'driverLicense',
+      'email', 'phone', 'address'
+    ];
+    
+    const sanitizeObject = (obj: any): any => {
+      if (typeof obj !== 'object' || obj === null) {
+        return obj;
+      }
+      
+      if (Array.isArray(obj)) {
+        return obj.map(item => sanitizeObject(item));
+      }
+      
+      const result: any = {};
+      for (const key in obj) {
+        const lowerKey = key.toLowerCase();
+        if (sensitiveFields.some(field => lowerKey.includes(field))) {
+          result[key] = '[REDACTED]';
+        } else {
+          result[key] = sanitizeObject(obj[key]);
+        }
+      }
+      return result;
+    };
+    
+    return sanitizeObject(sanitized);
   }
 }
 

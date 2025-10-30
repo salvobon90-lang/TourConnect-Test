@@ -1,0 +1,77 @@
+Implementa Phase 9 – AI Travel Companion & Group Coordination System per TourConnect.
+
+Obiettivo: aggiungere un assistente AI integrato nei gruppi SmartGroups, che aiuti i turisti a coordinarsi tra loro, tradurre i messaggi, trovare punti d’incontro, impostare promemoria e creare riepiloghi automatici post-tour.
+
+🔧 Specifiche tecniche:
+	•	Stack: React + TypeScript frontend, Node.js/Express backend, PostgreSQL database.
+	•	Real-time: WebSocket (socket.io).
+	•	Tema UI: dark grey + orange #FF6600.
+	•	Multi-lingua (EN, IT, DE, FR, ES).
+
+🧠 AI Assistant (TC-Bot) funzioni principali:
+	1.	Suggerisce punti d’incontro ottimali basandosi sulla posizione GPS dei partecipanti.
+	2.	Traduce automaticamente i messaggi nella lingua dell’utente.
+	3.	Imposta promemoria automatici per gli eventi (24h, 2h, 30min prima).
+	4.	Gestisce conflitti di orario o posizione e propone alternative.
+	5.	Genera riepiloghi automatici post-tour con foto, tappe e partecipanti.
+	6.	È presente nella chat di gruppo con comandi rapidi:
+	•	“Suggerisci punto d’incontro”
+	•	“Traduci ultimi messaggi”
+	•	“Crea promemoria”
+	•	“Genera riepilogo”
+
+🔌 API Endpoints backend:
+	•	POST /api/ai/group/{group_id}/suggest-meeting
+	•	POST /api/ai/group/{group_id}/translate
+	•	POST /api/ai/group/{group_id}/summary
+	•	POST /api/ai/group/{group_id}/schedule
+
+WebSocket Events:
+	•	ai_suggestion:{group_id} → suggerimenti live
+	•	ai_reminder:{group_id} → reminder automatici
+
+Database:
+	•	ai_logs (interazioni AI)
+	•	group_events (reminder, meeting, orari)
+
+🔐 Sicurezza:
+	•	Rate limit e cache risposte duplicate
+	•	Nessun dato sensibile inviato all’AI
+	•	Anti-prompt injection e profanity filter
+	•	GDPR compliance con consenso per traduzioni e AI
+	•	Logs crittografati visibili solo agli admin
+
+🎨 Frontend:
+	•	Bot “TC-Assistant” visibile nella chat del gruppo
+	•	Card interattive per suggerimenti meeting point con mini mappa
+	•	Traduzione automatica o pulsante “Traduci” su ogni messaggio
+	•	Reminder e notifiche push integrate
+	•	Riepilogo post-tour condivisibile come card grafica
+
+🏅 Reward System integration:
+	•	+10 punti per chi crea reminder utili
+	•	+5 punti per chi partecipa alla coordinazione AI
+	•	+15 punti per chi genera e condivide riepilogo
+
+🧩 Test richiesti:
+	•	Unit test per API e traduzioni
+	•	Integration test per flusso completo (AI suggerisce → reminder → riepilogo)
+	•	Security e load test su 100 gruppi simultanei
+
+📊 Obiettivi di performance:
+	•	+15% tasso di completamento tour comunitari
+	•	−20% cancellazioni last minute
+	•	40% gruppi usano l’AI Assistant
+	•	NPS +10 punti post-tour
+
+✅ Deliverables finali:
+	•	API e WebSocket funzionanti e documentati
+	•	Frontend integrato con bot e notifiche
+	•	Traduzioni multi-lingua complete
+	•	Privacy policy aggiornata
+	•	Tutti i test automatici superati
+
+🚀 Istruzione operativa finale:
+Priorità di sviluppo → backend + logging → frontend + chat integration → test → rollout progressivo.
+Mantieni sicurezza, privacy e multilingua come requisiti obbligatori.
+Tutti i prompt AI devono rimanere lato server (mai esposti al client).

@@ -8,7 +8,20 @@ import Stripe from "stripe";
 import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey } from "@shared/schema";
 import { randomUUID, createHash, randomBytes } from "crypto";
 import { z } from "zod";
-import { chatWithAssistant, chatWithAssistantStream, getTourRecommendations, generateItinerary, translateText, summarizeReviews, moderateContent } from "./openai";
+import { 
+  chatWithAssistant, 
+  chatWithAssistantStream, 
+  getTourRecommendations, 
+  generateItinerary, 
+  translateText, 
+  summarizeReviews, 
+  moderateContent,
+  suggestMeetingPoint,
+  generateTourSummary,
+  detectScheduleConflict,
+  type ParticipantLocation,
+  type TourSummaryRequest
+} from "./openai";
 import { 
   apiLimiter, 
   authLimiter, 
@@ -225,6 +238,33 @@ const translationSchema = z.object({
 const moderationSchema = z.object({
   content: z.string().min(1, "Content required"),
   contentType: z.enum(["post", "review", "comment", "general"]).optional().default("general")
+});
+
+// Phase 9: AI Travel Companion Validation Schemas
+const suggestMeetingSchema = z.object({
+  language: z.enum(['en', 'it', 'de', 'fr', 'es']).optional().default('en')
+});
+
+const translateMessageSchema = z.object({
+  text: z.string().min(1).max(500),
+  targetLanguage: z.enum(['en', 'it', 'de', 'fr', 'es'])
+});
+
+const generateSummarySchema = z.object({
+  language: z.enum(['en', 'it', 'de', 'fr', 'es']).optional().default('en')
+});
+
+const scheduleEventSchema = z.object({
+  eventType: z.enum(['reminder', 'meeting', 'schedule']),
+  title: z.string().min(1).max(200),
+  description: z.string().max(500).optional(),
+  eventDate: z.string().transform(str => new Date(str)),
+  location: z.string().max(200).optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  notificationTimes: z.array(z.string().transform(str => new Date(str))).optional(),
+  language: z.enum(['en', 'it', 'de', 'fr', 'es']).optional().default('en'),
+  force: z.boolean().optional().default(false)
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -3221,6 +3261,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== AI CONSENT MANAGEMENT (GDPR Phase 9) ==========
+
+  // GET /api/ai/consent - Get user's AI consent status
+  app.get("/api/ai/consent", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const consentStatus = await storage.getAIConsentStatus(userId);
+      res.json(consentStatus);
+    } catch (error) {
+      console.error("[AI Consent] Error fetching consent:", error);
+      res.status(500).json({ message: "Failed to fetch consent status" });
+    }
+  });
+
+  // POST /api/ai/consent - Update user's AI consent
+  app.post("/api/ai/consent", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const { consent } = req.body;
+      
+      if (typeof consent !== 'boolean') {
+        return res.status(400).json({ message: "consent must be a boolean" });
+      }
+      
+      await storage.updateAIConsent(userId, consent);
+      res.json({ 
+        success: true, 
+        message: consent 
+          ? "AI features enabled. You can now use AI assistance for translations, summaries, and more."
+          : "AI features disabled. Your data will not be processed by AI." 
+      });
+    } catch (error) {
+      console.error("[AI Consent] Error updating consent:", error);
+      res.status(500).json({ message: "Failed to update consent" });
+    }
+  });
+
   // ========== PARTNER API (Public with API Key) ==========
   
   // Search Tours
@@ -4003,6 +4080,403 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error getting user's smart groups:", error);
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ========== PHASE 9: AI TRAVEL COMPANION ==========
+
+  // 1. POST /api/ai/group/:groupId/suggest-meeting - Suggest optimal meeting point
+  app.post("/api/ai/group/:groupId/suggest-meeting", isAuthenticated, aiLimiter, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { groupId } = req.params;
+      
+      // Check user consent for AI
+      const hasConsent = await storage.hasUserConsentedToAI(userId);
+      if (!hasConsent) {
+        return res.status(403).json({ 
+          message: "AI features require user consent. Please enable AI in your settings." 
+        });
+      }
+      
+      // Validate user is member of group
+      const isMember = await storage.isUserInSmartGroup(groupId, userId);
+      if (!isMember) {
+        return res.status(403).json({ message: "You must be a member of this group" });
+      }
+      
+      // Validate request body
+      const validation = suggestMeetingSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validation.error.errors 
+        });
+      }
+      
+      const { language } = validation.data;
+      
+      // Get group details and members
+      const group = await storage.getSmartGroup(groupId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      
+      // Extract participant locations from group members
+      const participants: ParticipantLocation[] = group.members
+        ?.filter(m => m.user.latitude && m.user.longitude)
+        .map(m => ({
+          userId: m.userId,
+          userName: `${m.user.firstName} ${m.user.lastName}`,
+          latitude: m.user.latitude!,
+          longitude: m.user.longitude!
+        })) || [];
+      
+      if (participants.length === 0) {
+        return res.status(400).json({ 
+          message: "No participants with location data found in this group" 
+        });
+      }
+      
+      // Get tour location if available
+      let tourLocation: { latitude: number; longitude: number } | undefined;
+      if (group.tour?.latitude && group.tour?.longitude) {
+        tourLocation = {
+          latitude: group.tour.latitude,
+          longitude: group.tour.longitude
+        };
+      }
+      
+      // Call AI to suggest meeting point
+      const suggestion = await suggestMeetingPoint({
+        groupId,
+        participants,
+        tourLocation,
+        language
+      });
+      
+      // Log AI interaction
+      await storage.logAIInteraction({
+        userId,
+        groupId,
+        actionType: "meeting_suggestion",
+        inputData: { participants: participants.length, tourLocation: !!tourLocation },
+        outputData: suggestion,
+        userConsent: true,
+        language,
+        metadata: { groupName: group.name }
+      });
+      
+      // Broadcast suggestion via WebSocket
+      const { broadcastToRoom } = await import("./websocket");
+      broadcastToRoom(`smart_group_chat:${groupId}`, {
+        type: 'ai_suggestion',
+        groupId,
+        data: {
+          suggestionType: 'meeting_point',
+          ...suggestion
+        }
+      });
+      
+      // Award points to user (fire-and-forget)
+      storage.awardPoints(userId, 'ai_coordination' as any, {
+        targetId: groupId,
+        description: 'AI meeting point suggestion'
+      }).catch(err => console.error("Error awarding points:", err));
+      
+      res.json(suggestion);
+    } catch (error: any) {
+      console.error("Error suggesting meeting point:", error);
+      res.status(500).json({ message: error.message || "Failed to suggest meeting point" });
+    }
+  });
+
+  // 2. POST /api/ai/group/:groupId/translate - Translate message to user's language
+  app.post("/api/ai/group/:groupId/translate", isAuthenticated, aiLimiter, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { groupId } = req.params;
+      
+      // Check user consent for AI
+      const hasConsent = await storage.hasUserConsentedToAI(userId);
+      if (!hasConsent) {
+        return res.status(403).json({ 
+          message: "AI features require user consent. Please enable AI in your settings." 
+        });
+      }
+      
+      // Validate user is member of group
+      const isMember = await storage.isUserInSmartGroup(groupId, userId);
+      if (!isMember) {
+        return res.status(403).json({ message: "You must be a member of this group" });
+      }
+      
+      // Validate request body
+      const validation = translateMessageSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validation.error.errors 
+        });
+      }
+      
+      const { text, targetLanguage } = validation.data;
+      
+      // Call AI to translate text
+      const translatedText = await translateText({
+        text,
+        targetLanguage,
+        context: "tourism"
+      });
+      
+      // Log AI interaction
+      await storage.logAIInteraction({
+        userId,
+        groupId,
+        actionType: "translation",
+        inputData: { text, targetLanguage },
+        outputData: { translatedText },
+        userConsent: true,
+        language: targetLanguage
+      });
+      
+      res.json({
+        originalText: text,
+        translatedText,
+        targetLanguage
+      });
+    } catch (error: any) {
+      console.error("Error translating text:", error);
+      res.status(500).json({ message: error.message || "Failed to translate text" });
+    }
+  });
+
+  // 3. POST /api/ai/group/:groupId/summary - Generate post-tour summary
+  app.post("/api/ai/group/:groupId/summary", isAuthenticated, aiLimiter, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { groupId } = req.params;
+      
+      // Check user consent for AI
+      const hasConsent = await storage.hasUserConsentedToAI(userId);
+      if (!hasConsent) {
+        return res.status(403).json({ 
+          message: "AI features require user consent. Please enable AI in your settings." 
+        });
+      }
+      
+      // Validate user is member of group
+      const isMember = await storage.isUserInSmartGroup(groupId, userId);
+      if (!isMember) {
+        return res.status(403).json({ message: "You must be a member of this group" });
+      }
+      
+      // Validate request body
+      const validation = generateSummarySchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validation.error.errors 
+        });
+      }
+      
+      const { language } = validation.data;
+      
+      // Get group details
+      const group = await storage.getSmartGroup(groupId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      
+      // Get recent messages (limit to last 50)
+      const groupMessages = await storage.getSmartGroupMessages(groupId, 50);
+      const messages = groupMessages.map(m => m.message);
+      
+      // Prepare tour summary request
+      const summaryRequest: TourSummaryRequest = {
+        groupId,
+        tourName: group.tour?.title || group.name,
+        tourDescription: group.tour?.description || group.description || "Group tour experience",
+        participants: group.members?.map(m => ({
+          userId: m.userId,
+          userName: `${m.user.firstName} ${m.user.lastName}`
+        })) || [],
+        messages,
+        stops: group.tour?.itinerary ? JSON.parse(group.tour.itinerary as any) : undefined,
+        date: group.createdAt,
+        language
+      };
+      
+      // Call AI to generate summary
+      const summary = await generateTourSummary(summaryRequest);
+      
+      // Log AI interaction
+      await storage.logAIInteraction({
+        userId,
+        groupId,
+        actionType: "summary",
+        inputData: { 
+          participantCount: summaryRequest.participants.length,
+          messageCount: messages.length 
+        },
+        outputData: summary,
+        userConsent: true,
+        language,
+        metadata: { tourName: summaryRequest.tourName }
+      });
+      
+      // Award points to user (fire-and-forget)
+      storage.awardPoints(userId, 'ai_summary_share' as any, {
+        targetId: groupId,
+        description: `AI tour summary with ${summary.participantCount} participants`
+      }).catch(err => console.error("Error awarding points:", err));
+      
+      res.json(summary);
+    } catch (error: any) {
+      console.error("Error generating tour summary:", error);
+      res.status(500).json({ message: error.message || "Failed to generate summary" });
+    }
+  });
+
+  // 4. POST /api/ai/group/:groupId/schedule - Create event/reminder with conflict detection
+  app.post("/api/ai/group/:groupId/schedule", isAuthenticated, aiLimiter, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { groupId } = req.params;
+      
+      // Check user consent for AI
+      const hasConsent = await storage.hasUserConsentedToAI(userId);
+      if (!hasConsent) {
+        return res.status(403).json({ 
+          message: "AI features require user consent. Please enable AI in your settings." 
+        });
+      }
+      
+      // Validate user is member of group
+      const isMember = await storage.isUserInSmartGroup(groupId, userId);
+      if (!isMember) {
+        return res.status(403).json({ message: "You must be a member of this group" });
+      }
+      
+      // Validate request body
+      const validation = scheduleEventSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validation.error.errors 
+        });
+      }
+      
+      const { 
+        eventType, 
+        title, 
+        description, 
+        eventDate, 
+        location, 
+        latitude, 
+        longitude, 
+        notificationTimes, 
+        language, 
+        force 
+      } = validation.data;
+      
+      // Validate eventDate is in the future
+      if (eventDate <= new Date()) {
+        return res.status(400).json({ 
+          message: "Event date must be in the future" 
+        });
+      }
+      
+      // Get existing group events
+      const existingEvents = await storage.getGroupEvents({
+        groupId,
+        upcomingOnly: true,
+        limit: 100
+      });
+      
+      // Check for schedule conflicts using AI
+      const conflictCheck = await detectScheduleConflict({
+        proposedDate: eventDate,
+        existingEvents: existingEvents.map(e => ({
+          title: e.title,
+          eventDate: e.eventDate,
+          description: e.description || undefined
+        })),
+        groupId,
+        language
+      });
+      
+      // If conflict and user hasn't forced creation, return conflict info
+      if (conflictCheck.hasConflict && !force) {
+        return res.json({
+          hasConflict: true,
+          conflictingEvents: conflictCheck.conflictingEvents,
+          alternatives: conflictCheck.alternatives,
+          suggestion: conflictCheck.suggestion
+        });
+      }
+      
+      // Set up default notification times if not provided: [24h, 2h, 30min before]
+      let finalNotificationTimes = notificationTimes;
+      if (!finalNotificationTimes || finalNotificationTimes.length === 0) {
+        const eventTime = eventDate.getTime();
+        finalNotificationTimes = [
+          new Date(eventTime - 24 * 60 * 60 * 1000), // 24 hours before
+          new Date(eventTime - 2 * 60 * 60 * 1000),  // 2 hours before
+          new Date(eventTime - 30 * 60 * 1000)       // 30 minutes before
+        ];
+      }
+      
+      // Create the event
+      const event = await storage.createGroupEvent({
+        groupId,
+        creatorId: userId,
+        eventType,
+        title,
+        description,
+        eventDate,
+        location,
+        latitude,
+        longitude,
+        notificationTimes: finalNotificationTimes
+      });
+      
+      // Log AI interaction
+      await storage.logAIInteraction({
+        userId,
+        groupId,
+        actionType: "reminder",
+        inputData: { eventType, title, eventDate, hasConflict: conflictCheck.hasConflict },
+        outputData: { event, conflictCheck },
+        userConsent: true,
+        language,
+        metadata: { forced: force }
+      });
+      
+      // Award points to user (fire-and-forget)
+      storage.awardPoints(userId, 'ai_reminder_create' as any, {
+        targetId: event.id,
+        description: `AI ${eventType} event created`
+      }).catch(err => console.error("Error awarding points:", err));
+      
+      // Broadcast event created via WebSocket
+      const { broadcastToRoom } = await import("./websocket");
+      broadcastToRoom(`smart_group_chat:${groupId}`, {
+        type: 'ai_suggestion',
+        groupId,
+        data: {
+          suggestionType: 'event_created',
+          event
+        }
+      });
+      
+      res.json({
+        event,
+        hasConflict: false
+      });
+    } catch (error: any) {
+      console.error("Error creating scheduled event:", error);
+      res.status(500).json({ message: error.message || "Failed to create event" });
     }
   });
 

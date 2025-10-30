@@ -367,3 +367,471 @@ export async function moderateContent(
       : null
   };
 }
+
+// ========== PHASE 9: AI TRAVEL COMPANION ==========
+
+// Rate limiting and caching infrastructure
+const rateLimitCache = new Map<string, number>();
+const responseCache = new Map<string, {result: any, timestamp: number}>();
+
+/**
+ * Check if a request should be rate limited
+ * @param key Unique identifier for the rate limit (e.g., "function:userId")
+ * @param limitSeconds Maximum calls per period (default: 30 seconds)
+ * @returns true if allowed, false if rate limited
+ */
+function checkRateLimit(key: string, limitSeconds: number = 30): boolean {
+  const now = Date.now();
+  const lastCall = rateLimitCache.get(key);
+  if (lastCall && now - lastCall < limitSeconds * 1000) {
+    return false; // rate limited
+  }
+  rateLimitCache.set(key, now);
+  return true;
+}
+
+/**
+ * Get cached response if still valid
+ * @param key Cache key
+ * @param maxAgeMinutes Cache lifetime in minutes (default: 5)
+ * @returns Cached result or null if expired/not found
+ */
+function getCachedResponse<T>(key: string, maxAgeMinutes: number = 5): T | null {
+  const cached = responseCache.get(key);
+  if (cached && Date.now() - cached.timestamp < maxAgeMinutes * 60 * 1000) {
+    return cached.result as T;
+  }
+  return null;
+}
+
+/**
+ * Store response in cache
+ * @param key Cache key
+ * @param result Data to cache
+ */
+function setCachedResponse(key: string, result: any): void {
+  responseCache.set(key, { result, timestamp: Date.now() });
+}
+
+/**
+ * Sanitize user input to prevent prompt injection attacks
+ * @param input User-provided text
+ * @returns Sanitized text
+ * @throws Error if suspicious patterns detected
+ */
+function sanitizeInput(input: string): string {
+  // Remove suspicious patterns that might indicate prompt injection
+  const suspiciousPatterns = [
+    /ignore\s+(previous|all|above)\s+instructions?/gi,
+    /disregard\s+(previous|all|above)/gi,
+    /forget\s+(previous|all|above)/gi,
+    /new\s+instructions?:/gi,
+    /system\s*:/gi,
+    /assistant\s*:/gi,
+  ];
+  
+  let sanitized = input;
+  for (const pattern of suspiciousPatterns) {
+    if (pattern.test(sanitized)) {
+      throw new Error("Input contains suspicious patterns");
+    }
+  }
+  
+  return sanitized.trim();
+}
+
+// ========== GEOGRAPHIC HELPERS ==========
+
+/**
+ * Calculate distance between two GPS coordinates using Haversine formula
+ * @param lat1 Latitude of point 1 (degrees)
+ * @param lon1 Longitude of point 1 (degrees)
+ * @param lat2 Latitude of point 2 (degrees)
+ * @param lon2 Longitude of point 2 (degrees)
+ * @returns Distance in kilometers
+ */
+function calculateHaversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371; // Earth's radius in kilometers
+  
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  
+  return R * c;
+}
+
+/**
+ * Calculate geographic centroid of multiple coordinates
+ * Converts to Cartesian, averages, then converts back to lat/long
+ * @param points Array of lat/long coordinates
+ * @returns Centroid coordinates
+ */
+function calculateCentroid(points: Array<{ latitude: number; longitude: number }>): {
+  latitude: number;
+  longitude: number;
+} {
+  if (points.length === 0) {
+    throw new Error("Cannot calculate centroid of empty array");
+  }
+  
+  if (points.length === 1) {
+    return points[0];
+  }
+  
+  // Convert to Cartesian coordinates
+  let x = 0, y = 0, z = 0;
+  
+  for (const point of points) {
+    const latRad = point.latitude * Math.PI / 180;
+    const lonRad = point.longitude * Math.PI / 180;
+    
+    x += Math.cos(latRad) * Math.cos(lonRad);
+    y += Math.cos(latRad) * Math.sin(lonRad);
+    z += Math.sin(latRad);
+  }
+  
+  x /= points.length;
+  y /= points.length;
+  z /= points.length;
+  
+  // Convert back to lat/long
+  const lonRad = Math.atan2(y, x);
+  const hyp = Math.sqrt(x * x + y * y);
+  const latRad = Math.atan2(z, hyp);
+  
+  return {
+    latitude: latRad * 180 / Math.PI,
+    longitude: lonRad * 180 / Math.PI
+  };
+}
+
+// ========== AI TRAVEL COMPANION FEATURES ==========
+
+export interface ParticipantLocation {
+  userId: string;
+  userName: string;
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Suggest optimal meeting point based on participant locations
+ * Uses geographic centroid and OpenAI to find a nearby landmark
+ * 
+ * @param params.groupId Group identifier for rate limiting
+ * @param params.participants Array of participant locations
+ * @param params.tourLocation Optional tour location to weight more heavily
+ * @param params.language Response language
+ * @returns Optimal meeting point with landmark name and distances
+ */
+export async function suggestMeetingPoint(params: {
+  groupId: string;
+  participants: ParticipantLocation[];
+  tourLocation?: { latitude: number; longitude: number };
+  language: string;
+}): Promise<{
+  optimalPoint: { latitude: number; longitude: number; name: string };
+  reasoning: string;
+  distanceFromParticipants: { userId: string; distance: number }[];
+}> {
+  // Rate limiting
+  const rateLimitKey = `meeting-point:${params.groupId}`;
+  if (!checkRateLimit(rateLimitKey, 30)) {
+    throw new Error("Rate limit exceeded. Please wait before requesting again.");
+  }
+  
+  // Cache key
+  const cacheKey = `meeting-point:${JSON.stringify(params)}`;
+  const cached = getCachedResponse<any>(cacheKey, 5);
+  if (cached) return cached;
+  
+  // Validate participants
+  if (!params.participants || params.participants.length === 0) {
+    throw new Error("At least one participant is required");
+  }
+  
+  // Calculate centroid
+  const participantPoints = params.participants.map(p => ({
+    latitude: p.latitude,
+    longitude: p.longitude
+  }));
+  
+  let optimalPoint: { latitude: number; longitude: number };
+  
+  if (params.tourLocation) {
+    // Weight tour location more heavily (60% tour, 40% centroid)
+    const centroid = calculateCentroid(participantPoints);
+    optimalPoint = {
+      latitude: params.tourLocation.latitude * 0.6 + centroid.latitude * 0.4,
+      longitude: params.tourLocation.longitude * 0.6 + centroid.longitude * 0.4
+    };
+  } else {
+    optimalPoint = calculateCentroid(participantPoints);
+  }
+  
+  // Calculate distances
+  const distanceFromParticipants = params.participants.map(p => ({
+    userId: p.userId,
+    distance: calculateHaversineDistance(
+      p.latitude,
+      p.longitude,
+      optimalPoint.latitude,
+      optimalPoint.longitude
+    )
+  }));
+  
+  // Use OpenAI to suggest a landmark name
+  const prompt = `You are a local tour guide assistant. Find a well-known landmark, meeting point, or public place near these coordinates: ${optimalPoint.latitude.toFixed(6)}, ${optimalPoint.longitude.toFixed(6)}.
+
+Suggest a specific, recognizable location name that would be good for a group meeting point (like a landmark, plaza, metro station, or popular café).
+
+Respond in ${params.language} with ONLY valid JSON:
+{
+  "name": "Location Name",
+  "reasoning": "Brief explanation why this is a good meeting point (1-2 sentences)"
+}`;
+
+  // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+  const response = await openai.chat.completions.create({
+    model: "gpt-5",
+    messages: [
+      { role: "system", content: "You are a helpful local guide. Always respond with valid JSON only." },
+      { role: "user", content: prompt }
+    ],
+    temperature: 0.7
+  });
+  
+  const content = response.choices[0].message.content || "{}";
+  const jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const aiResponse = JSON.parse(jsonContent);
+  
+  const result = {
+    optimalPoint: {
+      latitude: optimalPoint.latitude,
+      longitude: optimalPoint.longitude,
+      name: aiResponse.name || "Meeting Point"
+    },
+    reasoning: aiResponse.reasoning || "Central location for all participants",
+    distanceFromParticipants
+  };
+  
+  // Cache the result
+  setCachedResponse(cacheKey, result);
+  
+  return result;
+}
+
+export interface TourSummaryRequest {
+  groupId: string;
+  tourName: string;
+  tourDescription: string;
+  participants: { userId: string; userName: string }[];
+  messages: string[];
+  stops?: string[];
+  date: Date;
+  language: string;
+}
+
+/**
+ * Generate post-tour summary with participants, highlights, and shareable content
+ * Analyzes chat messages to extract memorable moments
+ * 
+ * @param request Tour summary parameters
+ * @returns Structured tour summary with highlights and shareable text
+ */
+export async function generateTourSummary(request: TourSummaryRequest): Promise<{
+  title: string;
+  highlights: string[];
+  participantCount: number;
+  participantNames: string[];
+  memorableQuotes: string[];
+  recommendations: string[];
+  shareableText: string;
+}> {
+  // Rate limiting
+  const rateLimitKey = `tour-summary:${request.groupId}`;
+  if (!checkRateLimit(rateLimitKey, 30)) {
+    throw new Error("Rate limit exceeded. Please wait before requesting again.");
+  }
+  
+  // Cache key
+  const cacheKey = `tour-summary:${JSON.stringify(request)}`;
+  const cached = getCachedResponse<any>(cacheKey, 5);
+  if (cached) return cached;
+  
+  // Sanitize inputs
+  const sanitizedTourName = sanitizeInput(request.tourName);
+  const sanitizedDescription = sanitizeInput(request.tourDescription);
+  
+  // Moderate user-generated content
+  const messagesToAnalyze = request.messages.slice(0, 50); // Limit to last 50 messages
+  for (const message of messagesToAnalyze.slice(0, 10)) { // Check first 10
+    const moderation = await moderateContent(message, "comment");
+    if (moderation.severity === "high") {
+      throw new Error("Content contains inappropriate material");
+    }
+  }
+  
+  const messagesContext = messagesToAnalyze.join("\n");
+  const stopsContext = request.stops?.join(", ") || "various locations";
+  const participantNames = request.participants.map(p => p.userName);
+  
+  const prompt = `You are analyzing a completed tour experience to create a positive, engaging summary.
+
+Tour: ${sanitizedTourName}
+Description: ${sanitizedDescription}
+Date: ${request.date.toLocaleDateString()}
+Participants: ${participantNames.join(", ")} (${participantNames.length} people)
+Stops visited: ${stopsContext}
+
+Recent chat messages from the tour:
+${messagesContext}
+
+Create a warm, positive tour summary in ${request.language}. Extract:
+1. A catchy title for the tour experience
+2. 3-5 highlights or memorable moments
+3. 2-3 memorable quotes from participants (if any good ones in messages)
+4. 3-5 recommendations for future travelers
+5. A 2-3 paragraph shareable summary text
+
+Return ONLY valid JSON:
+{
+  "title": string,
+  "highlights": string[],
+  "memorableQuotes": string[],
+  "recommendations": string[],
+  "shareableText": string
+}`;
+
+  // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+  const response = await openai.chat.completions.create({
+    model: "gpt-5",
+    messages: [
+      { role: "system", content: "You are a creative travel writer who creates engaging, positive tour summaries. Always respond with valid JSON only." },
+      { role: "user", content: prompt }
+    ],
+    temperature: 0.8
+  });
+  
+  const content = response.choices[0].message.content || "{}";
+  const jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const aiResponse = JSON.parse(jsonContent);
+  
+  const result = {
+    title: aiResponse.title || `${sanitizedTourName} Experience`,
+    highlights: aiResponse.highlights || [],
+    participantCount: participantNames.length,
+    participantNames,
+    memorableQuotes: aiResponse.memorableQuotes || [],
+    recommendations: aiResponse.recommendations || [],
+    shareableText: aiResponse.shareableText || `Had an amazing time on ${sanitizedTourName}!`
+  };
+  
+  // Cache the result
+  setCachedResponse(cacheKey, result);
+  
+  return result;
+}
+
+/**
+ * Detect schedule conflicts and suggest alternative dates/times
+ * 
+ * @param params.proposedDate Proposed event date
+ * @param params.existingEvents Array of existing scheduled events
+ * @param params.groupId Group identifier for rate limiting
+ * @param params.language Response language
+ * @returns Conflict status and AI-suggested alternatives
+ */
+export async function detectScheduleConflict(params: {
+  proposedDate: Date;
+  existingEvents: Array<{ title: string; eventDate: Date; description?: string }>;
+  groupId: string;
+  language: string;
+}): Promise<{
+  hasConflict: boolean;
+  conflictingEvents: string[];
+  alternatives: Date[];
+  suggestion: string;
+}> {
+  // Rate limiting
+  const rateLimitKey = `schedule-conflict:${params.groupId}`;
+  if (!checkRateLimit(rateLimitKey, 30)) {
+    throw new Error("Rate limit exceeded. Please wait before requesting again.");
+  }
+  
+  // Check for conflicts (within 2 hours)
+  const conflictWindow = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+  const conflictingEvents: string[] = [];
+  
+  for (const event of params.existingEvents) {
+    const timeDiff = Math.abs(params.proposedDate.getTime() - event.eventDate.getTime());
+    if (timeDiff < conflictWindow) {
+      conflictingEvents.push(event.title);
+    }
+  }
+  
+  const hasConflict = conflictingEvents.length > 0;
+  
+  if (!hasConflict) {
+    return {
+      hasConflict: false,
+      conflictingEvents: [],
+      alternatives: [],
+      suggestion: "No conflicts detected. The proposed time is available."
+    };
+  }
+  
+  // Use OpenAI to suggest alternatives
+  const eventsContext = params.existingEvents
+    .map(e => `- ${e.title} at ${e.eventDate.toISOString()}`)
+    .join("\n");
+  
+  const prompt = `You are a scheduling assistant. A tour is proposed for ${params.proposedDate.toISOString()} but conflicts with:
+${conflictingEvents.join(", ")}
+
+Existing schedule:
+${eventsContext}
+
+Suggest 3 alternative dates/times that avoid conflicts. Consider:
+- Time should be reasonable for tours (9 AM - 6 PM)
+- Avoid too early morning or late evening
+- Space events at least 3 hours apart
+
+Respond in ${params.language} with ONLY valid JSON:
+{
+  "alternatives": ["ISO date string 1", "ISO date string 2", "ISO date string 3"],
+  "suggestion": "Brief explanation of why these times work (1-2 sentences)"
+}`;
+
+  // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+  const response = await openai.chat.completions.create({
+    model: "gpt-5",
+    messages: [
+      { role: "system", content: "You are a helpful scheduling assistant. Always respond with valid JSON only." },
+      { role: "user", content: prompt }
+    ],
+    temperature: 0.7
+  });
+  
+  const content = response.choices[0].message.content || "{}";
+  const jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const aiResponse = JSON.parse(jsonContent);
+  
+  return {
+    hasConflict: true,
+    conflictingEvents,
+    alternatives: (aiResponse.alternatives || []).map((dateStr: string) => new Date(dateStr)),
+    suggestion: aiResponse.suggestion || "Consider scheduling at a different time to avoid conflicts."
+  };
+}

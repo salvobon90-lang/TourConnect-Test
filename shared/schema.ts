@@ -72,8 +72,8 @@ export type LikeTargetType = typeof likeTargetTypes[number];
 export const trustLevels = ["explorer", "pathfinder", "trailblazer", "navigator", "legend"] as const;
 export type TrustLevel = typeof trustLevels[number];
 
-// Reward action types enum (Phase 6, expanded in Phase 8)
-export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite"] as const;
+// Reward action types enum (Phase 6, expanded in Phase 8, Phase 9)
+export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share"] as const;
 export type RewardActionType = typeof rewardActionTypes[number];
 
 // Reward level tiers enum (Phase 6)
@@ -88,7 +88,19 @@ export type ReferralStatus = typeof referralStatuses[number];
 export const smartGroupStatuses = ["active", "full", "expired", "completed"] as const;
 export type SmartGroupStatus = typeof smartGroupStatuses[number];
 
-// Points awarded for each action
+// AI action types enum (Phase 9)
+export const aiActionTypes = ["meeting_suggestion", "translation", "summary", "reminder", "coordination"] as const;
+export type AIActionType = typeof aiActionTypes[number];
+
+// Group event types enum (Phase 9)
+export const groupEventTypes = ["reminder", "meeting", "schedule"] as const;
+export type GroupEventType = typeof groupEventTypes[number];
+
+// Group event status enum (Phase 9)
+export const groupEventStatuses = ["pending", "notified", "completed", "cancelled"] as const;
+export type GroupEventStatus = typeof groupEventStatuses[number];
+
+// Points awarded for each action (Phase 6, expanded in Phase 9)
 export const rewardPoints = {
   booking: 50,
   review: 25,
@@ -103,6 +115,9 @@ export const rewardPoints = {
   smart_group_join: 10,
   smart_group_complete: 50,
   smart_group_invite: 15,
+  ai_reminder_create: 10,
+  ai_coordination: 5,
+  ai_summary_share: 15,
 } as const;
 
 // Points required for each level
@@ -131,6 +146,8 @@ export const users = pgTable("users", {
   phone: varchar("phone", { length: 50 }),
   country: varchar("country", { length: 100 }),
   city: varchar("city", { length: 100 }),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
   
   // Guide-specific fields
   guideLanguages: text("guide_languages").array().default(sql`ARRAY[]::text[]`),
@@ -159,6 +176,10 @@ export const users = pgTable("users", {
   completedToursCount: integer("completed_tours_count").default(0),
   isOnline: boolean("is_online").default(false),
   lastOnlineAt: timestamp("last_online_at"),
+  
+  // AI consent fields (Phase 9 - GDPR compliance)
+  aiConsent: boolean("ai_consent").default(false),
+  aiConsentDate: timestamp("ai_consent_date"),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -1059,6 +1080,113 @@ export const smartGroupInvitesRelations = relations(smartGroupInvites, ({ one })
   }),
 }));
 
+// AI Logs table - Track AI interactions with GDPR compliance (Phase 9)
+export const aiLogs = pgTable("ai_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // User and group references
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  groupId: varchar("group_id").references(() => smartGroups.id, { onDelete: "set null" }),
+  
+  // AI action details
+  actionType: varchar("action_type", { length: 50 }).notNull(), // meeting_suggestion, translation, summary, reminder, coordination
+  
+  // Input/Output data (GDPR: NO sensitive data in inputData)
+  inputData: jsonb("input_data").notNull().$type<{
+    query?: string;
+    context?: string;
+    preferences?: Record<string, any>;
+  }>(),
+  outputData: jsonb("output_data").notNull().$type<{
+    response?: string;
+    suggestions?: any[];
+    translation?: string;
+    summary?: string;
+  }>(),
+  
+  // GDPR compliance
+  userConsent: boolean("user_consent").notNull().default(false),
+  
+  // Language for translation
+  language: varchar("language", { length: 10 }),
+  
+  // Additional metadata
+  metadata: jsonb("metadata").$type<{
+    model?: string;
+    tokens?: number;
+    duration?: number;
+    [key: string]: any;
+  }>(),
+  
+  // Timestamp
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_ai_logs_user").on(table.userId),
+  index("idx_ai_logs_group").on(table.groupId),
+  index("idx_ai_logs_action_type").on(table.actionType),
+  index("idx_ai_logs_created").on(table.createdAt),
+]);
+
+export const aiLogsRelations = relations(aiLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [aiLogs.userId],
+    references: [users.id],
+  }),
+  group: one(smartGroups, {
+    fields: [aiLogs.groupId],
+    references: [smartGroups.id],
+  }),
+}));
+
+// Group Events table - Store reminders, meetings, schedules (Phase 9)
+export const groupEvents = pgTable("group_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Group and creator references
+  groupId: varchar("group_id").notNull().references(() => smartGroups.id, { onDelete: "cascade" }),
+  creatorId: varchar("creator_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Event details
+  eventType: varchar("event_type", { length: 20 }).notNull(), // reminder, meeting, schedule
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
+  
+  // Timing
+  eventDate: timestamp("event_date").notNull(),
+  
+  // Location (for meeting points)
+  location: text("location"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  
+  // Notification system
+  notificationTimes: jsonb("notification_times").$type<string[]>(), // array of ISO timestamps
+  
+  // Status
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, notified, completed, cancelled
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_group_events_group").on(table.groupId),
+  index("idx_group_events_creator").on(table.creatorId),
+  index("idx_group_events_event_date").on(table.eventDate),
+  index("idx_group_events_status").on(table.status),
+  index("idx_group_events_created").on(table.createdAt),
+]);
+
+export const groupEventsRelations = relations(groupEvents, ({ one }) => ({
+  group: one(smartGroups, {
+    fields: [groupEvents.groupId],
+    references: [smartGroups.id],
+  }),
+  creator: one(users, {
+    fields: [groupEvents.creatorId],
+    references: [users.id],
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -1261,7 +1389,7 @@ export const insertRewardLogSchema = createInsertSchema(rewardLogs).omit({
 });
 
 export const awardPointsSchema = z.object({
-  action: z.enum(['booking', 'review', 'like', 'group_join', 'referral', 'tour_complete', 'profile_complete', 'first_booking', 'streak_bonus', 'smart_group_create', 'smart_group_join', 'smart_group_complete', 'smart_group_invite']),
+  action: z.enum(['booking', 'review', 'like', 'group_join', 'referral', 'tour_complete', 'profile_complete', 'first_booking', 'streak_bonus', 'smart_group_create', 'smart_group_join', 'smart_group_complete', 'smart_group_invite', 'ai_reminder_create', 'ai_coordination', 'ai_summary_share']),
   metadata: z.object({
     tourId: z.string().optional(),
     bookingId: z.string().optional(),
@@ -1315,6 +1443,28 @@ export const insertSmartGroupInviteSchema = createInsertSchema(smartGroupInvites
   usedBy: true,
   usedAt: true,
   createdAt: true,
+});
+
+// AI Logs (Phase 9)
+export const insertAILogSchema = createInsertSchema(aiLogs).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  actionType: z.enum(aiActionTypes),
+  userConsent: z.boolean().default(false),
+  language: z.string().max(10).optional().nullable(),
+});
+
+// Group Events (Phase 9)
+export const insertGroupEventSchema = createInsertSchema(groupEvents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  eventType: z.enum(groupEventTypes),
+  title: z.string().min(1).max(200),
+  description: z.string().max(1000).optional().nullable(),
+  status: z.enum(groupEventStatuses).default("pending"),
 });
 
 // Group Booking API validation schemas
@@ -1383,6 +1533,10 @@ export type InsertSmartGroupMessage = z.infer<typeof insertSmartGroupMessageSche
 export type SmartGroupMessage = typeof smartGroupMessages.$inferSelect;
 export type InsertSmartGroupInvite = z.infer<typeof insertSmartGroupInviteSchema>;
 export type SmartGroupInvite = typeof smartGroupInvites.$inferSelect;
+export type InsertAILog = z.infer<typeof insertAILogSchema>;
+export type AILog = typeof aiLogs.$inferSelect;
+export type InsertGroupEvent = z.infer<typeof insertGroupEventSchema>;
+export type GroupEvent = typeof groupEvents.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {
