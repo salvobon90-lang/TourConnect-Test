@@ -56,6 +56,7 @@ const EsploraMondo = lazy(() => import("@/pages/esplora-mondo"));
 const Discover = lazy(() => import("@/pages/discover"));
 const CommunityMapPage = lazy(() => import("@/pages/CommunityMapPage"));
 const SearchPage = lazy(() => import("@/pages/SearchPage"));
+const PartnershipsPage = lazy(() => import("@/pages/PartnershipsPage"));
 
 // Loading fallback component
 function PageLoader() {
@@ -200,6 +201,7 @@ function Router() {
                 <Route path="/bookings" component={Bookings} />
                 <Route path="/analytics" component={Analytics} />
                 <Route path="/create-tour" component={CreateTour} />
+                <Route path="/partnerships" component={PartnershipsPage} />
                 <Route path="/map-3d" component={MapboxMap3D} />
               </>
             )}
@@ -209,6 +211,7 @@ function Router() {
                 <Route path="/analytics" component={Analytics} />
                 <Route path="/offers" component={() => <div>Offers - Coming Soon</div>} />
                 <Route path="/create-service" component={CreateService} />
+                <Route path="/partnerships" component={PartnershipsPage} />
                 <Route path="/map-3d" component={MapboxMap3D} />
               </>
             )}
