@@ -20,6 +20,7 @@ import {
   groupBookings,
   userRewards,
   rewardLogs,
+  referrals,
   rewardPoints,
   levelThresholds,
   type User,
@@ -62,6 +63,8 @@ import {
   type InsertUserReward,
   type RewardLog,
   type InsertRewardLog,
+  type Referral,
+  type InsertReferral,
   type RewardActionType,
   type RewardLevel,
   type TourWithGuide,
@@ -2738,6 +2741,203 @@ export class DatabaseStorage implements IStorage {
     }
     
     return false;
+  }
+
+  // ========== REFERRAL SYSTEM (Phase 7.2) ==========
+
+  // Generate unique random referral code (10 chars, alphanumeric)
+  private generateReferralCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude confusing chars (I, O, 0, 1)
+    let code = '';
+    for (let i = 0; i < 10; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  // Get or create referral code for a user
+  async getUserReferralCode(userId: string): Promise<string> {
+    // Check if user already has a referral code
+    const existing = await db
+      .select()
+      .from(referrals)
+      .where(eq(referrals.referrerId, userId))
+      .limit(1);
+    
+    if (existing.length > 0) {
+      return existing[0].referralCode;
+    }
+
+    // Generate new unique code
+    let code = this.generateReferralCode();
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      const duplicate = await db
+        .select()
+        .from(referrals)
+        .where(eq(referrals.referralCode, code))
+        .limit(1);
+      
+      if (duplicate.length === 0) break;
+      
+      code = this.generateReferralCode();
+      attempts++;
+    }
+
+    if (attempts >= maxAttempts) {
+      throw new Error("Failed to generate unique referral code");
+    }
+
+    // Create referral record
+    await db.insert(referrals).values({
+      referrerId: userId,
+      referralCode: code,
+      status: 'pending',
+      pointsAwarded: false,
+    });
+
+    return code;
+  }
+
+  // Validate if referral code exists and is valid
+  async validateReferralCode(code: string): Promise<{ valid: boolean; referrerId?: string; message?: string }> {
+    const result = await db
+      .select()
+      .from(referrals)
+      .where(eq(referrals.referralCode, code))
+      .limit(1);
+    
+    if (result.length === 0) {
+      return { valid: false, message: "Invalid referral code" };
+    }
+
+    return {
+      valid: true,
+      referrerId: result[0].referrerId
+    };
+  }
+
+  // Complete referral when new user signs up
+  async completeReferral(
+    code: string,
+    newUserId: string,
+    email: string,
+    ip?: string
+  ): Promise<{ success: boolean; message?: string; pointsAwarded?: boolean }> {
+    return await db.transaction(async (tx) => {
+      // Find the referral record
+      const referralRecords = await tx
+        .select()
+        .from(referrals)
+        .where(eq(referrals.referralCode, code))
+        .limit(1);
+      
+      if (referralRecords.length === 0) {
+        return { success: false, message: "Invalid referral code" };
+      }
+
+      const referral = referralRecords[0];
+
+      // Anti-abuse check: prevent self-referral
+      if (referral.referrerId === newUserId) {
+        return { success: false, message: "Cannot refer yourself" };
+      }
+
+      // Anti-abuse check: check if this email was already used for a referral
+      const emailCheck = await tx
+        .select()
+        .from(referrals)
+        .where(and(
+          eq(referrals.refereeEmail, email),
+          eq(referrals.status, 'completed')
+        ))
+        .limit(1);
+      
+      if (emailCheck.length > 0) {
+        return { success: false, message: "This email was already referred" };
+      }
+
+      // Update referral record
+      await tx
+        .update(referrals)
+        .set({
+          refereeId: newUserId,
+          refereeEmail: email,
+          refereeIp: ip || null,
+          status: 'completed',
+          completedAt: new Date(),
+        })
+        .where(eq(referrals.id, referral.id));
+
+      // Award points to both users (100 points each)
+      try {
+        // Award to referrer (person who invited)
+        await this.awardPoints(referral.referrerId, 'referral', {
+          targetId: newUserId,
+          description: 'Friend signed up via your referral link'
+        });
+
+        // Award to referee (new user)
+        await this.awardPoints(newUserId, 'referral', {
+          targetId: referral.referrerId,
+          description: 'Signed up via referral link'
+        });
+
+        // Mark points as awarded
+        await tx
+          .update(referrals)
+          .set({ pointsAwarded: true })
+          .where(eq(referrals.id, referral.id));
+
+        return { success: true, pointsAwarded: true };
+      } catch (error) {
+        console.error("Error awarding referral points:", error);
+        return { success: true, pointsAwarded: false, message: "Referral completed but points award failed" };
+      }
+    });
+  }
+
+  // Get all referrals for a user (people they invited)
+  async getUserReferrals(userId: string): Promise<Array<Referral & { referee?: User }>> {
+    const result = await db
+      .select({
+        referral: referrals,
+        referee: users,
+      })
+      .from(referrals)
+      .leftJoin(users, eq(referrals.refereeId, users.id))
+      .where(eq(referrals.referrerId, userId))
+      .orderBy(desc(referrals.createdAt));
+    
+    return result.map(r => ({
+      ...r.referral,
+      referee: r.referee || undefined,
+    }));
+  }
+
+  // Get referral statistics for a user
+  async getReferralStats(userId: string): Promise<{
+    totalReferrals: number;
+    completedReferrals: number;
+    pendingReferrals: number;
+    pointsEarned: number;
+  }> {
+    const userReferrals = await this.getUserReferrals(userId);
+    
+    const completed = userReferrals.filter(r => r.status === 'completed');
+    const pending = userReferrals.filter(r => r.status === 'pending');
+    
+    // Each completed referral earns 100 points
+    const pointsEarned = completed.filter(r => r.pointsAwarded).length * 100;
+
+    return {
+      totalReferrals: userReferrals.length,
+      completedReferrals: completed.length,
+      pendingReferrals: pending.length,
+      pointsEarned,
+    };
   }
 }
 
