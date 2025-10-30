@@ -1055,6 +1055,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Phase 13 - Service CRUD Endpoints
+  app.post('/api/services/create', isAuthenticated, requireRole('provider'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const service = await storage.createService({
+        ...req.body,
+        providerId: userId,
+        moderationStatus: 'pending',
+      });
+      res.status(201).json(service);
+    } catch (error: any) {
+      console.error("Error creating service:", error);
+      res.status(400).json({ message: error.message || "Failed to create service" });
+    }
+  });
+
+  app.patch('/api/services/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const service = await storage.getService(req.params.id);
+      if (!service || service.providerId !== userId) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+      const updated = await storage.updateService(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating service:", error);
+      res.status(400).json({ message: error.message || "Failed to update service" });
+    }
+  });
+
+  // Phase 13 - Service Categories Endpoint
+  app.get('/api/services/categories', async (req, res) => {
+    try {
+      const categories = await storage.getServiceCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching service categories:", error);
+      res.status(500).json({ message: "Failed to fetch categories" });
+    }
+  });
+
+  // Phase 13 - Service Search Endpoint
+  app.get('/api/services/search', async (req, res) => {
+    try {
+      const { 
+        location, 
+        category, 
+        language, 
+        minRating, 
+        maxPrice, 
+        limit = 20, 
+        offset = 0 
+      } = req.query;
+      
+      const services = await storage.searchServices({
+        location: location as string,
+        categoryId: category as string,
+        language: language as string,
+        minRating: minRating ? Number(minRating) : undefined,
+        maxPrice: maxPrice ? Number(maxPrice) : undefined,
+        limit: Number(limit),
+        offset: Number(offset),
+      });
+      
+      res.json(services);
+    } catch (error) {
+      console.error("Error searching services:", error);
+      res.status(500).json({ message: "Failed to search services" });
+    }
+  });
+
+  // Phase 13 - Service Booking Endpoint (with rewards)
+  app.post('/api/services/:id/book', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const service = await storage.getService(req.params.id);
+      
+      if (!service) {
+        return res.status(404).json({ message: 'Service not found' });
+      }
+      
+      const booking = await storage.createBooking({
+        ...req.body,
+        serviceId: service.id,
+        userId,
+      });
+      
+      await storage.awardPoints(service.providerId, 'service_booking_provider', {
+        targetId: service.id,
+        bookingId: booking.id,
+        description: 'Service booking received'
+      }).catch(err => console.error("Failed to award provider points:", err));
+      
+      res.json(booking);
+    } catch (error: any) {
+      console.error("Error booking service:", error);
+      res.status(400).json({ message: error.message || "Failed to book service" });
+    }
+  });
+
+  // Phase 13 - Service Completion Endpoint (with rewards)
+  app.post('/api/services/:id/complete', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      await storage.awardPoints(userId, 'service_completion', {
+        targetId: req.params.id,
+        description: 'Service completed'
+      }).catch(err => console.error("Failed to award completion points:", err));
+      
+      res.json({ message: 'Service completed' });
+    } catch (error: any) {
+      console.error("Error completing service:", error);
+      res.status(400).json({ message: error.message || "Failed to complete service" });
+    }
+  });
+
+  // Phase 13 - Service Like Endpoint (with rewards)
+  app.post('/api/services/:id/like', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const service = await storage.getService(req.params.id);
+      
+      if (!service) {
+        return res.status(404).json({ message: 'Service not found' });
+      }
+      
+      await storage.likeService(userId, service.id);
+      
+      await storage.awardPoints(service.providerId, 'service_liked', {
+        targetId: service.id,
+        description: 'Service liked'
+      }).catch(err => console.error("Failed to award like points:", err));
+      
+      res.json({ message: 'Service liked' });
+    } catch (error: any) {
+      console.error("Error liking service:", error);
+      res.status(400).json({ message: error.message || "Failed to like service" });
+    }
+  });
+
   // Booking routes
   app.get('/api/bookings', isAuthenticated, async (req: any, res) => {
     try {

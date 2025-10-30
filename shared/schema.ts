@@ -72,8 +72,8 @@ export type LikeTargetType = typeof likeTargetTypes[number];
 export const trustLevels = ["explorer", "pathfinder", "trailblazer", "navigator", "legend"] as const;
 export type TrustLevel = typeof trustLevels[number];
 
-// Reward action types enum (Phase 6, expanded in Phase 8, Phase 9, Phase 10, Phase 11)
-export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share", "search_like", "search_review", "subscription_complete", "partnership_confirmed", "create_public_group", "join_group", "community_interaction", "complete_tour_100", "community_leader_badge", "share_completed_tour", "partner_sale", "package_created", "affiliate_conversion"] as const;
+// Reward action types enum (Phase 6, expanded in Phase 8, Phase 9, Phase 10, Phase 11, Phase 13)
+export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share", "search_like", "search_review", "subscription_complete", "partnership_confirmed", "create_public_group", "join_group", "community_interaction", "complete_tour_100", "community_leader_badge", "share_completed_tour", "partner_sale", "package_created", "affiliate_conversion", "service_booking_provider", "service_completion", "service_liked"] as const;
 export type RewardActionType = typeof rewardActionTypes[number];
 
 // Reward level tiers enum (Phase 6)
@@ -168,6 +168,10 @@ export const rewardPoints = {
   partner_sale: 100,
   package_created: 50,
   affiliate_conversion: 75,
+  // Phase 13 - Service rewards
+  service_booking_provider: 50,
+  service_completion: 25,
+  service_liked: 5,
 } as const;
 
 // Points required for each level

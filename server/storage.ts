@@ -2482,6 +2482,10 @@ export class DatabaseStorage implements IStorage {
     return (profileLikes[0]?.count || 0) + (tourLikes[0]?.count || 0) + (serviceLikes[0]?.count || 0);
   }
 
+  async likeService(userId: string, serviceId: string): Promise<Like> {
+    return await this.addLike(userId, serviceId, 'service');
+  }
+
   // ========== TRUST LEVELS (Phase 4) ==========
 
   async calculateAndUpdateTrustLevel(userId: string): Promise<TrustLevelData> {
