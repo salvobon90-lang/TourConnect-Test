@@ -35,7 +35,7 @@ export default function AdminLoginPage() {
       const data = await res.json();
       
       // Redirect to supervisor dashboard - force full page reload to update auth state
-      window.location.href = '/';
+      window.location.href = '/dashboard/supervisor';
     } catch (err: any) {
       setError(err.message || 'Invalid credentials. Please try again.');
     } finally {

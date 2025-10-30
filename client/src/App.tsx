@@ -220,6 +220,7 @@ function Router() {
             {user.role === 'supervisor' && (
               <>
                 <Route path="/" component={SupervisorDashboard} />
+                <Route path="/dashboard/supervisor" component={SupervisorDashboard} />
                 <Route path="/map-3d" component={MapboxMap3D} />
               </>
             )}
