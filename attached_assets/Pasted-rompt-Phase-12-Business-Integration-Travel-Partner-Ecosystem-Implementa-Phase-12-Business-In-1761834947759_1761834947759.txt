@@ -1,0 +1,263 @@
+rompt — Phase 12: Business Integration & Travel Partner Ecosystem
+
+Implementa Phase 12 – Business Integration & Travel Partner Ecosystem per TourConnect.
+
+🎯 Obiettivo: abilitare collaborazioni B2B (agenzie, enti turistici, hotel, DMO, OTA), pacchetti dinamici tour+servizi, revenue sharing con Stripe Connect, coupon/affiliate, e portale Partner con analytics.
+
+⚙️ Contesto tecnico
+
+Frontend: React + TypeScript
+
+Backend: Node.js / Express
+
+DB: PostgreSQL (+ pgvector già disponibile se serve)
+
+Real-time: WebSocket
+
+Pagamenti: Stripe (aggiungere Stripe Connect per split payout)
+
+Tema: dark grey + orange #FF6600
+
+i18n: EN, IT, DE, FR, ES
+
+Già esistono: SmartGroups, Rewards, Likes, AI Assistant, Search, Sponsorships, Subscriptions.
+
+1) Partner Onboarding & Verification
+
+Funzionalità
+
+Portale di registrazione Partner (Agenzia, Ente, Hotel, DMO, OTA) con verifica documenti.
+
+Flusso di verifica (KYC light) e badge “Partner Verified”.
+
+Ruoli partner: Agency, Hotel, DMO, OTA, Transport.
+
+Schermata “Partner Profile” con logo, descrizione, link, aree servite, lingue supportate.
+
+Endpoint
+
+POST /api/partners/register
+
+POST /api/partners/verify (admin-only)
+
+GET /api/partners/me
+
+PATCH /api/partners/me
+
+DB
+
+partners (id, owner_user_id, type, name, logo_url, description, verified, regions[], languages[], created_at)
+
+2) Dynamic Packages (Bundling Engine)
+
+Funzionalità
+
+Creazione pacchetti dinamici: tour + servizio + trasporto + extra.
+
+Prezzo totale con scontistica di bundle (regole: % o valore fisso).
+
+Disponibilità sincronizzate (inventory lock) e politiche di cancellazione.
+
+Mostrare pacchetti in Discover e in profili Partner.
+
+AI Suggest Bundles: suggerimenti pacchetti in base a meta (destinazione, periodo, famiglia/coppia).
+
+Endpoint
+
+POST /api/packages/create
+
+GET /api/packages/search?dest=...&date=...
+
+GET /api/packages/:id
+
+POST /api/packages/:id/book
+
+DB
+
+packages (id, partner_id, title, items[{type,id,qty}], base_price, discount_rules, policy, availability, created_at)
+
+package_bookings (id, package_id, user_id, status, price_paid, payment_intent_id, created_at)
+
+3) Stripe Connect – Revenue Sharing & Payouts
+
+Funzionalità
+
+Integra Stripe Connect: split automatico dell’incasso ai Partner + fee piattaforma.
+
+Modello: destination charges / transfer con percentuali configurabili:
+
+Piattaforma: 10–20% (config)
+
+Partner: resto ripartito per item (tour/servizio/trasporto).
+
+Invoicing: ricevute automatiche + reportistica scaricabile (CSV/PDF).
+
+Rimborso pro-rata in caso di cancellazioni.
+
+Endpoint
+
+POST /api/billing/connect/onboard
+
+POST /api/billing/packages/:id/checkout
+
+POST /api/billing/webhooks/stripe (webhook listener)
+
+DB
+
+partner_accounts (partner_id, stripe_account_id, status, created_at)
+
+payouts (id, partner_id, amount, currency, status, period_start, period_end)
+
+4) Affiliate & Coupon System
+
+Funzionalità
+
+Codici coupon (percentuale o importo) validi per pacchetti/tour/servizi.
+
+Affiliate links (tracciati) per blogger/influencer: percentuale commissione su vendite generate.
+
+Dashboard affiliate/coupon per Partner.
+
+Endpoint
+
+POST /api/coupons/create
+
+GET /api/coupons/my
+
+POST /api/affiliates/register
+
+GET /api/affiliates/stats
+
+DB
+
+coupons (id, code, type, value, valid_from, valid_to, usage_limit, created_by)
+
+affiliate_links (id, partner_id, code, url, commission_pct, clicks, conversions, revenue)
+
+5) Partner Dashboard & Analytics
+
+Funzionalità
+
+Dashboard Partner:
+
+Performance: views, clicks, prenotazioni, conversion rate
+
+Entrate: revenue, payout status
+
+Top prodotti e trend
+
+Esportazione CSV/Excel; grafici interattivi.
+
+Badge “Partner Verified” e sponsored placement in ricerca/Discover.
+
+Endpoint
+
+GET /api/partners/analytics/overview
+
+GET /api/partners/analytics/top-products
+
+GET /api/partners/analytics/export?format=csv
+
+6) OTA / Inventory Sync (API Connector)
+
+Funzionalità
+
+Connettori base (mock/adapter) per partner esterni (OTA/DMO):
+
+Import catalogo prodotti (tour/servizi)
+
+Sync disponibilità e prezzi (pull/push)
+
+Gestione cancellazioni e overbooking (webhooks)
+
+Scheduler per sync periodico.
+
+Endpoint
+
+POST /api/connectors/ota/register
+
+POST /api/connectors/ota/push-availability
+
+POST /api/connectors/ota/webhook
+
+DB
+
+external_connectors (id, partner_id, type, api_key, status)
+
+external_inventory_map (ext_id, local_id, last_sync_at)
+
+7) Frontend — UI/UX
+
+Partner Portal (nuovo nav item):
+
+Onboarding, profilo, gestione pacchetti, coupon, affiliate, analytics, payouts.
+
+Packages UI: card bundle con breakdown prezzo, sconti, policy.
+
+Search & Discover integrazione:
+
+Ribbon “Sponsored” / “Partner Verified”
+
+Filtri: “Solo Partner Verified”, “Pacchetti”
+
+Tema dark grey + orange, i18n completo, Framer Motion per micro-animazioni.
+
+8) Sicurezza, Compliance, Affidabilità
+
+Stripe Connect: chiavi in env, webhook signature verification.
+
+Rate limits su endpoints sensibili (search, coupons, connectors).
+
+RBAC: Partner può gestire solo le proprie risorse.
+
+GDPR: privacy policy aggiornata, cancellazione dati partner su richiesta.
+
+SLA: health checks, retry policy per sync con OTA, dead-letter queue (se previsto).
+
+Audit log per tutte le operazioni finanziarie e di sync.
+
+9) Test & Qualità
+
+Unit test: packages, billing, coupons, affiliates, connectors.
+
+Integration test: checkout pacchetto con split payouts + coupon + affiliate.
+
+Load test: 500 checkout/min (testare coda, retry, coerenza DB).
+
+Security test: SQL injection, IDOR sui partner, webhook tampering.
+
+10) KPI di successo
+
++15% ricavi medi per guida/provider
+
++20% CTR contenuti “Partner Verified”
+
++10% conversioni tramite pacchetti
+
+< 0.2% errori di riconciliazione pagamenti
+
+11) Deliverables
+
+Partner Portal completo (onboarding, profilo, pacchetti, coupon, affiliate, analytics)
+
+Stripe Connect operativo (split payouts + invoicing)
+
+Bundling engine e booking pacchetti con policy + refund
+
+OTA connector base (mock + webhook)
+
+UI integrata in Search/Discover con badge e sponsorizzazioni
+
+Log, audit, test e documentazione aggiornati
+
+12) Istruzioni operative finali
+
+Sviluppa prima backend (schema DB, API, Stripe Connect, OTA connector)
+
+Integra frontend (Partner Portal + Packages UI + Discover/Search)
+
+Collega Reward/Trust (badge Partner Verified, punti per vendite)
+
+Aggiungi test & logging → poi rollout graduale (feature-flag)
+
+Mantieni coerenza grafica e i18n, sicurezza e performance come priorità
