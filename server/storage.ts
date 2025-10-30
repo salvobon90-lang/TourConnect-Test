@@ -179,9 +179,11 @@ export interface IStorage {
   getServices(): Promise<ServiceWithProvider[]>;
   getService(id: string): Promise<ServiceWithProvider | undefined>;
   getMyServices(providerId: string): Promise<Service[]>;
+  getPendingServices(): Promise<ServiceWithProvider[]>;
   createService(service: InsertService): Promise<Service>;
   updateService(id: string, service: Partial<InsertService>): Promise<Service>;
   deleteService(id: string): Promise<void>;
+  updateServiceApprovalStatus(serviceId: string, status: 'approved' | 'rejected', supervisorId: string): Promise<Service>;
   
   // Booking operations
   getBookings(userId: string): Promise<BookingWithDetails[]>;
@@ -705,6 +707,34 @@ export class DatabaseStorage implements IStorage {
 
   async deleteService(id: string): Promise<void> {
     await db.delete(services).where(eq(services.id, id));
+  }
+
+  async getPendingServices(): Promise<ServiceWithProvider[]> {
+    const results = await db
+      .select()
+      .from(services)
+      .leftJoin(users, eq(services.providerId, users.id))
+      .where(eq(services.approvalStatus, 'pending'))
+      .orderBy(desc(services.createdAt));
+
+    return results.map(r => ({
+      ...r.services,
+      provider: r.users!,
+    }));
+  }
+
+  async updateServiceApprovalStatus(serviceId: string, status: 'approved' | 'rejected', supervisorId: string): Promise<Service> {
+    const [service] = await db
+      .update(services)
+      .set({ 
+        approvalStatus: status,
+        approvedBy: supervisorId,
+        approvedAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(services.id, serviceId))
+      .returning();
+    return service;
   }
 
   // Booking operations

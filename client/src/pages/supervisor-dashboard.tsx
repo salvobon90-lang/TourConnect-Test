@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle2, XCircle, Clock, Users, UserCheck, UserX, Shield, Map } from "lucide-react";
-import type { User, TourWithGuide } from "@shared/schema";
+import { CheckCircle2, XCircle, Clock, Users, UserCheck, UserX, Shield, Map, Check, X, FileQuestion } from "lucide-react";
+import type { User, TourWithGuide, ServiceWithProvider } from "@shared/schema";
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Link } from 'wouter';
@@ -31,6 +31,11 @@ export default function SupervisorDashboard() {
 
   const { data: pendingTours, isLoading: isLoadingTours } = useQuery<TourWithGuide[]>({
     queryKey: ['/api/supervisor/pending-tours'],
+    enabled: isAuthenticated && user?.role === 'supervisor',
+  });
+
+  const { data: pendingServices, isLoading: isLoadingServices } = useQuery<ServiceWithProvider[]>({
+    queryKey: ['/api/supervisor/pending-services'],
     enabled: isAuthenticated && user?.role === 'supervisor',
   });
 
@@ -134,6 +139,46 @@ export default function SupervisorDashboard() {
     },
   });
 
+  const approveServiceMutation = useMutation({
+    mutationFn: async (serviceId: string) => {
+      return await apiRequest('POST', `/api/supervisor/approve-service/${serviceId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/supervisor/pending-services'] });
+      toast({
+        title: t('dashboards.supervisor.serviceApproved'),
+        description: t('dashboards.supervisor.serviceApprovedDesc'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('common.error'),
+        description: t('dashboards.supervisor.approveServiceError'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectServiceMutation = useMutation({
+    mutationFn: async (serviceId: string) => {
+      return await apiRequest('POST', `/api/supervisor/reject-service/${serviceId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/supervisor/pending-services'] });
+      toast({
+        title: t('dashboards.supervisor.serviceRejected'),
+        description: t('dashboards.supervisor.serviceRejectedDesc'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('common.error'),
+        description: t('dashboards.supervisor.rejectServiceError'),
+        variant: "destructive",
+      });
+    },
+  });
+
   if (user?.role !== 'supervisor') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -220,7 +265,7 @@ export default function SupervisorDashboard() {
 
         {/* Management Tabs */}
         <Tabs defaultValue="pending" className="space-y-6">
-          <TabsList className="grid w-full max-w-3xl grid-cols-3">
+          <TabsList className="grid w-full max-w-4xl grid-cols-4">
             <TabsTrigger value="pending" data-testid="tab-pending">
               <Clock className="w-4 h-4 mr-2" />
               {t('dashboards.supervisor.tabs.pendingApprovals')}
@@ -232,6 +277,10 @@ export default function SupervisorDashboard() {
             <TabsTrigger value="tours" data-testid="tab-tours">
               <Map className="w-4 h-4 mr-2" />
               {t('dashboards.supervisor.tabs.tourModeration')}
+            </TabsTrigger>
+            <TabsTrigger value="services" data-testid="tab-services">
+              <Shield className="w-4 h-4 mr-2" />
+              {t('dashboards.supervisor.tabs.serviceModeration')}
             </TabsTrigger>
           </TabsList>
 
@@ -468,6 +517,82 @@ export default function SupervisorDashboard() {
                   <Map className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-semibold mb-2">{t('dashboards.supervisor.noPendingTours')}</h3>
                   <p className="text-muted-foreground">{t('dashboards.supervisor.noPendingToursDesc')}</p>
+                </div>
+              )}
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="services">
+            <Card className="p-6">
+              <h2 className="text-2xl font-semibold mb-6">{t('dashboards.supervisor.tabs.serviceModeration')}</h2>
+
+              {isLoadingServices ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+                  <p className="text-muted-foreground mt-4">{t('dashboards.supervisor.loadingServices')}</p>
+                </div>
+              ) : pendingServices && pendingServices.length > 0 ? (
+                <div className="space-y-4">
+                  {pendingServices.map((service) => (
+                    <Card key={service.id} className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg">
+                            {service.title}
+                          </h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {t('dashboards.supervisor.by')} {service.provider?.firstName} {service.provider?.lastName}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <Badge variant="secondary">
+                              {service.category}
+                            </Badge>
+                            <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                              <Clock className="w-3 h-3 mr-1" />
+                              {t('status.pending')}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              ${service.price}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {t('dashboards.supervisor.created')}: {new Date(service.createdAt).toLocaleDateString()}
+                          </p>
+                          {service.description && (
+                            <p className="text-sm mt-2 line-clamp-2">{service.description}</p>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => approveServiceMutation.mutate(service.id)}
+                            disabled={approveServiceMutation.isPending}
+                            variant="default"
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <Check className="w-4 h-4 mr-1" />
+                            {t('dashboards.supervisor.approve')}
+                          </Button>
+                          <Button
+                            onClick={() => rejectServiceMutation.mutate(service.id)}
+                            disabled={rejectServiceMutation.isPending}
+                            variant="destructive"
+                            size="sm"
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            {t('dashboards.supervisor.reject')}
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FileQuestion className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">{t('dashboards.supervisor.noServicesTitle')}</h3>
+                  <p className="text-muted-foreground">{t('dashboards.supervisor.noServicesDesc')}</p>
                 </div>
               )}
             </Card>

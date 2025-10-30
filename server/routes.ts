@@ -707,6 +707,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Service moderation routes (supervisor only)
+  app.get('/api/supervisor/pending-services', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (user?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Supervisor role required." });
+      }
+
+      const pendingServices = await storage.getPendingServices();
+      res.json(pendingServices);
+    } catch (error) {
+      console.error("Error fetching pending services:", error);
+      res.status(500).json({ message: "Failed to fetch pending services" });
+    }
+  });
+
+  app.post('/api/supervisor/approve-service/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const supervisorId = req.user.claims.sub;
+      const supervisor = await storage.getUser(supervisorId);
+      
+      if (supervisor?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Supervisor role required." });
+      }
+
+      const service = await storage.updateServiceApprovalStatus(req.params.id, 'approved', supervisorId);
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      
+      res.json({ message: "Service approved successfully", service });
+    } catch (error) {
+      console.error("Error approving service:", error);
+      res.status(500).json({ message: "Failed to approve service" });
+    }
+  });
+
+  app.post('/api/supervisor/reject-service/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const supervisorId = req.user.claims.sub;
+      const supervisor = await storage.getUser(supervisorId);
+      
+      if (supervisor?.role !== 'supervisor') {
+        return res.status(403).json({ message: "Access denied. Supervisor role required." });
+      }
+
+      const service = await storage.updateServiceApprovalStatus(req.params.id, 'rejected', supervisorId);
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      
+      res.json({ message: "Service rejected successfully", service });
+    } catch (error) {
+      console.error("Error rejecting service:", error);
+      res.status(500).json({ message: "Failed to reject service" });
+    }
+  });
+
   // Tour routes
   app.get('/api/tours', async (req, res) => {
     try {

@@ -246,9 +246,12 @@ export const toursRelations = relations(tours, ({ one, many }) => ({
 export const services = pgTable("services", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   providerId: varchar("provider_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(), // Added for consistency with tours
   name: text("name").notNull(),
   description: text("description").notNull(),
+  category: varchar("category", { length: 50 }).notNull(), // Added for consistency with tours
   type: varchar("type", { length: 50 }).notNull(), // restaurant, shop, transport
+  price: varchar("price", { length: 20 }), // Added for display purposes
   images: text("images").array().notNull().default(sql`ARRAY[]::text[]`),
   logoUrl: varchar("logo_url"),
   address: text("address").notNull(),
@@ -257,6 +260,9 @@ export const services = pgTable("services", {
   operatingHours: text("operating_hours"),
   priceRange: varchar("price_range", { length: 10 }), // $, $$, $$$
   specialOffer: text("special_offer"),
+  approvalStatus: varchar("approval_status", { length: 20 }).notNull().default("pending"), // pending, approved, rejected
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
