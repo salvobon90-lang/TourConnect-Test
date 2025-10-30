@@ -76,8 +76,8 @@ function Router() {
     !!localStorage.getItem('language')
   );
 
-  // Show language selection first if not selected
-  if (!languageSelected) {
+  // Show language selection first if not selected (but allow admin login)
+  if (!languageSelected && location !== '/admin/login') {
     return <LanguageSelection onLanguageSelected={() => setLanguageSelected(true)} />;
   }
 
