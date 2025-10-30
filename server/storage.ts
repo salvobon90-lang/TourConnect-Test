@@ -308,6 +308,7 @@ export interface IStorage {
   expireOldGroups(): Promise<number>;
   getUserActiveGroupsCount(userId: string): Promise<number>;
   getUserLastGroupCreation(userId: string): Promise<Date | null>;
+  isUserInSmartGroup(groupId: string, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3004,6 +3005,22 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     
     return result[0]?.createdAt || null;
+  }
+
+  // Check if user is a member of a smart group
+  async isUserInSmartGroup(groupId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .select()
+      .from(smartGroupMembers)
+      .where(
+        and(
+          eq(smartGroupMembers.groupId, groupId),
+          eq(smartGroupMembers.userId, userId)
+        )
+      )
+      .limit(1);
+    
+    return result.length > 0;
   }
 
   // Create a new smart group with validations

@@ -14,6 +14,7 @@ import { ReviewsList } from '@/components/reviews/ReviewsList';
 import { CreateReviewForm } from '@/components/reviews/CreateReviewForm';
 import { GroupBookingCard } from '@/components/GroupBookingCard';
 import { ParticipantsList } from '@/components/ParticipantsList';
+import { SmartShareCard } from '@/components/SmartShareCard';
 import { useState } from 'react';
 
 export default function TourDetail() {
@@ -261,6 +262,9 @@ export default function TourDetail() {
         </div>
       </div>
     </div>
+
+    {/* Smart Share Card - Floating Button */}
+    <SmartShareCard tourId={tour.id} type="tour" />
     </>
   );
 }

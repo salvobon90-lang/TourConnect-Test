@@ -3967,11 +3967,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const newMessage = await storage.sendGroupMessage(id, userId, message.trim());
       
-      // Broadcast message via WebSocket
+      // Get user info for broadcast
+      const user = await storage.getUser(userId);
+      
+      // Broadcast message via WebSocket with user info
       const { broadcastToRoom } = await import("./websocket");
       broadcastToRoom(`smart_group_chat:${id}`, {
-        type: 'new_message',
-        data: newMessage,
+        type: 'smart_group_message',
+        groupId: id,
+        message: {
+          id: newMessage.id,
+          userId: newMessage.userId,
+          message: newMessage.message,
+          createdAt: newMessage.createdAt,
+          user: {
+            firstName: user?.firstName || 'Unknown',
+            lastName: user?.lastName || 'User',
+          }
+        }
       });
       
       res.status(201).json(newMessage);

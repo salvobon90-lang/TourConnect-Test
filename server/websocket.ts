@@ -16,12 +16,17 @@ type WSMessage =
   | { type: 'user_offline'; userId: string }
   | { type: 'typing'; userId: string; conversationId: string }
   | { type: 'stop_typing'; userId: string; conversationId: string }
-  | { type: 'message_read'; messageId: string; conversationId: string };
+  | { type: 'message_read'; messageId: string; conversationId: string }
+  | { type: 'smart_group_message'; groupId: string; message: any }
+  | { type: 'room_joined'; roomId: string }
+  | { type: 'room_left'; roomId: string }
+  | { type: 'error'; message: string };
 
 export class WebSocketServer {
   private wss: WSServer;
   private clients: Map<string, Client>;
   private typingStatus: Map<string, Set<string>>; // conversationId -> Set of userIds typing
+  private userRooms: Map<string, Set<string>>; // userId -> Set of roomIds they're in
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private sessionStore: any;
 
@@ -34,6 +39,7 @@ export class WebSocketServer {
     });
     this.clients = new Map();
     this.typingStatus = new Map();
+    this.userRooms = new Map();
     
     this.setupWebSocket();
     this.startHeartbeat();
@@ -155,6 +161,18 @@ export class WebSocketServer {
         }
         break;
       
+      case 'join_room':
+        if (message.groupId) {
+          this.joinSmartGroupRoom(userId, message.groupId);
+        }
+        break;
+      
+      case 'leave_room':
+        if (message.groupId) {
+          this.leaveSmartGroupRoom(userId, message.groupId);
+        }
+        break;
+      
       default:
         console.warn(`[WebSocket] Unknown message type: ${message.type}`);
     }
@@ -194,6 +212,9 @@ export class WebSocketServer {
         }
       }
     });
+
+    // Clean up room memberships
+    this.userRooms.delete(userId);
 
     try {
       await storage.setUserOnlineStatus(userId, false);
@@ -278,6 +299,80 @@ export class WebSocketServer {
       });
     } catch (error) {
       console.error('[WebSocket] Error broadcasting to conversation:', error);
+    }
+  }
+
+  public async joinSmartGroupRoom(userId: string, groupId: string) {
+    try {
+      // Validate user is member of group
+      const isMember = await storage.isUserInSmartGroup(groupId, userId);
+      if (!isMember) {
+        console.warn(`[WebSocket] User ${userId} is not a member of group ${groupId}`);
+        const client = this.clients.get(userId);
+        if (client && client.ws.readyState === WebSocket.OPEN) {
+          client.ws.send(JSON.stringify({
+            type: 'error',
+            message: 'You are not a member of this group'
+          }));
+        }
+        return;
+      }
+
+      const roomName = `smart_group_chat:${groupId}`;
+      
+      // Add room to user's room set
+      if (!this.userRooms.has(userId)) {
+        this.userRooms.set(userId, new Set());
+      }
+      this.userRooms.get(userId)!.add(roomName);
+
+      // Notify user they joined
+      const client = this.clients.get(userId);
+      if (client && client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(JSON.stringify({
+          type: 'room_joined',
+          roomId: roomName
+        }));
+      }
+
+      console.log(`[WebSocket] User ${userId} joined room ${roomName}`);
+    } catch (error) {
+      console.error(`[WebSocket] Error joining room:`, error);
+      const client = this.clients.get(userId);
+      if (client && client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(JSON.stringify({
+          type: 'error',
+          message: 'Failed to join room'
+        }));
+      }
+    }
+  }
+
+  public async leaveSmartGroupRoom(userId: string, groupId: string) {
+    try {
+      const roomName = `smart_group_chat:${groupId}`;
+      
+      // Remove room from user's room set
+      const userRoomSet = this.userRooms.get(userId);
+      if (userRoomSet) {
+        userRoomSet.delete(roomName);
+        if (userRoomSet.size === 0) {
+          this.userRooms.delete(userId);
+        }
+      }
+
+      // Notify user they left
+      const client = this.clients.get(userId);
+      if (client && client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(JSON.stringify({
+          type: 'room_left',
+          roomId: roomName
+        }));
+      }
+
+      console.log(`[WebSocket] User ${userId} left room ${roomName}`);
+    } catch (error) {
+      console.error(`[WebSocket] Error leaving room:`, error);
     }
   }
 

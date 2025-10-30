@@ -19,7 +19,8 @@ import {
   LogOut,
   Crown,
   ShieldCheck,
-  Globe
+  Globe,
+  Map
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth } from '@/hooks/useAuth';
@@ -228,6 +229,14 @@ export function Header() {
               >
                 <Crown className="mr-2 h-4 w-4" />
                 <span>Subscription</span>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem 
+                onClick={() => setLocation('/community-map')}
+                data-testid="menu-community-map"
+              >
+                <Map className="mr-2 h-4 w-4" />
+                <span>Community Map</span>
               </DropdownMenuItem>
               
               <DropdownMenuItem 
