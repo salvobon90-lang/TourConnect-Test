@@ -1,0 +1,174 @@
+🌍 Prompt completo — Phase 11: Community Layer & Group Marketplace
+
+Implementa Phase 11 – Community Layer & Group Marketplace per TourConnect.
+
+🎯 Obiettivo principale:
+Trasformare TourConnect in una piattaforma sociale e collaborativa, dove i turisti possono unirsi per completare tour, dividere i costi, trovare compagni di viaggio e partecipare a esperienze di gruppo.
+
+⚙️ Contesto tecnico:
+
+Stack: React + TypeScript (frontend), Node.js / Express (backend), PostgreSQL (DB), WebSocket per real-time.
+
+Integrazioni già esistenti: SmartGroups, Reward System, AI Assistant, Group Booking, Stripe Payments, Trust Level, Likes, Referral System.
+
+Tema: dark grey + orange #FF6600
+
+Lingue supportate: EN, IT, DE, FR, ES
+
+🧩 Parte 1 – Community Layer (Social Layer)
+
+Introduci una sezione community dedicata agli utenti registrati (turisti, guide, provider) per interagire, creare post e organizzare esperienze condivise.
+
+🔧 Funzionalità principali:
+
+Feed community simile a un social wall:
+
+Post testuali, con foto o link ai tour/servizi esistenti
+
+Possibilità di commentare e mettere like ai post
+
+Ordinamento per popolarità o più recenti
+
+Post “Looking for Travel Buddies” per formare gruppi su tour esistenti
+
+Chat in tempo reale (integrata con WebSocket + TC-Assistant AI)
+
+Notifiche push in tempo reale per:
+
+Commenti
+
+Inviti ai gruppi
+
+Risposte ai post
+
+Profilo utente con sezione “Attività Community” (post, like, partecipazioni)
+
+🤝 Parte 2 – Group Marketplace
+
+Implementa un marketplace di gruppi attivi, dove i turisti possono unirsi a tour condivisi o creare richieste di partecipazione per dividerne i costi.
+
+🔧 Funzionalità principali:
+
+Pagina “Group Marketplace” con:
+
+Elenco dei tour condivisi aperti
+
+Filtri per destinazione, data, prezzo, numero partecipanti, lingua
+
+Barra di ricerca globale integrata (dalla Phase 10)
+
+Ogni gruppo mostra:
+
+Nome del tour/servizio
+
+Partecipanti attuali / massimi
+
+Prezzo attuale per persona (dinamico in base ai partecipanti)
+
+Countdown alla chiusura del gruppo
+
+Pulsanti “Unisciti al gruppo” o “Invita amici”
+
+TC-Assistant AI suggerisce tour con alta probabilità di completamento (“Solo 2 posti per chiudere il gruppo”)
+
+Possibilità di ricondividere un tour per creare un nuovo gruppo (es. “Ripeti questo tour il 12 agosto”)
+
+Pagamento Stripe per confermare la partecipazione
+
+Se il gruppo non raggiunge il numero minimo entro la scadenza → rimborso automatico.
+
+🧮 Algoritmo di divisione dinamica prezzi:
+
+Prezzo base = prezzo standard tour
+
+Prezzo effettivo per utente = prezzo base / numero partecipanti
+
+Riduzione massima: fino al -60%
+
+Aggiornamento in tempo reale con progress bar “Group Goal Completion”
+
+💬 Parte 3 – Chat di Gruppo con AI Coordination
+
+Ogni gruppo ha una chat dedicata
+
+Integrazione con TC-Assistant AI per:
+
+Suggerire orari di ritrovo
+
+Tradurre messaggi
+
+Gestire votazioni (es. “A che ora partiamo?”)
+
+Creare riepiloghi automatici post-tour
+
+Chat sincrona con WebSocket (stato online, typing, notifiche)
+
+🏅 Parte 4 – Reward & Trust Integration
+
++20 punti → creare un gruppo pubblico
+
++15 punti → unirsi a un gruppo completato
+
++25 punti → condividere un tour che raggiunge il completamento
+
++10 punti → interagire (commenti o like) nel community feed
+
++50 punti → guida/provider che completa un tour con 100% partecipanti
+
+Nuovo badge: “Community Leader” → per utenti che hanno creato almeno 5 gruppi completati.
+
+🔐 Sicurezza e Moderazione
+
+Sistema anti-spam e moderazione automatica AI (content filter + language detection)
+
+Report post/commenti → revisione admin
+
+Filtri parole inappropriate e link sospetti
+
+GDPR: possibilità di eliminare post e dati personali
+
+Protezione anti-bot e rate limit (max 10 post/min per utente)
+
+🧪 Test richiesti
+
+Unit test: creazione gruppo, partecipazione, pagamenti, AI suggestions
+
+Integration test: feed → gruppo → chat → completamento
+
+Load test: 100 gruppi attivi e 500 utenti simultanei
+
+Security test: XSS, SQL injection, spam detection
+
+📊 KPI di successo
+
++30% completamento tour
+
++40% interazioni sociali (like/commenti/gruppi)
+
++25% conversione turisti → prenotazioni reali
+
++10% retention utenti mese su mese
+
+✅ Deliverables finali
+
+Community Feed funzionante e moderato
+
+Group Marketplace operativo con prezzi dinamici
+
+Chat AI-coordinata integrata
+
+Reward System aggiornato
+
+Tutti i test completati e documentazione aggiornata
+
+🚀 Istruzione finale per l’agent:
+
+1️⃣ Implementa prima il backend (API, schema DB, real-time chat, group logic)
+2️⃣ Poi integra frontend (Feed + Marketplace + Chat + AI layer)
+3️⃣ Collega Reward System e Like System
+4️⃣ Aggiungi moderazione AI e sicurezza
+5️⃣ Esegui test completi → rollout progressivo
+
+Mantieni stile coerente con brand TourConnect (dark grey + orange #FF6600), supporto multilingua e priorità su sicurezza, UX e performance.
+
+Tutte le interazioni AI devono restare lato server con filtri di contenuto attivi.
