@@ -11,6 +11,9 @@ const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
 });
 
+// Export openai for use in other services (e.g., search-service)
+export { openai };
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;

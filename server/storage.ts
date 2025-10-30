@@ -423,6 +423,9 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Expose db for advanced queries (e.g., search-service)
+  public db = db;
+
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -1931,6 +1934,10 @@ export class DatabaseStorage implements IStorage {
 
   async getTourById(id: string): Promise<TourWithGuide | undefined> {
     return this.getTour(id);
+  }
+
+  async getServiceById(id: string): Promise<ServiceWithProvider | undefined> {
+    return this.getService(id);
   }
 
   // ========== ANALYTICS ==========

@@ -22,6 +22,7 @@ import {
   type ParticipantLocation,
   type TourSummaryRequest
 } from "./openai";
+import { searchGlobal, searchSemantic, checkRateLimit } from './search-service';
 import { 
   apiLimiter, 
   authLimiter, 
@@ -35,6 +36,7 @@ import { db } from "./db";
 import { sql, eq, and, ne } from "drizzle-orm";
 import { broadcastToUser, broadcastToAll } from "./websocket";
 import express from "express";
+import { createSubscriptionCheckout, cancelSubscription, handleStripeWebhook, SUBSCRIPTION_TIERS } from './stripe-service';
 
 // Global type declaration for API Key in Express Request
 declare global {
@@ -3907,6 +3909,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== PARTNERSHIPS & SUBSCRIPTIONS (Phase 10) ==========
+
+  // Get current user's partnership
+  app.get("/api/partnerships/my", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partnership = await storage.getPartnershipByUserId(userId);
+      
+      res.json({
+        partnership,
+        tiers: SUBSCRIPTION_TIERS, // Include tier info for UI
+      });
+    } catch (error: any) {
+      console.error("[Partnerships] Error fetching partnership:", error);
+      res.status(500).json({ message: "Failed to fetch partnership" });
+    }
+  });
+
+  // Create subscription checkout session
+  app.post("/api/subscription/upgrade", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const { tier } = req.body;
+      
+      if (!['standard', 'premium', 'pro'].includes(tier)) {
+        return res.status(400).json({ message: "Invalid tier" });
+      }
+
+      // Check if user already has an active partnership
+      const existing = await storage.getPartnershipByUserId(userId);
+      if (existing && existing.status === 'active') {
+        return res.status(400).json({ 
+          message: "You already have an active partnership. Cancel it first to upgrade." 
+        });
+      }
+
+      const domain = process.env.REPL_SLUG 
+        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+        : 'http://localhost:5000';
+      
+      const checkoutUrl = await createSubscriptionCheckout(
+        userId,
+        tier,
+        user?.email || req.user.claims.email || 'unknown@example.com',
+        `${domain}/dashboard/partnerships?success=true`,
+        `${domain}/dashboard/partnerships?cancelled=true`
+      );
+      
+      res.json({ checkoutUrl });
+    } catch (error: any) {
+      console.error("[Subscription] Error creating checkout:", error);
+      res.status(500).json({ message: "Failed to create subscription" });
+    }
+  });
+
+  // Cancel subscription
+  app.post("/api/subscription/cancel", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const partnership = await storage.getPartnershipByUserId(userId);
+      
+      if (!partnership || partnership.status !== 'active') {
+        return res.status(404).json({ message: "No active partnership found" });
+      }
+
+      if (partnership.stripeSubscriptionId) {
+        await cancelSubscription(partnership.stripeSubscriptionId);
+      }
+      
+      await storage.updatePartnershipStatus(partnership.id, 'cancelled');
+      
+      res.json({ 
+        success: true, 
+        message: "Partnership cancelled successfully" 
+      });
+    } catch (error: any) {
+      console.error("[Subscription] Error cancelling:", error);
+      res.status(500).json({ message: "Failed to cancel subscription" });
+    }
+  });
+
+  // Get analytics for a profile (guides/providers only)
+  app.get("/api/analytics/profile/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const requestingUserId = req.user.claims.sub;
+      
+      // Only allow users to view their own analytics
+      if (userId !== requestingUserId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const partnership = await storage.getPartnershipByUserId(userId);
+      
+      if (!partnership || partnership.tier !== 'pro') {
+        return res.status(403).json({ 
+          message: "Analytics are only available for Pro tier" 
+        });
+      }
+
+      res.json({
+        analytics: partnership.analytics || {},
+        tier: partnership.tier,
+        status: partnership.status,
+        startDate: partnership.startDate,
+        endDate: partnership.endDate,
+      });
+    } catch (error: any) {
+      console.error("[Analytics] Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  // Stripe webhook handler for partnerships
+  app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!webhookSecret) {
+      console.error("[Stripe] Webhook secret not configured");
+      return res.status(500).send('Webhook secret not configured');
+    }
+
+    if (!sig) {
+      console.error("[Stripe] No signature provided");
+      return res.status(400).send('No signature');
+    }
+
+    try {
+      if (!stripe) {
+        console.error("[Stripe] Stripe not initialized");
+        return res.status(500).send('Stripe not configured');
+      }
+
+      const event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      
+      await handleStripeWebhook(event, storage);
+      
+      res.json({ received: true });
+    } catch (err: any) {
+      console.error("[Stripe] Webhook error:", err.message);
+      res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+  });
+
   // ========== SMART GROUPS (Phase 8) ==========
 
   // Create a new smart group
@@ -4890,6 +5038,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
       </body>
       </html>
     `);
+  });
+
+  // ========== GLOBAL SEARCH API (Phase 10) ==========
+
+  // Basic global search
+  app.get("/api/search", async (req: any, res) => {
+    try {
+      const { q, type, city, language, priceMin, priceMax, rating, availability } = req.query;
+      
+      if (!q || typeof q !== 'string') {
+        return res.status(400).json({ message: "Query parameter 'q' is required" });
+      }
+
+      // Rate limiting
+      const userId = req.user?.claims?.sub;
+      if (!checkRateLimit(userId)) {
+        return res.status(429).json({ message: "Too many requests. Please wait before searching again." });
+      }
+
+      const filters = {
+        type: type as any,
+        city: city as string,
+        language: language as string,
+        priceMin: priceMin ? parseFloat(priceMin as string) : undefined,
+        priceMax: priceMax ? parseFloat(priceMax as string) : undefined,
+        rating: rating ? parseFloat(rating as string) : undefined,
+        availability: availability === 'true',
+      };
+
+      const results = await searchGlobal(storage, q, filters);
+      
+      // Log search
+      await storage.logSearch({
+        userId,
+        query: q,
+        searchType: type as string,
+        resultsCount: results.totalCount,
+        filters,
+      });
+      
+      res.json(results);
+    } catch (error) {
+      console.error("[Search] Error:", error);
+      res.status(500).json({ message: "Search failed" });
+    }
+  });
+
+  // Semantic AI search
+  app.post("/api/search/semantic", async (req: any, res) => {
+    try {
+      const { query, type } = req.body;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ message: "Query is required" });
+      }
+
+      // Rate limiting
+      const userId = req.user?.claims?.sub;
+      if (!checkRateLimit(userId)) {
+        return res.status(429).json({ message: "Too many requests. Please wait before searching again." });
+      }
+
+      const results = await searchSemantic(storage, query, type);
+      
+      // Log search
+      await storage.logSearch({
+        userId,
+        query,
+        searchType: `semantic_${type || 'all'}`,
+        resultsCount: results.results.length,
+      });
+      
+      res.json(results);
+    } catch (error) {
+      console.error("[Semantic Search] Error:", error);
+      res.status(500).json({ message: "Semantic search failed" });
+    }
+  });
+
+  // Track search click (for analytics)
+  app.post("/api/search/click", async (req: any, res) => {
+    try {
+      const { searchLogId, entityId, entityType } = req.body;
+      
+      if (!searchLogId || !entityId || !entityType) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      await storage.updateSearchClick(searchLogId, entityId, entityType);
+      
+      // Increment analytics for the entity owner if they have a partnership
+      if (entityType === 'tour') {
+        const tour = await storage.getTourById(entityId);
+        if (tour) {
+          await storage.incrementPartnershipAnalytics(tour.guideId, 'tourViews');
+        }
+      } else if (entityType === 'service') {
+        const service = await storage.getServiceById(entityId);
+        if (service) {
+          await storage.incrementPartnershipAnalytics(service.providerId, 'serviceViews');
+        }
+      } else if (entityType === 'guide') {
+        await storage.incrementPartnershipAnalytics(entityId, 'profileViews');
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Search Click] Error:", error);
+      res.status(500).json({ message: "Failed to track click" });
+    }
   });
 
   const httpServer = createServer(app);
