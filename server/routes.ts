@@ -1173,6 +1173,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Phase 13 Task 9 - Get services by provider
+  app.get('/api/user/services', isAuthenticated, requireRole('provider'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const services = await storage.getServicesByProvider(userId);
+      res.json(services);
+    } catch (error: any) {
+      console.error("Error fetching provider services:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch services" });
+    }
+  });
+
+  // Phase 13 Task 10 - Admin get services by status
+  app.get('/api/admin/services', isAuthenticated, requireRole('supervisor'), async (req: any, res) => {
+    try {
+      const { status = 'pending' } = req.query;
+      const services = await storage.getServicesByStatus(status as string);
+      res.json(services);
+    } catch (error: any) {
+      console.error("Error fetching services by status:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch services" });
+    }
+  });
+
+  // Phase 13 Task 10 - Admin moderate service
+  app.post('/api/admin/services/:id/moderate', isAuthenticated, requireRole('supervisor'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { status, notes } = req.body;
+      const moderated = await storage.moderateService(req.params.id, userId, status, notes);
+      res.json({ message: 'Service moderated successfully', service: moderated });
+    } catch (error: any) {
+      console.error("Error moderating service:", error);
+      res.status(400).json({ message: error.message || "Failed to moderate service" });
+    }
+  });
+
+  // Phase 13 Task 11 - Get nearby services with geolocation
+  app.get('/api/services/nearby', async (req, res) => {
+    try {
+      const { lat, lng, radius = '10000' } = req.query;
+      
+      if (!lat || !lng) {
+        return res.status(400).json({ message: 'Latitude and longitude are required' });
+      }
+      
+      const services = await storage.getNearbyServices(
+        Number(lat),
+        Number(lng),
+        Number(radius)
+      );
+      
+      res.json(services);
+    } catch (error: any) {
+      console.error("Error fetching nearby services:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch nearby services" });
+    }
+  });
+
   // Phase 13 - Service Like Endpoint (with rewards)
   app.post('/api/services/:id/like', isAuthenticated, async (req: any, res) => {
     try {

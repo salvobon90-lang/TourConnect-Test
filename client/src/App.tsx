@@ -63,6 +63,8 @@ const PartnerPortal = lazy(() => import("@/pages/PartnerPortal"));
 const PackageDetail = lazy(() => import("@/pages/PackageDetail"));
 const ServiceList = lazy(() => import("@/pages/ServiceList"));
 const ServiceDetail = lazy(() => import("@/pages/ServiceDetail"));
+const AdminServicesPanel = lazy(() => import("@/pages/AdminServicesPanel"));
+const ServiceFormPage = lazy(() => import("@/pages/ServiceFormPage"));
 
 // Loading fallback component
 function PageLoader() {
@@ -223,6 +225,7 @@ function Router() {
                 <Route path="/analytics" component={Analytics} />
                 <Route path="/offers" component={() => <div>Offers - Coming Soon</div>} />
                 <Route path="/create-service" component={CreateService} />
+                <Route path="/provider/services/new" component={ServiceFormPage} />
                 <Route path="/partnerships" component={PartnershipsPage} />
                 <Route path="/map-3d" component={MapboxMap3D} />
               </>
@@ -231,6 +234,7 @@ function Router() {
               <>
                 <Route path="/" component={SupervisorDashboard} />
                 <Route path="/dashboard/supervisor" component={SupervisorDashboard} />
+                <Route path="/admin/services" component={AdminServicesPanel} />
                 <Route path="/map-3d" component={MapboxMap3D} />
               </>
             )}

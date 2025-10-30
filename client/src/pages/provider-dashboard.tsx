@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Store, DollarSign, Star, ShoppingBag, Calendar, Megaphone, Sparkles, Clock, MessageSquare } from 'lucide-react';
+import { Plus, Store, DollarSign, Star, ShoppingBag, Calendar, Megaphone, Sparkles, Clock, MessageSquare, Eye, Edit, Trash2 } from 'lucide-react';
 import type { Service, Sponsorship } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
@@ -32,8 +32,13 @@ export default function ProviderDashboard() {
     }
   }, [isAuthenticated, authLoading, toast, t]);
 
-  const { data: services, isLoading: servicesLoading } = useQuery<Service[]>({
-    queryKey: ['/api/services/my-services'],
+  const { data: services, isLoading: servicesLoading, refetch: refetchServices } = useQuery<Service[]>({
+    queryKey: ['/api/user/services'],
+    queryFn: async () => {
+      const res = await fetch('/api/user/services');
+      if (!res.ok) throw new Error('Failed to fetch services');
+      return res.json();
+    },
     enabled: isAuthenticated,
   });
 
@@ -50,6 +55,28 @@ export default function ProviderDashboard() {
   const { data: activeServiceIds = [] } = useQuery<string[]>({
     queryKey: ['/api/sponsorships/active-services'],
     enabled: isAuthenticated,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/services/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete service');
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchServices();
+      toast({
+        title: t('provider.deleteSuccess'),
+        description: t('provider.serviceDeleted'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('common.error'),
+        description: t('provider.deleteFailed'),
+        variant: 'destructive',
+      });
+    },
   });
 
   if (authLoading || !isAuthenticated) {
@@ -286,9 +313,34 @@ export default function ProviderDashboard() {
                         <span className="text-sm font-medium">5.0</span>
                       </div>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button variant="outline" size="sm" className="flex-1">{t('common.edit')}</Button>
-                      <Button variant="outline" size="sm" className="flex-1">{t('dashboards.provider.stats')}</Button>
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Link href={`/services/${service.id}`} className="flex-1">
+                          <Button variant="outline" size="sm" className="w-full">
+                            <Eye className="w-4 h-4 mr-1" />
+                            {t('common.view')}
+                          </Button>
+                        </Link>
+                        <Link href={`/provider/services/${service.id}/edit`} className="flex-1">
+                          <Button variant="outline" size="sm" className="w-full">
+                            <Edit className="w-4 h-4 mr-1" />
+                            {t('common.edit')}
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => {
+                            if (confirm(t('provider.confirmDelete'))) {
+                              deleteMutation.mutate(service.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1 text-destructive" />
+                          {t('common.delete')}
+                        </Button>
+                      </div>
                       {!activeServiceIds.includes(service.id) && (
                         <Button
                           variant="default"
