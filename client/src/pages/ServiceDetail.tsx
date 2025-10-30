@@ -120,7 +120,7 @@ export default function ServiceDetail() {
           <Card className="p-6 sticky top-4">
             <div className="mb-6">
               <span className="text-3xl font-bold">${service.price}</span>
-              <span className="text-muted-foreground"> / {t('services.person')}</span>
+              <span className="text-muted-foreground"> {t('services.perPerson')}</span>
             </div>
             
             <Button 

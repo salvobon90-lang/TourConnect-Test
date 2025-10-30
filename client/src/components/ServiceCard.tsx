@@ -92,7 +92,7 @@ export function ServiceCard({ service, onLike }: ServiceCardProps) {
         <div className="flex justify-between items-center mt-4">
           <div>
             <span className="text-2xl font-bold">${service.price}</span>
-            <span className="text-sm text-muted-foreground"> / {t('services.person')}</span>
+            <span className="text-sm text-muted-foreground"> {t('services.perPerson')}</span>
           </div>
           <Link href={`/services/${service.id}`}>
             <Button>{t('services.viewDetails')}</Button>
