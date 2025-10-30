@@ -138,6 +138,40 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // Check for admin session first (from /api/admin/login)
+  const adminUserId = (req.session as any)?.userId;
+  if (adminUserId) {
+    // Admin session exists - load user from database and set in req.user
+    try {
+      const adminUser = await storage.getUserById(adminUserId);
+      if (adminUser) {
+        // Set req.user in a format compatible with OIDC for downstream handlers
+        // Populate all claims that are used by the application (email, first_name, etc.)
+        (req as any).user = {
+          id: adminUser.id,
+          claims: { 
+            sub: adminUser.id,
+            email: adminUser.email,
+            first_name: adminUser.firstName,
+            last_name: adminUser.lastName,
+            profile_image_url: adminUser.profileImageUrl,
+            // No expiry for admin sessions (they use session TTL instead)
+            exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 1 week from now
+          },
+          email: adminUser.email,
+          role: adminUser.role,
+          // Admin sessions don't have access/refresh tokens or expires_at from OIDC
+          // But set expires_at to prevent the token refresh logic from running
+          expires_at: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 1 week from now
+        };
+        return next();
+      }
+    } catch (error) {
+      console.error('[isAuthenticated] Error loading admin user:', error);
+    }
+  }
+
+  // Fall back to OIDC authentication (Replit login)
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {
