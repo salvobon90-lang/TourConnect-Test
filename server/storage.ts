@@ -30,6 +30,8 @@ import {
   partnerships,
   searchLogs,
   embeddings,
+  contentReports,
+  notifications,
   rewardPoints,
   levelThresholds,
   type User,
@@ -93,6 +95,10 @@ import {
   type InsertSearchLog,
   type Embedding,
   type InsertEmbedding,
+  type ContentReport,
+  type InsertContentReport,
+  type Notification,
+  type InsertNotification,
   type RewardActionType,
   type RewardLevel,
   type TourWithGuide,
@@ -313,6 +319,21 @@ export interface IStorage {
     dailyStats: Array<{ date: string; views: number; clicks: number }>;
   }>;
   
+  // Group Marketplace operations (Phase 11)
+  getMarketplaceGroups(filters: {
+    destination?: string;
+    dateFrom?: Date;
+    dateTo?: Date;
+    minPrice?: number;
+    maxPrice?: number;
+    minParticipants?: number;
+    maxParticipants?: number;
+    language?: string;
+    status?: string;
+    sortBy?: 'date' | 'price' | 'popularity' | 'urgency';
+    limit?: number;
+  }): Promise<any[]>;
+  
   // Smart Groups operations (Phase 8)
   createSmartGroup(userId: string, data: Omit<InsertSmartGroup, 'creatorId'>): Promise<SmartGroup>;
   getNearbySmartGroups(latitude: number, longitude: number, radiusKm: number): Promise<SmartGroupWithDetails[]>;
@@ -423,6 +444,40 @@ export interface IStorage {
     entityType?: string,
     limit?: number
   ): Promise<Array<Embedding & { similarity: number }>>;
+  
+  // Content Reports (Moderation)
+  createContentReport(data: InsertContentReport): Promise<ContentReport>;
+  getPendingReports(): Promise<ContentReport[]>;
+  reviewContentReport(
+    id: string,
+    reviewerId: string,
+    status: string,
+    actionTaken: string
+  ): Promise<void>;
+  
+  // Notifications
+  createNotification(data: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: string): Promise<Notification[]>;
+  markNotificationAsRead(id: string, userId: string): Promise<void>;
+  markAllNotificationsAsRead(userId: string): Promise<void>;
+  
+  // Community Leader Badge
+  checkCommunityLeaderBadge(userId: string): Promise<void>;
+  
+  // Group Booking Payment operations
+  getGroupById(groupId: string): Promise<GroupBooking | undefined>;
+  getExpiredGroups(): Promise<GroupBooking[]>;
+  updateGroupStatus(groupId: string, status: string): Promise<void>;
+  getGroupMembers(groupId: string): Promise<Array<{ userId: string; email: string; firstName: string; lastName: string }>>;
+  
+  // GDPR Compliance operations
+  deleteUserPosts(userId: string): Promise<void>;
+  deleteUserComments(userId: string): Promise<void>;
+  deleteUserLikes(userId: string): Promise<void>;
+  anonymizeUserBookings(userId: string): Promise<void>;
+  deactivateUser(userId: string): Promise<void>;
+  getUserPosts(userId: string): Promise<Post[]>;
+  getUserMessages(userId: string): Promise<SelectMessage[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2709,6 +2764,149 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  // Get marketplace groups with advanced filters (Phase 11)
+  async getMarketplaceGroups(filters: {
+    destination?: string;
+    dateFrom?: Date;
+    dateTo?: Date;
+    minPrice?: number;
+    maxPrice?: number;
+    minParticipants?: number;
+    maxParticipants?: number;
+    language?: string;
+    status?: string;
+    sortBy?: 'date' | 'price' | 'popularity' | 'urgency';
+    limit?: number;
+  }) {
+    // Apply filters
+    const conditions = [];
+    
+    if (filters.status) {
+      conditions.push(eq(groupBookings.status, filters.status));
+    }
+    
+    if (filters.destination) {
+      conditions.push(
+        sql`LOWER(${tours.meetingPoint}) LIKE LOWER(${'%' + filters.destination + '%'})`
+      );
+    }
+    
+    if (filters.dateFrom) {
+      conditions.push(gte(groupBookings.tourDate, filters.dateFrom));
+    }
+    
+    if (filters.dateTo) {
+      conditions.push(lte(groupBookings.tourDate, filters.dateTo));
+    }
+    
+    if (filters.minPrice !== undefined) {
+      conditions.push(gte(groupBookings.currentPricePerPerson, filters.minPrice.toString()));
+    }
+    
+    if (filters.maxPrice !== undefined) {
+      conditions.push(lte(groupBookings.currentPricePerPerson, filters.maxPrice.toString()));
+    }
+    
+    if (filters.minParticipants !== undefined) {
+      conditions.push(gte(groupBookings.minParticipants, filters.minParticipants));
+    }
+    
+    if (filters.maxParticipants !== undefined) {
+      conditions.push(lte(groupBookings.maxParticipants, filters.maxParticipants));
+    }
+    
+    if (filters.language) {
+      conditions.push(sql`${filters.language} = ANY(${tours.languages})`);
+    }
+
+    // Build base query
+    const baseQuery = this.db
+      .select({
+        id: groupBookings.id,
+        tourId: groupBookings.tourId,
+        tourDate: groupBookings.tourDate,
+        maxParticipants: groupBookings.maxParticipants,
+        minParticipants: groupBookings.minParticipants,
+        currentParticipants: groupBookings.currentParticipants,
+        basePricePerPerson: groupBookings.basePricePerPerson,
+        currentPricePerPerson: groupBookings.currentPricePerPerson,
+        discountStep: groupBookings.discountStep,
+        minPriceFloor: groupBookings.minPriceFloor,
+        status: groupBookings.status,
+        groupCode: groupBookings.groupCode,
+        createdAt: groupBookings.createdAt,
+        updatedAt: groupBookings.updatedAt,
+        // Tour details
+        tourTitle: tours.title,
+        tourDescription: tours.description,
+        tourCategory: tours.category,
+        tourDuration: tours.duration,
+        tourMeetingPoint: tours.meetingPoint,
+        tourLanguages: tours.languages,
+        tourImages: tours.images,
+        tourLatitude: tours.latitude,
+        tourLongitude: tours.longitude,
+        // Guide details
+        guideId: users.id,
+        guideName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+        guideImage: users.profileImageUrl,
+        guideTrustLevel: users.trustLevel,
+      })
+      .from(groupBookings)
+      .leftJoin(tours, eq(groupBookings.tourId, tours.id))
+      .leftJoin(users, eq(tours.guideId, users.id))
+      .$dynamic();
+
+    // Apply where conditions
+    const whereQuery = conditions.length > 0 
+      ? baseQuery.where(and(...conditions)) 
+      : baseQuery;
+
+    // Apply sorting
+    let sortedQuery;
+    switch (filters.sortBy) {
+      case 'price':
+        sortedQuery = whereQuery.orderBy(asc(groupBookings.currentPricePerPerson));
+        break;
+      case 'popularity':
+        sortedQuery = whereQuery.orderBy(desc(groupBookings.currentParticipants));
+        break;
+      case 'urgency':
+        sortedQuery = whereQuery.orderBy(
+          sql`(${groupBookings.minParticipants} - ${groupBookings.currentParticipants})`
+        );
+        break;
+      case 'date':
+      default:
+        sortedQuery = whereQuery.orderBy(asc(groupBookings.tourDate));
+        break;
+    }
+
+    // Apply limit
+    const finalQuery = filters.limit ? sortedQuery.limit(filters.limit) : sortedQuery;
+    const results = await finalQuery;
+
+    // Calculate additional fields for each group
+    return results.map(group => {
+      const spotsLeft = group.maxParticipants - group.currentParticipants;
+      const spotsNeeded = Math.max(0, group.minParticipants - group.currentParticipants);
+      const progress = (group.currentParticipants / group.maxParticipants) * 100;
+      const discountPercentage = group.basePricePerPerson 
+        ? ((parseFloat(group.basePricePerPerson) - parseFloat(group.currentPricePerPerson)) / parseFloat(group.basePricePerPerson)) * 100
+        : 0;
+
+      return {
+        ...group,
+        spotsLeft,
+        spotsNeeded,
+        progress: Math.round(progress),
+        discountPercentage: Math.round(discountPercentage),
+        isAlmostFull: spotsLeft <= 2,
+        isAlmostReady: spotsNeeded <= 2 && spotsNeeded > 0,
+      };
+    });
+  }
+
   // ===== REWARDS SYSTEM (Phase 6) =====
 
   // Calculate level from total points
@@ -4165,6 +4363,201 @@ export class DatabaseStorage implements IStorage {
     };
     
     return sanitizeObject(sanitized);
+  }
+
+  // Content Reports (Moderation)
+  async createContentReport(data: InsertContentReport): Promise<ContentReport> {
+    const [report] = await db.insert(contentReports).values(data).returning();
+    return report;
+  }
+
+  async getPendingReports(): Promise<ContentReport[]> {
+    return db
+      .select()
+      .from(contentReports)
+      .where(eq(contentReports.status, 'pending'))
+      .orderBy(desc(contentReports.createdAt));
+  }
+
+  async reviewContentReport(
+    id: string,
+    reviewerId: string,
+    status: string,
+    actionTaken: string
+  ): Promise<void> {
+    await db
+      .update(contentReports)
+      .set({
+        status,
+        reviewedBy: reviewerId,
+        reviewedAt: new Date(),
+        actionTaken,
+      })
+      .where(eq(contentReports.id, id));
+  }
+
+  // Notifications
+  async createNotification(data: InsertNotification): Promise<Notification> {
+    const [notification] = await db
+      .insert(notifications)
+      .values(data)
+      .returning();
+    return notification;
+  }
+
+  async getUserNotifications(userId: string): Promise<Notification[]> {
+    return db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(50);
+  }
+
+  async markNotificationAsRead(id: string, userId: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({
+        isRead: true,
+        readAt: new Date(),
+      })
+      .where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({
+        isRead: true,
+        readAt: new Date(),
+      })
+      .where(eq(notifications.userId, userId));
+  }
+
+  // Community Leader Badge
+  async checkCommunityLeaderBadge(userId: string): Promise<void> {
+    const groupsCreated = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(smartGroups)
+      .where(and(
+        eq(smartGroups.createdBy, userId),
+        eq(smartGroups.status, 'completed')
+      ));
+
+    if (groupsCreated[0].count >= 5) {
+      await this.addRewardPoints(userId, 100, 'community_interaction', 'Earned Community Leader badge');
+    }
+  }
+
+  // Group Booking Payment operations
+  async getGroupById(groupId: string): Promise<GroupBooking | undefined> {
+    const [group] = await db
+      .select()
+      .from(groupBookings)
+      .where(eq(groupBookings.id, groupId));
+    return group;
+  }
+
+  async getExpiredGroups(): Promise<GroupBooking[]> {
+    const now = new Date();
+    return db
+      .select()
+      .from(groupBookings)
+      .where(
+        and(
+          eq(groupBookings.status, 'open'),
+          lte(groupBookings.expiresAt, now),
+          sql`${groupBookings.expiresAt} IS NOT NULL`
+        )
+      );
+  }
+
+  async updateGroupStatus(groupId: string, status: string): Promise<void> {
+    await db
+      .update(groupBookings)
+      .set({ 
+        status: status as any,
+        updatedAt: new Date()
+      })
+      .where(eq(groupBookings.id, groupId));
+  }
+
+  async getGroupMembers(groupId: string): Promise<Array<{ userId: string; email: string; firstName: string; lastName: string }>> {
+    const members = await db
+      .select({
+        userId: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      })
+      .from(bookings)
+      .innerJoin(users, eq(bookings.userId, users.id))
+      .where(eq(bookings.groupBookingId, groupId));
+    
+    return members.map(m => ({
+      userId: m.userId,
+      email: m.email || '',
+      firstName: m.firstName || '',
+      lastName: m.lastName || '',
+    }));
+  }
+
+  // GDPR Compliance operations
+  async deleteUserPosts(userId: string): Promise<void> {
+    await db.delete(posts).where(eq(posts.userId, userId));
+  }
+
+  async deleteUserComments(userId: string): Promise<void> {
+    await db.delete(postComments).where(eq(postComments.userId, userId));
+  }
+
+  async deleteUserLikes(userId: string): Promise<void> {
+    await db.delete(postLikes).where(eq(postLikes.userId, userId));
+    await db.delete(likes).where(eq(likes.userId, userId));
+  }
+
+  async anonymizeUserBookings(userId: string): Promise<void> {
+    await db
+      .update(bookings)
+      .set({
+        userId: 'ANONYMIZED',
+        updatedAt: new Date(),
+      })
+      .where(eq(bookings.userId, userId));
+  }
+
+  async deactivateUser(userId: string): Promise<void> {
+    await db
+      .update(users)
+      .set({
+        email: `deleted_${userId}@anonymized.com`,
+        firstName: 'Deleted',
+        lastName: 'User',
+        profileImageUrl: null,
+        bio: null,
+        phone: null,
+        socialLinks: null,
+        isOnline: false,
+        approvalStatus: 'rejected',
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async getUserPosts(userId: string): Promise<Post[]> {
+    return db
+      .select()
+      .from(posts)
+      .where(eq(posts.userId, userId))
+      .orderBy(desc(posts.createdAt));
+  }
+
+  async getUserMessages(userId: string): Promise<SelectMessage[]> {
+    return db
+      .select()
+      .from(messages)
+      .where(eq(messages.senderId, userId))
+      .orderBy(desc(messages.createdAt));
   }
 }
 

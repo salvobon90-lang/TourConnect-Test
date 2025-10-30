@@ -72,8 +72,8 @@ export type LikeTargetType = typeof likeTargetTypes[number];
 export const trustLevels = ["explorer", "pathfinder", "trailblazer", "navigator", "legend"] as const;
 export type TrustLevel = typeof trustLevels[number];
 
-// Reward action types enum (Phase 6, expanded in Phase 8, Phase 9, Phase 10)
-export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share", "search_like", "search_review", "subscription_complete", "partnership_confirmed"] as const;
+// Reward action types enum (Phase 6, expanded in Phase 8, Phase 9, Phase 10, Phase 11)
+export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share", "search_like", "search_review", "subscription_complete", "partnership_confirmed", "create_public_group", "join_group", "community_interaction", "complete_tour_100", "community_leader_badge", "share_completed_tour"] as const;
 export type RewardActionType = typeof rewardActionTypes[number];
 
 // Reward level tiers enum (Phase 6)
@@ -100,7 +100,7 @@ export type GroupEventType = typeof groupEventTypes[number];
 export const groupEventStatuses = ["pending", "notified", "completed", "cancelled"] as const;
 export type GroupEventStatus = typeof groupEventStatuses[number];
 
-// Points awarded for each action (Phase 6, expanded in Phase 9, Phase 10)
+// Points awarded for each action (Phase 6, expanded in Phase 9, Phase 10, Phase 11)
 export const rewardPoints = {
   booking: 50,
   review: 25,
@@ -122,6 +122,12 @@ export const rewardPoints = {
   search_review: 10,
   subscription_complete: 25,
   partnership_confirmed: 50,
+  create_public_group: 30,
+  join_group: 15,
+  community_interaction: 10,
+  complete_tour_100: 200,
+  community_leader_badge: 150,
+  share_completed_tour: 25,
 } as const;
 
 // Points required for each level
@@ -791,6 +797,11 @@ export const groupBookings = pgTable("group_bookings", {
   status: varchar("status", { length: 20 }).notNull().default("open"), // open, full, confirmed, closed, cancelled
   groupCode: varchar("group_code", { length: 12 }).notNull().unique(), // Unique invite code
   
+  // Payment fields
+  expiresAt: timestamp("expires_at"),
+  stripeCheckoutSessionId: varchar("stripe_checkout_session_id"),
+  stripePaymentStatus: varchar("stripe_payment_status", { length: 20 }).default("pending"),
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -1294,6 +1305,77 @@ export const embeddings = pgTable("embeddings", {
   index("idx_embeddings_type").on(table.entityType),
 ]);
 
+// Content Reports table - for moderation
+export const contentReports = pgTable("content_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Reported content
+  contentType: varchar("content_type", { length: 20 }).notNull(), // post, comment, user, tour, service
+  contentId: varchar("content_id").notNull(),
+  
+  // Reporter
+  reporterId: varchar("reporter_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Report details
+  reason: varchar("reason", { length: 50 }).notNull(), // spam, inappropriate, offensive, fraud, other
+  description: text("description"),
+  
+  // Moderation status
+  status: varchar("status", { length: 20 }).default("pending"), // pending, reviewed, actioned, dismissed
+  reviewedBy: varchar("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at"),
+  actionTaken: text("action_taken"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_content_reports_reporter").on(table.reporterId),
+  index("idx_content_reports_status").on(table.status),
+  index("idx_content_reports_content").on(table.contentType, table.contentId),
+]);
+
+export const contentReportsRelations = relations(contentReports, ({ one }) => ({
+  reporter: one(users, {
+    fields: [contentReports.reporterId],
+    references: [users.id],
+    relationName: "reportsMade",
+  }),
+  reviewer: one(users, {
+    fields: [contentReports.reviewedBy],
+    references: [users.id],
+    relationName: "reportsReviewed",
+  }),
+}));
+
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  type: varchar("type", { length: 30 }).notNull(), // comment, like, group_invite, group_almost_full, group_confirmed, reply
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  
+  // Link to related content
+  relatedId: varchar("related_id"),
+  relatedType: varchar("related_type", { length: 20 }), // post, comment, group, tour
+  
+  isRead: boolean("is_read").default(false),
+  readAt: timestamp("read_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_notifications_user").on(table.userId),
+  index("idx_notifications_unread").on(table.userId, table.isRead),
+]);
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -1601,6 +1683,32 @@ export const insertEmbeddingSchema = createInsertSchema(embeddings).omit({
   language: z.string().max(5).optional().nullable(),
 });
 
+// Content Reports
+export const insertContentReportSchema = createInsertSchema(contentReports).omit({
+  id: true,
+  status: true,
+  reviewedBy: true,
+  reviewedAt: true,
+  actionTaken: true,
+  createdAt: true,
+}).extend({
+  contentType: z.enum(['post', 'comment', 'user', 'tour', 'service']),
+  reason: z.enum(['spam', 'inappropriate', 'offensive', 'fraud', 'other']),
+  description: z.string().max(1000).optional().nullable(),
+});
+
+// Notifications
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  isRead: true,
+  readAt: true,
+  createdAt: true,
+}).extend({
+  type: z.enum(['comment', 'like', 'group_invite', 'group_almost_full', 'group_confirmed', 'reply']),
+  title: z.string().min(1).max(200),
+  message: z.string().min(1).max(500),
+});
+
 // Group Booking API validation schemas
 export const joinGroupBookingSchema = z.object({
   participants: z.number().int().min(1).max(20).default(1)
@@ -1677,6 +1785,10 @@ export type InsertSearchLog = z.infer<typeof insertSearchLogSchema>;
 export type SearchLog = typeof searchLogs.$inferSelect;
 export type InsertEmbedding = z.infer<typeof insertEmbeddingSchema>;
 export type Embedding = typeof embeddings.$inferSelect;
+export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
+export type ContentReport = typeof contentReports.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {

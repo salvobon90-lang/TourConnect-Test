@@ -37,6 +37,9 @@ import { sql, eq, and, ne } from "drizzle-orm";
 import { broadcastToUser, broadcastToAll } from "./websocket";
 import express from "express";
 import { createSubscriptionCheckout, cancelSubscription, handleStripeWebhook, SUBSCRIPTION_TIERS } from './stripe-service';
+import { checkRateLimit as checkPostRateLimit } from './moderation';
+import { sendNotification, setWebSocketServer } from './notifications';
+import { insertContentReportSchema, insertNotificationSchema } from "@shared/schema";
 
 // Global type declaration for API Key in Express Request
 declare global {
@@ -219,6 +222,37 @@ function requirePermission(...permissions: string[]) {
     }
     
     next();
+  };
+}
+
+// Role check middleware
+function requireRole(...roles: string[]) {
+  return async (req: any, res: express.Response, next: express.NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      if (!user.role || !roles.includes(user.role)) {
+        return res.status(403).json({ 
+          message: "Insufficient permissions",
+          required: roles,
+          current: user.role
+        });
+      }
+      
+      next();
+    } catch (error) {
+      console.error("Role check error:", error);
+      res.status(500).json({ message: "Authorization failed" });
+    }
   };
 }
 
@@ -2692,6 +2726,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = req.user!;
       
+      // Check rate limit (10 posts per minute)
+      if (!checkPostRateLimit(user.id, 10, 60000)) {
+        return res.status(429).json({ message: "Too many posts. Please wait before posting again." });
+      }
+      
       const postData = insertPostSchema.parse({
         ...req.body,
         authorId: user.id
@@ -2863,6 +2902,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get updated post
       const updatedPost = await storage.getPostById(postId);
       
+      // Add reward points for community interaction (only on like, not unlike)
+      if (result.liked) {
+        await storage.addRewardPoints(user.id, 10, 'community_interaction', 'Engaged with community post');
+      }
+      
       // Broadcast like notification via WebSocket (only if liked, not unliked)
       if (result.liked) {
         broadcastToUser(post.authorId, {
@@ -2909,6 +2953,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         authorId: user.id,
         content: content.trim(),
         parentCommentId: parentCommentId || null
+      });
+      
+      // Add reward points for community interaction
+      await storage.addRewardPoints(user.id, 10, 'community_interaction', 'Engaged with community post');
+      
+      // Send push notification for comment
+      await sendNotification({
+        userId: post.authorId,
+        type: 'comment',
+        title: 'New comment on your post',
+        message: `${user.firstName} commented on your post`,
+        relatedId: postId,
+        relatedType: 'post'
       });
       
       // Get updated post
@@ -4220,6 +4277,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const group = await storage.createSmartGroup(userId, validationResult.data);
+      
+      // Add reward points for creating public group (+20 points)
+      if (validationResult.data.visibility === 'public') {
+        await storage.addRewardPoints(userId, 20, 'create_public_group', `Created public group: ${group.name}`);
+      }
+      
       res.status(201).json(group);
     } catch (error: any) {
       console.error("Error creating smart group:", error);
@@ -4273,6 +4336,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { inviteCode } = req.body;
       
       const member = await storage.joinSmartGroup(id, userId, inviteCode);
+      
+      // Add reward points for joining group (+15 points)
+      const group = await storage.getSmartGroupById(id);
+      if (group) {
+        await storage.addRewardPoints(userId, 15, 'join_group', `Joined group: ${group.name}`);
+      }
+      
       res.status(201).json(member);
     } catch (error: any) {
       console.error("Error joining smart group:", error);
@@ -5031,6 +5101,223 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+
+  // Create Stripe checkout session for group booking
+  app.post("/api/group-bookings/:groupId/checkout", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { groupId } = req.params;
+      const { participants } = req.body;
+
+      const group = await storage.getGroupById(groupId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+
+      if (group.status !== 'open') {
+        return res.status(400).json({ message: "Group is no longer accepting participants" });
+      }
+
+      if (group.currentParticipants + participants > group.maxParticipants) {
+        return res.status(400).json({ message: "Not enough spots available" });
+      }
+
+      const amount = parseFloat(group.currentPricePerPerson) * participants * 100;
+
+      if (stripe) {
+        const tour = await storage.getTourById(group.tourId);
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: [{
+            price_data: {
+              currency: 'eur',
+              product_data: {
+                name: `Group Tour: ${tour?.title || 'Tour'}`,
+                description: `${participants} participant(s) - ${group.tourDate}`,
+              },
+              unit_amount: Math.round(amount / participants),
+            },
+            quantity: participants,
+          }],
+          mode: 'payment',
+          success_url: `${req.protocol}://${req.get('host')}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${req.protocol}://${req.get('host')}/marketplace`,
+          metadata: {
+            groupId: group.id,
+            userId,
+            participants: participants.toString(),
+          },
+        });
+
+        res.json({ sessionId: session.id, url: session.url });
+      } else {
+        res.json({ 
+          message: "Payment processing not configured. Group joined without payment.",
+          mockPayment: true 
+        });
+      }
+    } catch (error: any) {
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Webhook for automatic refunds (if group expires without reaching minimum)
+  app.post("/api/webhooks/group-expiration", async (req, res) => {
+    try {
+      const expiredGroups = await storage.getExpiredGroups();
+      
+      for (const group of expiredGroups) {
+        if (group.currentParticipants < group.minParticipants) {
+          console.log(`[Refund] Group ${group.id} expired without reaching minimum. Processing refunds...`);
+          
+          if (stripe && group.stripeCheckoutSessionId) {
+            // Implement refund logic here
+          }
+          
+          await storage.updateGroupStatus(group.id, 'cancelled');
+          
+          const members = await storage.getGroupMembers(group.id);
+          for (const member of members) {
+            await sendNotification({
+              userId: member.userId,
+              type: 'group_cancelled',
+              title: 'Group Cancelled - Refund Processed',
+              message: `Group was cancelled due to insufficient participants. Your payment has been refunded.`,
+              relatedId: group.id,
+              relatedType: 'group'
+            });
+          }
+        }
+      }
+      
+      res.json({ message: "Expiration check completed" });
+    } catch (error: any) {
+      console.error("Error processing group expirations:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ========== GDPR COMPLIANCE ENDPOINTS ==========
+
+  // Delete user data (GDPR compliance)
+  app.delete("/api/users/me/data", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      await storage.deleteUserPosts(userId);
+      await storage.deleteUserComments(userId);
+      await storage.deleteUserLikes(userId);
+      await storage.anonymizeUserBookings(userId);
+      await storage.deactivateUser(userId);
+      
+      res.json({ message: "Your data has been deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting user data:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Export user data (GDPR compliance)
+  app.get("/api/users/me/export", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const userData = {
+        profile: await storage.getUserById(userId),
+        posts: await storage.getUserPosts(userId),
+        bookings: await storage.getBookings(userId),
+        reviews: await storage.getReviewsByUser(userId),
+        messages: await storage.getUserMessages(userId),
+      };
+      
+      res.json(userData);
+    } catch (error: any) {
+      console.error("Error exporting user data:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ========== GROUP MARKETPLACE (Phase 11) ==========
+
+  // Group Marketplace - Get all open groups with filters
+  app.get("/api/marketplace/groups", async (req, res) => {
+    try {
+      const { 
+        destination,
+        dateFrom,
+        dateTo,
+        minPrice,
+        maxPrice,
+        minParticipants,
+        maxParticipants,
+        language,
+        status = 'open',
+        sortBy = 'date',
+        limit = 50
+      } = req.query;
+
+      const groups = await storage.getMarketplaceGroups({
+        destination: destination as string,
+        dateFrom: dateFrom ? new Date(dateFrom as string) : undefined,
+        dateTo: dateTo ? new Date(dateTo as string) : undefined,
+        minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
+        maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
+        minParticipants: minParticipants ? parseInt(minParticipants as string) : undefined,
+        maxParticipants: maxParticipants ? parseInt(maxParticipants as string) : undefined,
+        language: language as string,
+        status: status as string,
+        sortBy: sortBy as 'date' | 'price' | 'popularity' | 'urgency',
+        limit: parseInt(limit as string)
+      });
+
+      res.json(groups);
+    } catch (error: any) {
+      console.error("Error fetching marketplace groups:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // AI-powered group suggestions
+  app.get("/api/marketplace/ai-suggestions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUserById(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get user's group bookings
+      const userGroupBookings = await storage.getUserGroupBookings(userId);
+      const userPreferences = {
+        favoriteDestinations: user.city ? [user.city] : [],
+        preferredLanguages: user.guideLanguages || ['en'],
+        budgetRange: [0, 200]
+      };
+
+      // Get groups that are almost complete (high conversion probability)
+      const urgentGroups = await storage.getMarketplaceGroups({
+        status: 'open',
+        sortBy: 'urgency',
+        limit: 10
+      });
+
+      // Filter groups that need 1-2 more participants
+      const hotDeals = urgentGroups.filter(g => g.spotsNeeded <= 2 && g.spotsNeeded > 0);
+
+      res.json({
+        hotDeals,
+        message: hotDeals.length > 0 
+          ? `${hotDeals.length} group${hotDeals.length > 1 ? 's' : ''} almost ready! Join now to complete.`
+          : "Check back soon for hot deals!",
+        recommendations: urgentGroups.slice(0, 5)
+      });
+    } catch (error: any) {
+      console.error("Error getting AI suggestions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
   
   // ========== SWAGGER DOCUMENTATION ==========
   
@@ -5293,6 +5580,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("[Search Click] Error:", error);
       res.status(500).json({ message: "Failed to track click" });
+    }
+  });
+
+  // ========== CONTENT MODERATION ENDPOINTS ==========
+
+  // Report content (post, comment, user, etc.)
+  app.post("/api/reports/create", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validation = insertContentReportSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ message: "Validation failed", errors: validation.error.errors });
+      }
+
+      const report = await storage.createContentReport({
+        ...validation.data,
+        reporterId: userId
+      });
+
+      res.status(201).json(report);
+    } catch (error: any) {
+      console.error("Error creating report:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get pending reports (supervisor only)
+  app.get("/api/reports/pending", requireRole('supervisor'), async (req, res) => {
+    try {
+      const reports = await storage.getPendingReports();
+      res.json(reports);
+    } catch (error: any) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Take action on report (supervisor only)
+  app.post("/api/reports/:id/action", requireRole('supervisor'), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { action, actionTaken } = req.body;
+      const reviewerId = req.user.claims.sub;
+
+      await storage.reviewContentReport(id, reviewerId, action, actionTaken);
+      
+      res.json({ message: "Report reviewed successfully" });
+    } catch (error: any) {
+      console.error("Error reviewing report:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ========== NOTIFICATIONS ENDPOINTS ==========
+
+  // Get user notifications
+  app.get("/api/notifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const notifications = await storage.getUserNotifications(userId);
+      res.json(notifications);
+    } catch (error: any) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Mark notification as read
+  app.post("/api/notifications/:id/read", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      await storage.markNotificationAsRead(id, userId);
+      res.json({ message: "Notification marked as read" });
+    } catch (error: any) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Mark all notifications as read
+  app.post("/api/notifications/read-all", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await storage.markAllNotificationsAsRead(userId);
+      res.json({ message: "All notifications marked as read" });
+    } catch (error: any) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: error.message });
     }
   });
 

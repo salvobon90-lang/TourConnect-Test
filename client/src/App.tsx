@@ -58,6 +58,7 @@ const CommunityMapPage = lazy(() => import("@/pages/CommunityMapPage"));
 const SearchPage = lazy(() => import("@/pages/SearchPage"));
 const PartnershipsPage = lazy(() => import("@/pages/PartnershipsPage"));
 const AdminLoginPage = lazy(() => import("@/pages/AdminLoginPage"));
+const GroupMarketplace = lazy(() => import("@/pages/group-marketplace"));
 
 // Loading fallback component
 function PageLoader() {
@@ -153,6 +154,7 @@ function Router() {
           <Switch location={location}>
             {/* Shared routes for all authenticated users */}
             <Route path="/search" component={SearchPage} />
+            <Route path="/marketplace" component={GroupMarketplace} />
             <Route path="/profile" component={Profile} />
             <Route path="/messages" component={Messages} />
             <Route path="/subscriptions" component={Subscriptions} />
