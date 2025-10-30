@@ -1,0 +1,134 @@
+🚀 Prossimo Step: Phase 7 — Social Engagement & Discovery Expansion
+
+🎯 Obiettivo generale:
+Far crescere la community rendendo le interazioni (like, fiducia, geolocalizzazione, referral) parte integrante dell’esperienza d’uso.
+
+🔹 1. Like System Evoluto (Trust & Popularity Engine)
+
+Obiettivo: permettere ai turisti registrati di esprimere gradimento verso guide, tour e servizi.
+
+Funzionalità:
+
+Solo i turisti autenticati possono mettere like
+
+Like visibile in tempo reale su profili e card tour
+
+Ogni like genera:
+
++5 punti nel reward system
+
++2 punti nel Trust Score della guida
+
+Ogni guida o servizio mostra badge di fiducia in base ai like ricevuti:
+
+🟤 Bronze Trusted → 10+ like
+
+⚪ Silver Trusted → 50+ like
+
+🟡 Gold Trusted → 150+ like
+
+🟠 Platinum Trusted → 300+ like
+
+🔶 Elite Guide → 500+ like
+
+🔹 2. Discover Page con Geolocalizzazione
+
+Obiettivo: proporre contenuti personalizzati e pertinenti in base alla posizione dell’utente.
+
+Funzionalità:
+
+Rilevamento posizione via GPS (con consenso)
+
+Mostra tour e servizi nel raggio di 30 km
+
+Classifica basata su:
+
+distanza
+
+punteggio recensioni
+
+like totali
+
+livello guida (Trust Badge)
+
+Filtri dinamici: Top Rated, Vicino a Me, Più Amati
+
+🔹 3. Referral System Integrato
+
+Obiettivo: incentivare la crescita organica e la fidelizzazione.
+
+Funzionalità:
+
+Ogni utente riceve un link referral unico
+
+Quando un nuovo utente si iscrive tramite quel link:
+
+entrambi guadagnano 50 punti reward
+
+Dashboard “I miei referral” con statistiche e punti guadagnati
+
+Traduzioni complete in 5 lingue
+
+🔹 4. UI/UX Enhancements
+
+Per rendere tutto più immersivo e coerente con il brand:
+
+Animazioni Framer Motion per like, badge e referral
+
+Nuovi tooltip dinamici (“Hai ricevuto un like da Alice!”)
+
+Sezione Top Guides nella homepage
+
+Discover Page con layout responsive e smart sorting
+
+🔹 5. Database e Sicurezza
+
+Nuove tabelle:
+
+likes → traccia ogni like con user_id, target_type e target_id
+
+referrals → gestisce gli inviti e i punti associati
+
+Controlli anti-abuso:
+
+Un solo like per contenuto per utente
+
+Validazione server-side su ogni azione
+
+IP e session logging per prevenire spam
+
+🔹 6. Risultati Attesi
+
+Aumento dell’engagement medio per sessione del 40%
+
+Incremento della fiducia verso guide e provider
+
+Più conversioni tour grazie ai contenuti locali e personalizzati
+
+Crescita organica tramite referral e gamification
+
+🧠 Prompt per Replit
+
+Implement Phase 7 — Social Engagement & Discovery Expansion
+
+Enhance TourConnect by adding social, trust, and growth systems. Maintain the dark grey + orange theme and full multilingual support.
+
+Deliverables:
+
+Like system for guides, tours, and services (tourists only)
+
+Trust levels and visual badges for guides/providers
+
+Geolocation-based Discover Page showing nearby tours and services
+
+Smart ranking (distance, rating, likes)
+
+Referral system integrated with reward points
+
+Anti-abuse validation for likes and referrals
+
+Real-time updates with Framer Motion animations
+
+Translations for all new components
+
+Goal: Increase engagement, community trust, and organic user growth through social validation and location-aware discovery.
