@@ -43,12 +43,31 @@ import {
   BarChart3,
   PieChart,
   LineChart,
-  ExternalLink
+  ExternalLink,
+  Trophy,
+  Award
 } from 'lucide-react';
 import { LineChart as RechartsLine, Line, BarChart as RechartsBar, Bar, PieChart as RechartsPie, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 
 const COLORS = ['#FF6600', '#FF8833', '#FFAA66', '#FFCC99'];
+
+// TypeScript interfaces for rewards
+interface UserReward {
+  points: number;
+  trustLevel: string;
+  badges: string[];
+}
+
+interface RewardLog {
+  id: string;
+  actionType: string;
+  pointsAwarded: number;
+  metadata?: {
+    description?: string;
+  };
+  createdAt: string;
+}
 
 // Typed query helper for partner portal
 const usePartnerQuery = <T,>(endpoint: string, options = {}) => {
@@ -61,6 +80,28 @@ const usePartnerQuery = <T,>(endpoint: string, options = {}) => {
     },
     ...options,
   });
+};
+
+// Helper functions for rewards
+const getActionLabel = (actionType: string, t: any): string => {
+  const labels: Record<string, string> = {
+    partner_sale: t('partnerPortal.rewards.actions.partnerSale'),
+    package_created: t('partnerPortal.rewards.actions.packageCreated'),
+    affiliate_conversion: t('partnerPortal.rewards.actions.affiliateConversion'),
+    post_created: t('partnerPortal.rewards.actions.postCreated'),
+    review_received: t('partnerPortal.rewards.actions.reviewReceived'),
+    tour_completed: t('partnerPortal.rewards.actions.tourCompleted'),
+  };
+  return labels[actionType] || actionType;
+};
+
+const getBadgeVariant = (trustLevel?: string): "default" | "secondary" | "outline" | "destructive" | null | undefined => {
+  switch (trustLevel) {
+    case 'Expert': return 'default';
+    case 'Advanced': return 'secondary';
+    case 'Intermediate': return 'outline';
+    default: return 'outline';
+  }
 };
 
 export default function PartnerPortal() {
@@ -183,6 +224,9 @@ function DashboardTab() {
     queryKey: ['partner', 'bookings', 'recent'],
     queryFn: getQueryFn({ on401: 'returnNull' }),
   });
+
+  const { data: rewards } = usePartnerQuery<UserReward>('/api/rewards/my');
+  const { data: rewardLogs } = usePartnerQuery<RewardLog[]>('/api/rewards/logs?limit=10');
 
   if (isLoading) {
     return (
@@ -329,6 +373,88 @@ function DashboardTab() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-orange-600" />
+              {t('partnerPortal.rewards.title')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">
+                  {t('partnerPortal.rewards.totalPoints')}
+                </span>
+                <span className="text-3xl font-bold text-orange-600">
+                  {rewards?.points || 0}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">
+                  {t('partnerPortal.rewards.trustLevel')}
+                </span>
+                <Badge variant={getBadgeVariant(rewards?.trustLevel)}>
+                  {rewards?.trustLevel || 'Novice'}
+                </Badge>
+              </div>
+              
+              {rewards?.badges && rewards.badges.length > 0 && (
+                <div>
+                  <span className="text-sm text-muted-foreground block mb-2">
+                    {t('partnerPortal.rewards.badges')}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {rewards.badges.map((badge, idx) => (
+                      <Badge key={idx} variant="outline">
+                        {badge}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('partnerPortal.rewards.recentActivity')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {rewardLogs?.map((log) => (
+                <div key={log.id} className="flex justify-between items-center border-b pb-2 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium">
+                      {getActionLabel(log.actionType, t)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {log.metadata?.description || ''}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-green-600">
+                      +{log.pointsAwarded}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(log.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {(!rewardLogs || rewardLogs.length === 0) && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {t('partnerPortal.rewards.noActivity')}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -1818,6 +1944,20 @@ function ProfileTab() {
             </div>
           </CardContent>
         </Card>
+
+        {profile?.verified && (
+          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+              <Award className="w-5 h-5" />
+              <span className="font-medium">
+                {t('partnerPortal.rewards.verifiedBoost')}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              {t('partnerPortal.rewards.verifiedBoostDesc')}
+            </p>
+          </div>
+        )}
 
         <Button type="submit" disabled={updateMutation.isPending}>
           {updateMutation.isPending ? t('partnerPortal.profile.saving') : t('partnerPortal.profile.save')}
