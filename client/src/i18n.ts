@@ -746,6 +746,10 @@ const resources = {
           profile_complete: "Profile Completed",
           first_booking: "First Booking Bonus",
           streak_bonus: "Streak Bonus",
+          search_like: "Liked via search",
+          search_review: "Reviewed after search",
+          subscription_complete: "Subscription activated",
+          partnership_confirmed: "Partnership confirmed",
         },
         notifications: {
           pointsEarned: "You earned {{points}} points!",
@@ -993,6 +997,120 @@ const resources = {
         errors: {
           roleSetError: "Failed to set role. Please try again.",
         },
+      },
+      search: {
+        placeholder: "Search guides, tours, services...",
+        aiSearch: "AI Search",
+        viewAllResults: "View all {{count}} results",
+        noResults: "No results found for \"{{query}}\"",
+        tryAdjusting: "Try adjusting your filters or use AI Search",
+        searching: "Searching...",
+        filters: "Filters",
+        type: "Type",
+        all: "All",
+        guides: "Guides",
+        tours: "Tours",
+        services: "Services",
+        city: "City",
+        language: "Language",
+        priceRange: "Price Range",
+        rating: "Rating",
+        availability: "Availability",
+        resultsCount: "{{count}} results",
+        aiInsights: "AI Insights",
+        confidence: "{{percent}}% confidence",
+        semanticSearch: {
+          title: "Smart Search",
+          description: "Use natural language to find what you're looking for",
+          examples: [
+            "Show me guides in Rome with most positive reviews",
+            "Budget services in Florence for families",
+            "Tours with most likes near me",
+            "Guides available tomorrow speaking German"
+          ]
+        }
+      },
+      partnerships: {
+        title: "Partnership & Promotions",
+        subtitle: "Manage your subscription and boost your visibility",
+        currentPlan: "Current Plan",
+        status: "Status",
+        daysRemaining: "Days Remaining",
+        endDate: "End Date",
+        timeRemaining: "Time remaining",
+        active: "Active",
+        cancelled: "Cancelled",
+        expired: "Expired",
+        noPartnership: "You don't have an active partnership. Upgrade to boost your visibility and get more bookings!",
+        getStarted: "Get Started with a Partnership",
+        upgradePlan: "Upgrade Plan",
+        cancelSubscription: "Cancel Subscription",
+        tiers: {
+          standard: {
+            name: "Standard",
+            price: "€9.99",
+            duration: "month",
+            features: [
+              "Basic visibility",
+              "7-day promotion"
+            ]
+          },
+          premium: {
+            name: "Premium",
+            price: "€29.99",
+            duration: "month",
+            features: [
+              "30-day promotion",
+              "\"Featured\" badge",
+              "Priority listing"
+            ]
+          },
+          pro: {
+            name: "Pro",
+            price: "€59.99",
+            duration: "month",
+            features: [
+              "90-day promotion",
+              "\"Partner Verified\" badge",
+              "Analytics dashboard",
+              "Top visibility"
+            ]
+          }
+        },
+        badges: {
+          standard: "Standard",
+          featured: "Featured",
+          partnerVerified: "Partner Verified",
+          mostPopular: "Most Popular",
+          bestValue: "Best Value"
+        },
+        upgradeModal: {
+          title: "Choose Your Partnership Tier",
+          description: "Select a plan that fits your needs and boost your visibility on TourConnect",
+          cancel: "Cancel",
+          continue: "Continue to Payment",
+          processing: "Processing..."
+        },
+        unavailable: {
+          title: "Partnerships Unavailable",
+          description: "Partnerships are only available for guides and service providers."
+        },
+        analytics: {
+          title: "Analytics Dashboard",
+          subtitle: "Your performance metrics",
+          profileViews: "Profile Views",
+          tourViews: "Tour Views",
+          serviceViews: "Service Views",
+          totalClicks: "Total Clicks",
+          conversions: "Conversions",
+          likesReceived: "Likes Received",
+          reviews: "Reviews",
+          unavailable: "Analytics are only available for Pro tier partners. Upgrade to access detailed insights!"
+        },
+        tabs: {
+          dashboard: "Dashboard",
+          analytics: "Analytics"
+        }
       },
       seo: {
         landing: {
@@ -1736,7 +1854,7 @@ const resources = {
         days: "giorni",
         streak: "Serie",
         levels: { bronze: "Bronzo", silver: "Argento", gold: "Oro", platinum: "Platino", diamond: "Diamante" },
-        actions: { booking: "Prenotazione Completata", review: "Recensione Inviata", like: "Contenuto Piaciuto", group_join: "Unito a Tour di Gruppo", referral: "Amico Referito", tour_complete: "Tour Completato", profile_complete: "Profilo Completato", first_booking: "Bonus Prima Prenotazione", streak_bonus: "Bonus Serie" },
+        actions: { booking: "Prenotazione Completata", review: "Recensione Inviata", like: "Contenuto Piaciuto", group_join: "Unito a Tour di Gruppo", referral: "Amico Referito", tour_complete: "Tour Completato", profile_complete: "Profilo Completato", first_booking: "Bonus Prima Prenotazione", streak_bonus: "Bonus Serie", search_like: "Piaciuto tramite ricerca", search_review: "Recensito dopo ricerca", subscription_complete: "Abbonamento attivato", partnership_confirmed: "Partnership confermata" },
         notifications: { pointsEarned: "Hai guadagnato {{points}} punti!", levelUp: "Livello Superiore! Ora sei {{level}}", streakContinued: "{{streak}} giorni di serie!", bonusUnlocked: "Bonus sbloccato: {{bonus}}" },
         leaderboard: "Classifica",
         viewHistory: "Vedi Storico",
@@ -1943,6 +2061,120 @@ const resources = {
         errors: {
           roleSetError: "Impossibile impostare il ruolo. Riprova.",
         },
+      },
+      search: {
+        placeholder: "Cerca guide, tour, servizi...",
+        aiSearch: "Ricerca AI",
+        viewAllResults: "Visualizza tutti i {{count}} risultati",
+        noResults: "Nessun risultato trovato per \"{{query}}\"",
+        tryAdjusting: "Prova a modificare i filtri o usa la Ricerca AI",
+        searching: "Ricerca in corso...",
+        filters: "Filtri",
+        type: "Tipo",
+        all: "Tutti",
+        guides: "Guide",
+        tours: "Tour",
+        services: "Servizi",
+        city: "Città",
+        language: "Lingua",
+        priceRange: "Fascia di Prezzo",
+        rating: "Valutazione",
+        availability: "Disponibilità",
+        resultsCount: "{{count}} risultati",
+        aiInsights: "Insights AI",
+        confidence: "{{percent}}% di confidenza",
+        semanticSearch: {
+          title: "Ricerca Intelligente",
+          description: "Usa il linguaggio naturale per trovare ciò che cerchi",
+          examples: [
+            "Mostrami guide a Roma con le recensioni più positive",
+            "Servizi economici a Firenze per famiglie",
+            "Tour con più mi piace vicino a me",
+            "Guide disponibili domani che parlano tedesco"
+          ]
+        }
+      },
+      partnerships: {
+        title: "Partnership e Promozioni",
+        subtitle: "Gestisci il tuo abbonamento e aumenta la tua visibilità",
+        currentPlan: "Piano Attuale",
+        status: "Stato",
+        daysRemaining: "Giorni Rimanenti",
+        endDate: "Data di Fine",
+        timeRemaining: "Tempo rimanente",
+        active: "Attivo",
+        cancelled: "Annullato",
+        expired: "Scaduto",
+        noPartnership: "Non hai una partnership attiva. Aggiorna per aumentare la tua visibilità e ottenere più prenotazioni!",
+        getStarted: "Inizia con una Partnership",
+        upgradePlan: "Aggiorna Piano",
+        cancelSubscription: "Annulla Abbonamento",
+        tiers: {
+          standard: {
+            name: "Standard",
+            price: "€9.99",
+            duration: "mese",
+            features: [
+              "Visibilità di base",
+              "Promozione di 7 giorni"
+            ]
+          },
+          premium: {
+            name: "Premium",
+            price: "€29.99",
+            duration: "mese",
+            features: [
+              "Promozione di 30 giorni",
+              "Badge \"In Evidenza\"",
+              "Posizionamento prioritario"
+            ]
+          },
+          pro: {
+            name: "Pro",
+            price: "€59.99",
+            duration: "mese",
+            features: [
+              "Promozione di 90 giorni",
+              "Badge \"Partner Verificato\"",
+              "Dashboard analytics",
+              "Massima visibilità"
+            ]
+          }
+        },
+        badges: {
+          standard: "Standard",
+          featured: "In Evidenza",
+          partnerVerified: "Partner Verificato",
+          mostPopular: "Più Popolare",
+          bestValue: "Miglior Valore"
+        },
+        upgradeModal: {
+          title: "Scegli il Tuo Livello di Partnership",
+          description: "Seleziona un piano adatto alle tue esigenze e aumenta la tua visibilità su TourConnect",
+          cancel: "Annulla",
+          continue: "Continua al Pagamento",
+          processing: "Elaborazione..."
+        },
+        unavailable: {
+          title: "Partnership Non Disponibili",
+          description: "Le partnership sono disponibili solo per guide e fornitori di servizi."
+        },
+        analytics: {
+          title: "Dashboard Analytics",
+          subtitle: "Le tue metriche di performance",
+          profileViews: "Visualizzazioni Profilo",
+          tourViews: "Visualizzazioni Tour",
+          serviceViews: "Visualizzazioni Servizi",
+          totalClicks: "Click Totali",
+          conversions: "Conversioni",
+          likesReceived: "Mi Piace Ricevuti",
+          reviews: "Recensioni",
+          unavailable: "Le analytics sono disponibili solo per i partner di livello Pro. Aggiorna per accedere a insights dettagliate!"
+        },
+        tabs: {
+          dashboard: "Dashboard",
+          analytics: "Analytics"
+        }
       },
       seo: {
         landing: {
@@ -2686,7 +2918,7 @@ const resources = {
         days: "Tage",
         streak: "Serie",
         levels: { bronze: "Bronze", silver: "Silber", gold: "Gold", platinum: "Platin", diamond: "Diamant" },
-        actions: { booking: "Buchung Abgeschlossen", review: "Bewertung Eingereicht", like: "Inhalt Geliked", group_join: "Gruppentour Beigetreten", referral: "Freund Empfohlen", tour_complete: "Tour Abgeschlossen", profile_complete: "Profil Vervollständigt", first_booking: "Erste Buchung Bonus", streak_bonus: "Serien-Bonus" },
+        actions: { booking: "Buchung Abgeschlossen", review: "Bewertung Eingereicht", like: "Inhalt Geliked", group_join: "Gruppentour Beigetreten", referral: "Freund Empfohlen", tour_complete: "Tour Abgeschlossen", profile_complete: "Profil Vervollständigt", first_booking: "Erste Buchung Bonus", streak_bonus: "Serien-Bonus", search_like: "Über Suche geliked", search_review: "Nach Suche bewertet", subscription_complete: "Abonnement aktiviert", partnership_confirmed: "Partnerschaft bestätigt" },
         notifications: { pointsEarned: "Sie haben {{points}} Punkte verdient!", levelUp: "Level Up! Sie sind jetzt {{level}}", streakContinued: "{{streak}} Tage Serie!", bonusUnlocked: "Bonus freigeschaltet: {{bonus}}" },
         leaderboard: "Bestenliste",
         viewHistory: "Verlauf Anzeigen",
@@ -2893,6 +3125,120 @@ const resources = {
         errors: {
           roleSetError: "Rolle konnte nicht festgelegt werden. Bitte versuchen Sie es erneut.",
         },
+      },
+      search: {
+        placeholder: "Suche Reiseführer, Touren, Dienstleistungen...",
+        aiSearch: "KI-Suche",
+        viewAllResults: "Alle {{count}} Ergebnisse anzeigen",
+        noResults: "Keine Ergebnisse für \"{{query}}\" gefunden",
+        tryAdjusting: "Versuchen Sie, Ihre Filter anzupassen oder verwenden Sie die KI-Suche",
+        searching: "Suche läuft...",
+        filters: "Filter",
+        type: "Typ",
+        all: "Alle",
+        guides: "Reiseführer",
+        tours: "Touren",
+        services: "Dienstleistungen",
+        city: "Stadt",
+        language: "Sprache",
+        priceRange: "Preisspanne",
+        rating: "Bewertung",
+        availability: "Verfügbarkeit",
+        resultsCount: "{{count}} Ergebnisse",
+        aiInsights: "KI-Einblicke",
+        confidence: "{{percent}}% Vertrauen",
+        semanticSearch: {
+          title: "Intelligente Suche",
+          description: "Verwenden Sie natürliche Sprache, um zu finden, wonach Sie suchen",
+          examples: [
+            "Zeige mir Reiseführer in Rom mit den positivsten Bewertungen",
+            "Budget-Dienstleistungen in Florenz für Familien",
+            "Touren mit den meisten Likes in meiner Nähe",
+            "Morgen verfügbare Reiseführer, die Deutsch sprechen"
+          ]
+        }
+      },
+      partnerships: {
+        title: "Partnerschaft & Aktionen",
+        subtitle: "Verwalten Sie Ihr Abonnement und steigern Sie Ihre Sichtbarkeit",
+        currentPlan: "Aktueller Plan",
+        status: "Status",
+        daysRemaining: "Verbleibende Tage",
+        endDate: "Enddatum",
+        timeRemaining: "Verbleibende Zeit",
+        active: "Aktiv",
+        cancelled: "Storniert",
+        expired: "Abgelaufen",
+        noPartnership: "Sie haben keine aktive Partnerschaft. Upgraden Sie, um Ihre Sichtbarkeit zu erhöhen und mehr Buchungen zu erhalten!",
+        getStarted: "Starten Sie mit einer Partnerschaft",
+        upgradePlan: "Plan Upgraden",
+        cancelSubscription: "Abonnement Kündigen",
+        tiers: {
+          standard: {
+            name: "Standard",
+            price: "€9.99",
+            duration: "Monat",
+            features: [
+              "Basis-Sichtbarkeit",
+              "7-Tage-Aktion"
+            ]
+          },
+          premium: {
+            name: "Premium",
+            price: "€29.99",
+            duration: "Monat",
+            features: [
+              "30-Tage-Aktion",
+              "\"Featured\"-Badge",
+              "Prioritäre Listung"
+            ]
+          },
+          pro: {
+            name: "Pro",
+            price: "€59.99",
+            duration: "Monat",
+            features: [
+              "90-Tage-Aktion",
+              "\"Partner Verifiziert\"-Badge",
+              "Analytics-Dashboard",
+              "Höchste Sichtbarkeit"
+            ]
+          }
+        },
+        badges: {
+          standard: "Standard",
+          featured: "Featured",
+          partnerVerified: "Partner Verifiziert",
+          mostPopular: "Am Beliebtesten",
+          bestValue: "Bestes Preis-Leistungs-Verhältnis"
+        },
+        upgradeModal: {
+          title: "Wählen Sie Ihre Partnerschaftsstufe",
+          description: "Wählen Sie einen Plan, der zu Ihren Bedürfnissen passt und steigern Sie Ihre Sichtbarkeit auf TourConnect",
+          cancel: "Abbrechen",
+          continue: "Weiter zur Zahlung",
+          processing: "Verarbeitung..."
+        },
+        unavailable: {
+          title: "Partnerschaften Nicht Verfügbar",
+          description: "Partnerschaften sind nur für Reiseführer und Dienstleister verfügbar."
+        },
+        analytics: {
+          title: "Analytics-Dashboard",
+          subtitle: "Ihre Leistungsmetriken",
+          profileViews: "Profilaufrufe",
+          tourViews: "Touransichten",
+          serviceViews: "Dienstleistungsansichten",
+          totalClicks: "Gesamtklicks",
+          conversions: "Konversionen",
+          likesReceived: "Erhaltene Likes",
+          reviews: "Bewertungen",
+          unavailable: "Analytics sind nur für Pro-Tier-Partner verfügbar. Upgraden Sie, um detaillierte Einblicke zu erhalten!"
+        },
+        tabs: {
+          dashboard: "Dashboard",
+          analytics: "Analytics"
+        }
       },
       seo: {
         landing: {
@@ -3636,7 +3982,7 @@ const resources = {
         days: "jours",
         streak: "Série",
         levels: { bronze: "Bronze", silver: "Argent", gold: "Or", platinum: "Platine", diamond: "Diamant" },
-        actions: { booking: "Réservation Complétée", review: "Avis Soumis", like: "Contenu Aimé", group_join: "Rejoint Circuit Groupe", referral: "Ami Recommandé", tour_complete: "Circuit Terminé", profile_complete: "Profil Complété", first_booking: "Bonus Première Réservation", streak_bonus: "Bonus de Série" },
+        actions: { booking: "Réservation Complétée", review: "Avis Soumis", like: "Contenu Aimé", group_join: "Rejoint Circuit Groupe", referral: "Ami Recommandé", tour_complete: "Circuit Terminé", profile_complete: "Profil Complété", first_booking: "Bonus Première Réservation", streak_bonus: "Bonus de Série", search_like: "Aimé via recherche", search_review: "Avis après recherche", subscription_complete: "Abonnement activé", partnership_confirmed: "Partenariat confirmé" },
         notifications: { pointsEarned: "Vous avez gagné {{points}} points!", levelUp: "Niveau Supérieur! Vous êtes maintenant {{level}}", streakContinued: "{{streak}} jours de série!", bonusUnlocked: "Bonus débloqué: {{bonus}}" },
         leaderboard: "Classement",
         viewHistory: "Voir Historique",
@@ -3843,6 +4189,120 @@ const resources = {
         errors: {
           roleSetError: "Impossible de définir le rôle. Veuillez réessayer.",
         },
+      },
+      search: {
+        placeholder: "Rechercher guides, tours, services...",
+        aiSearch: "Recherche IA",
+        viewAllResults: "Voir tous les {{count}} résultats",
+        noResults: "Aucun résultat trouvé pour \"{{query}}\"",
+        tryAdjusting: "Essayez d'ajuster vos filtres ou utilisez la Recherche IA",
+        searching: "Recherche en cours...",
+        filters: "Filtres",
+        type: "Type",
+        all: "Tous",
+        guides: "Guides",
+        tours: "Tours",
+        services: "Services",
+        city: "Ville",
+        language: "Langue",
+        priceRange: "Fourchette de Prix",
+        rating: "Évaluation",
+        availability: "Disponibilité",
+        resultsCount: "{{count}} résultats",
+        aiInsights: "Aperçus IA",
+        confidence: "{{percent}}% de confiance",
+        semanticSearch: {
+          title: "Recherche Intelligente",
+          description: "Utilisez le langage naturel pour trouver ce que vous cherchez",
+          examples: [
+            "Montrez-moi des guides à Rome avec les avis les plus positifs",
+            "Services économiques à Florence pour familles",
+            "Tours avec le plus de likes près de moi",
+            "Guides disponibles demain parlant allemand"
+          ]
+        }
+      },
+      partnerships: {
+        title: "Partenariat & Promotions",
+        subtitle: "Gérez votre abonnement et augmentez votre visibilité",
+        currentPlan: "Plan Actuel",
+        status: "Statut",
+        daysRemaining: "Jours Restants",
+        endDate: "Date de Fin",
+        timeRemaining: "Temps restant",
+        active: "Actif",
+        cancelled: "Annulé",
+        expired: "Expiré",
+        noPartnership: "Vous n'avez pas de partenariat actif. Passez à un niveau supérieur pour augmenter votre visibilité et obtenir plus de réservations!",
+        getStarted: "Commencer avec un Partenariat",
+        upgradePlan: "Améliorer le Plan",
+        cancelSubscription: "Annuler l'Abonnement",
+        tiers: {
+          standard: {
+            name: "Standard",
+            price: "€9.99",
+            duration: "mois",
+            features: [
+              "Visibilité de base",
+              "Promotion de 7 jours"
+            ]
+          },
+          premium: {
+            name: "Premium",
+            price: "€29.99",
+            duration: "mois",
+            features: [
+              "Promotion de 30 jours",
+              "Badge \"En Vedette\"",
+              "Liste prioritaire"
+            ]
+          },
+          pro: {
+            name: "Pro",
+            price: "€59.99",
+            duration: "mois",
+            features: [
+              "Promotion de 90 jours",
+              "Badge \"Partenaire Vérifié\"",
+              "Tableau de bord analytique",
+              "Visibilité maximale"
+            ]
+          }
+        },
+        badges: {
+          standard: "Standard",
+          featured: "En Vedette",
+          partnerVerified: "Partenaire Vérifié",
+          mostPopular: "Le Plus Populaire",
+          bestValue: "Meilleur Rapport Qualité-Prix"
+        },
+        upgradeModal: {
+          title: "Choisissez Votre Niveau de Partenariat",
+          description: "Sélectionnez un plan qui correspond à vos besoins et augmentez votre visibilité sur TourConnect",
+          cancel: "Annuler",
+          continue: "Continuer vers le Paiement",
+          processing: "Traitement..."
+        },
+        unavailable: {
+          title: "Partenariats Non Disponibles",
+          description: "Les partenariats ne sont disponibles que pour les guides et les prestataires de services."
+        },
+        analytics: {
+          title: "Tableau de Bord Analytique",
+          subtitle: "Vos métriques de performance",
+          profileViews: "Vues du Profil",
+          tourViews: "Vues des Tours",
+          serviceViews: "Vues des Services",
+          totalClicks: "Clics Totaux",
+          conversions: "Conversions",
+          likesReceived: "Likes Reçus",
+          reviews: "Avis",
+          unavailable: "Les analyses ne sont disponibles que pour les partenaires de niveau Pro. Passez à un niveau supérieur pour accéder à des informations détaillées!"
+        },
+        tabs: {
+          dashboard: "Tableau de Bord",
+          analytics: "Analytique"
+        }
       },
       seo: {
         landing: {
@@ -4586,7 +5046,7 @@ const resources = {
         days: "días",
         streak: "Racha",
         levels: { bronze: "Bronce", silver: "Plata", gold: "Oro", platinum: "Platino", diamond: "Diamante" },
-        actions: { booking: "Reserva Completada", review: "Reseña Enviada", like: "Contenido Gustó", group_join: "Unido a Tour Grupal", referral: "Amigo Referido", tour_complete: "Tour Completado", profile_complete: "Perfil Completado", first_booking: "Bono Primera Reserva", streak_bonus: "Bono de Racha" },
+        actions: { booking: "Reserva Completada", review: "Reseña Enviada", like: "Contenido Gustó", group_join: "Unido a Tour Grupal", referral: "Amigo Referido", tour_complete: "Tour Completado", profile_complete: "Perfil Completado", first_booking: "Bono Primera Reserva", streak_bonus: "Bono de Racha", search_like: "Gustó vía búsqueda", search_review: "Reseña tras búsqueda", subscription_complete: "Suscripción activada", partnership_confirmed: "Asociación confirmada" },
         notifications: { pointsEarned: "¡Ganaste {{points}} puntos!", levelUp: "¡Subiste de Nivel! Ahora eres {{level}}", streakContinued: "¡{{streak}} días de racha!", bonusUnlocked: "Bono desbloqueado: {{bonus}}" },
         leaderboard: "Tabla de Posiciones",
         viewHistory: "Ver Historial",
@@ -4793,6 +5253,120 @@ const resources = {
         errors: {
           roleSetError: "No se pudo establecer el rol. Por favor, inténtalo de nuevo.",
         },
+      },
+      search: {
+        placeholder: "Buscar guías, tours, servicios...",
+        aiSearch: "Búsqueda IA",
+        viewAllResults: "Ver todos los {{count}} resultados",
+        noResults: "No se encontraron resultados para \"{{query}}\"",
+        tryAdjusting: "Intenta ajustar tus filtros o usa la Búsqueda IA",
+        searching: "Buscando...",
+        filters: "Filtros",
+        type: "Tipo",
+        all: "Todos",
+        guides: "Guías",
+        tours: "Tours",
+        services: "Servicios",
+        city: "Ciudad",
+        language: "Idioma",
+        priceRange: "Rango de Precio",
+        rating: "Calificación",
+        availability: "Disponibilidad",
+        resultsCount: "{{count}} resultados",
+        aiInsights: "Perspectivas IA",
+        confidence: "{{percent}}% de confianza",
+        semanticSearch: {
+          title: "Búsqueda Inteligente",
+          description: "Usa lenguaje natural para encontrar lo que buscas",
+          examples: [
+            "Muéstrame guías en Roma con las reseñas más positivas",
+            "Servicios económicos en Florencia para familias",
+            "Tours con más me gusta cerca de mí",
+            "Guías disponibles mañana que hablen alemán"
+          ]
+        }
+      },
+      partnerships: {
+        title: "Asociación y Promociones",
+        subtitle: "Gestiona tu suscripción y aumenta tu visibilidad",
+        currentPlan: "Plan Actual",
+        status: "Estado",
+        daysRemaining: "Días Restantes",
+        endDate: "Fecha de Fin",
+        timeRemaining: "Tiempo restante",
+        active: "Activo",
+        cancelled: "Cancelado",
+        expired: "Expirado",
+        noPartnership: "No tienes una asociación activa. ¡Actualiza para aumentar tu visibilidad y obtener más reservas!",
+        getStarted: "Comenzar con una Asociación",
+        upgradePlan: "Actualizar Plan",
+        cancelSubscription: "Cancelar Suscripción",
+        tiers: {
+          standard: {
+            name: "Standard",
+            price: "€9.99",
+            duration: "mes",
+            features: [
+              "Visibilidad básica",
+              "Promoción de 7 días"
+            ]
+          },
+          premium: {
+            name: "Premium",
+            price: "€29.99",
+            duration: "mes",
+            features: [
+              "Promoción de 30 días",
+              "Insignia \"Destacado\"",
+              "Listado prioritario"
+            ]
+          },
+          pro: {
+            name: "Pro",
+            price: "€59.99",
+            duration: "mes",
+            features: [
+              "Promoción de 90 días",
+              "Insignia \"Socio Verificado\"",
+              "Panel de análisis",
+              "Máxima visibilidad"
+            ]
+          }
+        },
+        badges: {
+          standard: "Standard",
+          featured: "Destacado",
+          partnerVerified: "Socio Verificado",
+          mostPopular: "Más Popular",
+          bestValue: "Mejor Valor"
+        },
+        upgradeModal: {
+          title: "Elige Tu Nivel de Asociación",
+          description: "Selecciona un plan que se ajuste a tus necesidades y aumenta tu visibilidad en TourConnect",
+          cancel: "Cancelar",
+          continue: "Continuar al Pago",
+          processing: "Procesando..."
+        },
+        unavailable: {
+          title: "Asociaciones No Disponibles",
+          description: "Las asociaciones solo están disponibles para guías y proveedores de servicios."
+        },
+        analytics: {
+          title: "Panel de Análisis",
+          subtitle: "Tus métricas de rendimiento",
+          profileViews: "Vistas del Perfil",
+          tourViews: "Vistas de Tours",
+          serviceViews: "Vistas de Servicios",
+          totalClicks: "Clics Totales",
+          conversions: "Conversiones",
+          likesReceived: "Me Gusta Recibidos",
+          reviews: "Reseñas",
+          unavailable: "Los análisis solo están disponibles para socios de nivel Pro. ¡Actualiza para acceder a información detallada!"
+        },
+        tabs: {
+          dashboard: "Panel",
+          analytics: "Análisis"
+        }
       },
       seo: {
         landing: {
