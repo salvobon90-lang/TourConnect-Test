@@ -1,0 +1,105 @@
+Aggiungere un sistema completo di referral e inviti per incentivare la crescita organica degli utenti e la diffusione dell’app.
+
+🔹 1. Funzionalità principali da implementare
+
+Referral System Flow
+
+Ogni utente registrato riceve un link unico:
+https://tourconnect.app/signup?ref=<referral_code>
+
+Quando un nuovo utente si iscrive tramite quel link:
+
+il nuovo utente (referee) guadagna 100 punti reward
+
+l’utente che lo ha invitato (referrer) guadagna 100 punti reward
+
+I punti vengono assegnati automaticamente al completamento della registrazione.
+
+🔹 2. Database & Backend
+
+Nuova tabella: referrals
+
+Campo	Tipo	Descrizione
+id	UUID	Primary Key
+referrer_id	UUID	Utente che invita
+referee_id	UUID	Utente invitato
+referral_code	VARCHAR(10)	Codice univoco dell’invito
+created_at	TIMESTAMP	Data creazione
+status	ENUM(pending, completed)	Stato dell’invito
+points_awarded	BOOLEAN	Flag per punti già assegnati
+
+Funzioni backend:
+
+generateReferralCode(user_id) → crea codice casuale univoco
+
+validateReferralCode(code) → controlla validità e unicità
+
+awardReferralPoints(referrer_id, referee_id) → assegna i 100 punti a entrambi
+
+getUserReferrals(user_id) → lista degli inviti inviati e stato
+
+🔹 3. Frontend
+
+Dashboard “My Referrals”
+Nuova sezione in Tourist Dashboard:
+
+Mostra:
+
+link referral personale (con copia link)
+
+totale amici invitati
+
+punti guadagnati
+
+elenco con stato (in attesa / completato)
+
+Grafica coerente con lo stile dark grey + orange
+
+Animazioni Framer Motion per gli incrementi dei punti
+
+Icone dinamiche (✅ per completati, ⏳ per in attesa)
+
+🔹 4. Anti-abuso e Sicurezza
+
+Ogni email/IP può essere usata solo una volta per referral
+
+Punti assegnati solo dopo la verifica email del referee
+
+Log degli inviti e IP tracking per audit
+
+Protezione contro self-referral (stesso user_id o IP)
+
+🔹 5. Traduzioni
+
+Aggiungere chiavi di traduzione per:
+
+"invite_friends", "copy_referral_link", "referrals_earned", "pending_referrals", "completed_referrals", "rewarded_points"
+
+Lingue: 🇬🇧 🇮🇹 🇫🇷 🇩🇪 🇪🇸
+
+🔹 6. Prompt finale per Replit
+
+Implement Phase 7.2 — Referral System Integration
+
+Add a full referral and invite system to TourConnect. Each user receives a unique referral link to share.
+When a new user signs up through that link, both users earn 100 reward points automatically.
+
+Deliverables:
+
+Referral link generation and validation
+
+Database table referrals with anti-abuse protections
+
+Automatic reward point assignment
+
+“My Referrals” dashboard page
+
+Email verification check before awarding points
+
+Full multilingual translations (EN, IT, FR, DE, ES)
+
+Framer Motion animations for link copy and reward gain
+
+Dark grey + orange theme maintained
+
+Goal: Encourage viral organic growth and boost engagement through a secure and gamified invite system.

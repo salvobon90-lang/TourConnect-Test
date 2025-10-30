@@ -80,6 +80,10 @@ export type RewardActionType = typeof rewardActionTypes[number];
 export const rewardLevels = ["bronze", "silver", "gold", "platinum", "diamond"] as const;
 export type RewardLevel = typeof rewardLevels[number];
 
+// Referral status enum (Phase 7.2)
+export const referralStatuses = ["pending", "completed"] as const;
+export type ReferralStatus = typeof referralStatuses[number];
+
 // Points awarded for each action
 export const rewardPoints = {
   booking: 50,
@@ -836,6 +840,52 @@ export const rewardLogsRelations = relations(rewardLogs, ({ one }) => ({
   }),
 }));
 
+// Referrals table - for tracking invite system (Phase 7.2)
+export const referrals = pgTable("referrals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Referrer (user who invited)
+  referrerId: varchar("referrer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Referee (user who was invited) - null until they sign up
+  refereeId: varchar("referee_id").references(() => users.id, { onDelete: "cascade" }),
+  
+  // Unique referral code (10 chars, alphanumeric)
+  referralCode: varchar("referral_code", { length: 10 }).notNull().unique(),
+  
+  // Status tracking
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, completed
+  pointsAwarded: boolean("points_awarded").notNull().default(false),
+  
+  // Anti-abuse tracking
+  refereeEmail: varchar("referee_email"), // Store email when sign-up happens
+  refereeIp: varchar("referee_ip"), // IP address for abuse detection
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("idx_referrals_referrer").on(table.referrerId),
+  index("idx_referrals_referee").on(table.refereeId),
+  index("idx_referrals_code").on(table.referralCode),
+  index("idx_referrals_status").on(table.status),
+  // Unique constraint to prevent duplicate referrals from same email
+  uniqueIndex("idx_referrals_email_unique").on(table.refereeEmail),
+]);
+
+export const referralsRelations = relations(referrals, ({ one }) => ({
+  referrer: one(users, {
+    fields: [referrals.referrerId],
+    references: [users.id],
+    relationName: "referrer",
+  }),
+  referee: one(users, {
+    fields: [referrals.refereeId],
+    references: [users.id],
+    relationName: "referee",
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -1048,6 +1098,17 @@ export const awardPointsSchema = z.object({
   }).optional(),
 });
 
+// Referrals (Phase 7.2)
+export const insertReferralSchema = createInsertSchema(referrals).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export const validateReferralCodeSchema = z.object({
+  code: z.string().length(10, "Referral code must be exactly 10 characters"),
+});
+
 // Group Booking API validation schemas
 export const joinGroupBookingSchema = z.object({
   participants: z.number().int().min(1).max(20).default(1)
@@ -1104,6 +1165,8 @@ export type InsertUserReward = z.infer<typeof insertUserRewardSchema>;
 export type UserReward = typeof userRewards.$inferSelect;
 export type InsertRewardLog = z.infer<typeof insertRewardLogSchema>;
 export type RewardLog = typeof rewardLogs.$inferSelect;
+export type InsertReferral = z.infer<typeof insertReferralSchema>;
+export type Referral = typeof referrals.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {
