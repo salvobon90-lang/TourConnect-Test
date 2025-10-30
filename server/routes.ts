@@ -252,13 +252,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/set-role', authLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { role } = req.body;
+      const { role, referralCode } = req.body;
       
       if (!['tourist', 'guide', 'provider'].includes(role)) {
         return res.status(400).json({ message: "Invalid role" });
       }
 
       const user = await storage.setUserRole(userId, role);
+      
+      // Handle referral if code provided (Phase 7.2)
+      if (referralCode && typeof referralCode === 'string' && referralCode.length === 10) {
+        const email = req.user.claims.email || user.email;
+        const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+        
+        // Complete referral in background (fire-and-forget)
+        storage.completeReferral(referralCode, userId, email, ip as string)
+          .then(result => {
+            if (result.success && result.pointsAwarded) {
+              console.log(`✅ Referral completed for user ${userId} with code ${referralCode}`);
+            } else if (result.success) {
+              console.log(`⚠️ Referral completed but points not awarded: ${result.message}`);
+            } else {
+              console.log(`❌ Referral failed: ${result.message}`);
+            }
+          })
+          .catch(err => console.error("Error completing referral:", err));
+      }
+      
       res.json(user);
     } catch (error) {
       console.error("Error setting role:", error);
@@ -3752,6 +3772,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // REMOVED: Public user rewards endpoint removed for privacy
   // Users can only view their own rewards via GET /api/rewards/me
+
+  // ===== REFERRAL SYSTEM API (Phase 7.2) =====
+
+  // Get current user's referral code
+  app.get("/api/referrals/my-code", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const code = await storage.getUserReferralCode(userId);
+      
+      // Generate referral link
+      const baseUrl = process.env.REPL_ID 
+        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+        : 'http://localhost:5000';
+      const referralLink = `${baseUrl}/?ref=${code}`;
+      
+      res.json({ code, referralLink });
+    } catch (error: any) {
+      console.error("Error getting referral code:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Validate a referral code
+  app.get("/api/referrals/validate/:code", async (req, res) => {
+    try {
+      const { code } = req.params;
+      const validation = await storage.validateReferralCode(code);
+      res.json(validation);
+    } catch (error: any) {
+      console.error("Error validating referral code:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get current user's referrals (people they invited)
+  app.get("/api/referrals/my-referrals", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const referrals = await storage.getUserReferrals(userId);
+      res.json(referrals);
+    } catch (error: any) {
+      console.error("Error getting user referrals:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get current user's referral statistics
+  app.get("/api/referrals/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await storage.getReferralStats(userId);
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error getting referral stats:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // ========== GROUP BOOKINGS (Phase 5) ==========
 
