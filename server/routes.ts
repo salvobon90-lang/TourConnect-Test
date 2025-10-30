@@ -3830,6 +3830,169 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== SMART GROUPS (Phase 8) ==========
+
+  // Create a new smart group
+  app.post("/api/smart-groups/create", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Validate request body
+      const { insertSmartGroupSchema } = await import("@shared/schema");
+      const validationResult = insertSmartGroupSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validationResult.error.errors 
+        });
+      }
+      
+      const group = await storage.createSmartGroup(userId, validationResult.data);
+      res.status(201).json(group);
+    } catch (error: any) {
+      console.error("Error creating smart group:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get nearby smart groups
+  app.get("/api/smart-groups/nearby", async (req, res) => {
+    try {
+      const { lat, lng, radius } = req.query;
+      
+      if (!lat || !lng) {
+        return res.status(400).json({ message: "Latitude and longitude are required" });
+      }
+      
+      const latitude = parseFloat(lat as string);
+      const longitude = parseFloat(lng as string);
+      const radiusKm = radius ? parseFloat(radius as string) : 50;
+      
+      const groups = await storage.getNearbySmartGroups(latitude, longitude, radiusKm);
+      res.json(groups);
+    } catch (error: any) {
+      console.error("Error getting nearby smart groups:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get smart group details
+  app.get("/api/smart-groups/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const group = await storage.getSmartGroup(id);
+      
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      
+      res.json(group);
+    } catch (error: any) {
+      console.error("Error getting smart group:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Join a smart group
+  app.post("/api/smart-groups/:id/join", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const { inviteCode } = req.body;
+      
+      const member = await storage.joinSmartGroup(id, userId, inviteCode);
+      res.status(201).json(member);
+    } catch (error: any) {
+      console.error("Error joining smart group:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Leave a smart group
+  app.post("/api/smart-groups/:id/leave", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      
+      await storage.leaveSmartGroup(id, userId);
+      res.json({ message: "Successfully left the group" });
+    } catch (error: any) {
+      console.error("Error leaving smart group:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Create an invite for a smart group
+  app.post("/api/smart-groups/:id/invite", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      
+      // Set expiration to 7 days from now
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      
+      const invite = await storage.createGroupInvite(id, userId, expiresAt);
+      res.status(201).json(invite);
+    } catch (error: any) {
+      console.error("Error creating group invite:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get messages for a smart group
+  app.get("/api/smart-groups/:id/messages", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      
+      const messages = await storage.getSmartGroupMessages(id, limit);
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Error getting smart group messages:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Send a message to a smart group
+  app.post("/api/smart-groups/:id/message", isAuthenticated, messageLimiter, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const { message } = req.body;
+      
+      if (!message || message.trim().length === 0) {
+        return res.status(400).json({ message: "Message cannot be empty" });
+      }
+      
+      const newMessage = await storage.sendGroupMessage(id, userId, message.trim());
+      
+      // Broadcast message via WebSocket
+      const { broadcastToRoom } = await import("./websocket");
+      broadcastToRoom(`smart_group_chat:${id}`, {
+        type: 'new_message',
+        data: newMessage,
+      });
+      
+      res.status(201).json(newMessage);
+    } catch (error: any) {
+      console.error("Error sending group message:", error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get current user's smart groups
+  app.get("/api/smart-groups/my-groups", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const groups = await storage.getMySmartGroups(userId);
+      res.json(groups);
+    } catch (error: any) {
+      console.error("Error getting user's smart groups:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ========== GROUP BOOKINGS (Phase 5) ==========
 
   // Create a new group booking for a tour

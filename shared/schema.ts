@@ -72,8 +72,8 @@ export type LikeTargetType = typeof likeTargetTypes[number];
 export const trustLevels = ["explorer", "pathfinder", "trailblazer", "navigator", "legend"] as const;
 export type TrustLevel = typeof trustLevels[number];
 
-// Reward action types enum (Phase 6)
-export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus"] as const;
+// Reward action types enum (Phase 6, expanded in Phase 8)
+export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite"] as const;
 export type RewardActionType = typeof rewardActionTypes[number];
 
 // Reward level tiers enum (Phase 6)
@@ -83,6 +83,10 @@ export type RewardLevel = typeof rewardLevels[number];
 // Referral status enum (Phase 7.2)
 export const referralStatuses = ["pending", "completed"] as const;
 export type ReferralStatus = typeof referralStatuses[number];
+
+// Smart group status enum (Phase 8)
+export const smartGroupStatuses = ["active", "full", "expired", "completed"] as const;
+export type SmartGroupStatus = typeof smartGroupStatuses[number];
 
 // Points awarded for each action
 export const rewardPoints = {
@@ -95,6 +99,10 @@ export const rewardPoints = {
   profile_complete: 20,
   first_booking: 100,
   streak_bonus: 50,
+  smart_group_create: 20,
+  smart_group_join: 10,
+  smart_group_complete: 50,
+  smart_group_invite: 15,
 } as const;
 
 // Points required for each level
@@ -886,6 +894,171 @@ export const referralsRelations = relations(referrals, ({ one }) => ({
   }),
 }));
 
+// Smart Groups table - for collaborative sharing of tours/services (Phase 8)
+export const smartGroups = pgTable("smart_groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Creator
+  creatorId: varchar("creator_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Target (tour or service to share)
+  tourId: varchar("tour_id").references(() => tours.id, { onDelete: "cascade" }),
+  serviceId: varchar("service_id").references(() => services.id, { onDelete: "cascade" }),
+  
+  // Group details
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  
+  // Participants tracking
+  targetParticipants: integer("target_participants").notNull(), // goal number of participants
+  currentParticipants: integer("current_participants").notNull().default(1), // starts with creator
+  
+  // Status
+  status: varchar("status", { length: 20 }).notNull().default("active"), // active, full, expired, completed
+  
+  // Location for map display
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
+  
+  // Invite system
+  inviteCode: varchar("invite_code", { length: 10 }).notNull().unique(), // unique 10-char code
+  expiresAt: timestamp("expires_at").notNull(), // 72h from creation
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_smart_groups_creator").on(table.creatorId),
+  index("idx_smart_groups_tour").on(table.tourId),
+  index("idx_smart_groups_service").on(table.serviceId),
+  index("idx_smart_groups_status").on(table.status),
+  index("idx_smart_groups_location").on(table.latitude, table.longitude),
+  index("idx_smart_groups_expires").on(table.expiresAt),
+]);
+
+export const smartGroupsRelations = relations(smartGroups, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [smartGroups.creatorId],
+    references: [users.id],
+  }),
+  tour: one(tours, {
+    fields: [smartGroups.tourId],
+    references: [tours.id],
+  }),
+  service: one(services, {
+    fields: [smartGroups.serviceId],
+    references: [services.id],
+  }),
+  members: many(smartGroupMembers),
+  messages: many(smartGroupMessages),
+  invites: many(smartGroupInvites),
+}));
+
+// Smart Group Members table - tracks who joined each group (Phase 8)
+export const smartGroupMembers = pgTable("smart_group_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Group and user
+  groupId: varchar("group_id").notNull().references(() => smartGroups.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Tracking
+  invitedBy: varchar("invited_by").references(() => users.id, { onDelete: "set null" }), // who invited this member
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_smart_group_members_group").on(table.groupId),
+  index("idx_smart_group_members_user").on(table.userId),
+  uniqueIndex("idx_smart_group_members_unique").on(table.groupId, table.userId), // prevent duplicate joins
+]);
+
+export const smartGroupMembersRelations = relations(smartGroupMembers, ({ one }) => ({
+  group: one(smartGroups, {
+    fields: [smartGroupMembers.groupId],
+    references: [smartGroups.id],
+  }),
+  user: one(users, {
+    fields: [smartGroupMembers.userId],
+    references: [users.id],
+  }),
+  inviter: one(users, {
+    fields: [smartGroupMembers.invitedBy],
+    references: [users.id],
+    relationName: "inviter",
+  }),
+}));
+
+// Smart Group Messages table - chat within group (Phase 8)
+export const smartGroupMessages = pgTable("smart_group_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Group and sender
+  groupId: varchar("group_id").notNull().references(() => smartGroups.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Message content
+  message: text("message").notNull(),
+  
+  // Timestamp
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_smart_group_messages_group").on(table.groupId),
+  index("idx_smart_group_messages_created").on(table.createdAt),
+]);
+
+export const smartGroupMessagesRelations = relations(smartGroupMessages, ({ one }) => ({
+  group: one(smartGroups, {
+    fields: [smartGroupMessages.groupId],
+    references: [smartGroups.id],
+  }),
+  user: one(users, {
+    fields: [smartGroupMessages.userId],
+    references: [users.id],
+  }),
+}));
+
+// Smart Group Invites table - tracks individual invite links (Phase 8)
+export const smartGroupInvites = pgTable("smart_group_invites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Group
+  groupId: varchar("group_id").notNull().references(() => smartGroups.id, { onDelete: "cascade" }),
+  
+  // Invite code (unique per invite, different from group's main invite code)
+  inviteCode: varchar("invite_code", { length: 10 }).notNull().unique(),
+  
+  // Creator and usage
+  createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  usedBy: varchar("used_by").references(() => users.id, { onDelete: "set null" }), // who used this invite
+  usedAt: timestamp("used_at"),
+  
+  // Expiration
+  expiresAt: timestamp("expires_at").notNull(), // inherits from group or shorter
+  
+  // Timestamp
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_smart_group_invites_group").on(table.groupId),
+  index("idx_smart_group_invites_code").on(table.inviteCode),
+  index("idx_smart_group_invites_created_by").on(table.createdBy),
+]);
+
+export const smartGroupInvitesRelations = relations(smartGroupInvites, ({ one }) => ({
+  group: one(smartGroups, {
+    fields: [smartGroupInvites.groupId],
+    references: [smartGroups.id],
+  }),
+  creator: one(users, {
+    fields: [smartGroupInvites.createdBy],
+    references: [users.id],
+    relationName: "inviteCreator",
+  }),
+  user: one(users, {
+    fields: [smartGroupInvites.usedBy],
+    references: [users.id],
+    relationName: "inviteUser",
+  }),
+}));
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -1088,7 +1261,7 @@ export const insertRewardLogSchema = createInsertSchema(rewardLogs).omit({
 });
 
 export const awardPointsSchema = z.object({
-  action: z.enum(['booking', 'review', 'like', 'group_join', 'referral', 'tour_complete', 'profile_complete', 'first_booking', 'streak_bonus']),
+  action: z.enum(['booking', 'review', 'like', 'group_join', 'referral', 'tour_complete', 'profile_complete', 'first_booking', 'streak_bonus', 'smart_group_create', 'smart_group_join', 'smart_group_complete', 'smart_group_invite']),
   metadata: z.object({
     tourId: z.string().optional(),
     bookingId: z.string().optional(),
@@ -1107,6 +1280,41 @@ export const insertReferralSchema = createInsertSchema(referrals).omit({
 
 export const validateReferralCodeSchema = z.object({
   code: z.string().length(10, "Referral code must be exactly 10 characters"),
+});
+
+// Smart Groups (Phase 8)
+export const insertSmartGroupSchema = createInsertSchema(smartGroups).omit({
+  id: true,
+  currentParticipants: true, // auto-managed
+  inviteCode: true, // auto-generated
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  name: z.string().min(3).max(200),
+  description: z.string().max(1000).optional(),
+  targetParticipants: z.number().int().min(2).max(50),
+}).refine((data) => data.tourId || data.serviceId, {
+  message: "Either tourId or serviceId must be provided",
+});
+
+export const insertSmartGroupMemberSchema = createInsertSchema(smartGroupMembers).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export const insertSmartGroupMessageSchema = createInsertSchema(smartGroupMessages).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  message: z.string().min(1).max(500),
+});
+
+export const insertSmartGroupInviteSchema = createInsertSchema(smartGroupInvites).omit({
+  id: true,
+  inviteCode: true, // auto-generated
+  usedBy: true,
+  usedAt: true,
+  createdAt: true,
 });
 
 // Group Booking API validation schemas
@@ -1167,6 +1375,14 @@ export type InsertRewardLog = z.infer<typeof insertRewardLogSchema>;
 export type RewardLog = typeof rewardLogs.$inferSelect;
 export type InsertReferral = z.infer<typeof insertReferralSchema>;
 export type Referral = typeof referrals.$inferSelect;
+export type InsertSmartGroup = z.infer<typeof insertSmartGroupSchema>;
+export type SmartGroup = typeof smartGroups.$inferSelect;
+export type InsertSmartGroupMember = z.infer<typeof insertSmartGroupMemberSchema>;
+export type SmartGroupMember = typeof smartGroupMembers.$inferSelect;
+export type InsertSmartGroupMessage = z.infer<typeof insertSmartGroupMessageSchema>;
+export type SmartGroupMessage = typeof smartGroupMessages.$inferSelect;
+export type InsertSmartGroupInvite = z.infer<typeof insertSmartGroupInviteSchema>;
+export type SmartGroupInvite = typeof smartGroupInvites.$inferSelect;
 
 // Extended types with relations
 export type TourWithGuide = Tour & {
@@ -1190,4 +1406,12 @@ export type BookingWithDetails = Booking & {
 
 export type ReviewWithUser = Review & {
   user: User;
+};
+
+export type SmartGroupWithDetails = SmartGroup & {
+  creator: User;
+  tour?: TourWithGuide;
+  service?: ServiceWithProvider;
+  members?: (SmartGroupMember & { user: User })[];
+  _count?: { members: number; messages: number };
 };

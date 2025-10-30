@@ -21,6 +21,10 @@ import {
   userRewards,
   rewardLogs,
   referrals,
+  smartGroups,
+  smartGroupMembers,
+  smartGroupMessages,
+  smartGroupInvites,
   rewardPoints,
   levelThresholds,
   type User,
@@ -65,6 +69,15 @@ import {
   type InsertRewardLog,
   type Referral,
   type InsertReferral,
+  type SmartGroup,
+  type InsertSmartGroup,
+  type SmartGroupMember,
+  type InsertSmartGroupMember,
+  type SmartGroupMessage,
+  type InsertSmartGroupMessage,
+  type SmartGroupInvite,
+  type InsertSmartGroupInvite,
+  type SmartGroupWithDetails,
   type RewardActionType,
   type RewardLevel,
   type TourWithGuide,
@@ -281,6 +294,20 @@ export interface IStorage {
     topServices: Array<{ serviceId: string; name: string; views: number; clicks: number }>;
     dailyStats: Array<{ date: string; views: number; clicks: number }>;
   }>;
+  
+  // Smart Groups operations (Phase 8)
+  createSmartGroup(userId: string, data: Omit<InsertSmartGroup, 'creatorId'>): Promise<SmartGroup>;
+  getNearbySmartGroups(latitude: number, longitude: number, radiusKm: number): Promise<SmartGroupWithDetails[]>;
+  getSmartGroup(id: string): Promise<SmartGroupWithDetails | null>;
+  joinSmartGroup(groupId: string, userId: string, inviteCode?: string): Promise<SmartGroupMember>;
+  leaveSmartGroup(groupId: string, userId: string): Promise<void>;
+  getMySmartGroups(userId: string): Promise<SmartGroupWithDetails[]>;
+  getSmartGroupMessages(groupId: string, limit?: number): Promise<(SmartGroupMessage & { user: User })[]>;
+  sendGroupMessage(groupId: string, userId: string, message: string): Promise<SmartGroupMessage>;
+  createGroupInvite(groupId: string, userId: string, expiresAt: Date): Promise<SmartGroupInvite>;
+  expireOldGroups(): Promise<number>;
+  getUserActiveGroupsCount(userId: string): Promise<number>;
+  getUserLastGroupCreation(userId: string): Promise<Date | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2938,6 +2965,553 @@ export class DatabaseStorage implements IStorage {
       pendingReferrals: pending.length,
       pointsEarned,
     };
+  }
+
+  // ========== Smart Groups Operations (Phase 8) ==========
+
+  // Helper: Generate unique 10-character invite code
+  private generateInviteCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude confusing chars
+    let code = '';
+    for (let i = 0; i < 10; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  // Get count of active smart groups for a user
+  async getUserActiveGroupsCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(smartGroups)
+      .where(
+        and(
+          eq(smartGroups.creatorId, userId),
+          inArray(smartGroups.status, ['active', 'full'])
+        )
+      );
+    
+    return Number(result[0]?.count || 0);
+  }
+
+  // Get last group creation timestamp for a user
+  async getUserLastGroupCreation(userId: string): Promise<Date | null> {
+    const result = await db
+      .select({ createdAt: smartGroups.createdAt })
+      .from(smartGroups)
+      .where(eq(smartGroups.creatorId, userId))
+      .orderBy(desc(smartGroups.createdAt))
+      .limit(1);
+    
+    return result[0]?.createdAt || null;
+  }
+
+  // Create a new smart group with validations
+  async createSmartGroup(userId: string, data: Omit<InsertSmartGroup, 'creatorId'>): Promise<SmartGroup> {
+    // Validation 1: Check 3 active groups limit
+    const activeCount = await this.getUserActiveGroupsCount(userId);
+    if (activeCount >= 3) {
+      throw new Error('You can have maximum 3 active groups at a time');
+    }
+
+    // Validation 2: Check 24h cooldown
+    const lastCreation = await this.getUserLastGroupCreation(userId);
+    if (lastCreation) {
+      const hoursSinceLastCreation = (Date.now() - lastCreation.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastCreation < 24) {
+        const hoursRemaining = Math.ceil(24 - hoursSinceLastCreation);
+        throw new Error(`Please wait ${hoursRemaining} hours before creating another group`);
+      }
+    }
+
+    // Generate unique invite code
+    let inviteCode = this.generateInviteCode();
+    let codeExists = true;
+    while (codeExists) {
+      const existing = await db
+        .select()
+        .from(smartGroups)
+        .where(eq(smartGroups.inviteCode, inviteCode))
+        .limit(1);
+      if (existing.length === 0) {
+        codeExists = false;
+      } else {
+        inviteCode = this.generateInviteCode();
+      }
+    }
+
+    // Set expiration to 72 hours from now
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+
+    // Create the group
+    const [group] = await db
+      .insert(smartGroups)
+      .values({
+        ...data,
+        creatorId: userId,
+        inviteCode,
+        expiresAt,
+        currentParticipants: 1, // Creator counts as first participant
+      })
+      .returning();
+
+    // Add creator as first member
+    await db.insert(smartGroupMembers).values({
+      groupId: group.id,
+      userId,
+      invitedBy: null, // Creator wasn't invited
+    });
+
+    // Award points for creating group
+    await this.awardPoints(userId, 'smart_group_create', {
+      metadata: {
+        targetId: group.id,
+        description: `Created smart group: ${group.name}`,
+      },
+    });
+
+    return group;
+  }
+
+  // Get nearby smart groups using geo query
+  async getNearbySmartGroups(latitude: number, longitude: number, radiusKm: number = 50): Promise<SmartGroupWithDetails[]> {
+    // Use Haversine formula to calculate distance
+    // Earth radius in km
+    const earthRadiusKm = 6371;
+    
+    // Convert radius to degrees (approximate)
+    const latDelta = radiusKm / 111.0; // 1 degree latitude ~= 111 km
+    const lngDelta = radiusKm / (111.0 * Math.cos((latitude * Math.PI) / 180));
+
+    const results = await db
+      .select({
+        group: smartGroups,
+        creator: users,
+        tour: tours,
+        service: services,
+        memberCount: sql<number>`count(distinct ${smartGroupMembers.id})`,
+        messageCount: sql<number>`count(distinct ${smartGroupMessages.id})`,
+      })
+      .from(smartGroups)
+      .leftJoin(users, eq(smartGroups.creatorId, users.id))
+      .leftJoin(tours, eq(smartGroups.tourId, tours.id))
+      .leftJoin(services, eq(smartGroups.serviceId, services.id))
+      .leftJoin(smartGroupMembers, eq(smartGroups.id, smartGroupMembers.groupId))
+      .leftJoin(smartGroupMessages, eq(smartGroups.id, smartGroupMessages.groupId))
+      .where(
+        and(
+          eq(smartGroups.status, 'active'),
+          gt(smartGroups.expiresAt, new Date()),
+          gte(smartGroups.latitude, latitude - latDelta),
+          lte(smartGroups.latitude, latitude + latDelta),
+          gte(smartGroups.longitude, longitude - lngDelta),
+          lte(smartGroups.longitude, longitude + lngDelta)
+        )
+      )
+      .groupBy(smartGroups.id, users.id, tours.id, services.id);
+
+    // Calculate actual distance and filter
+    const groupsWithDistance = results.map(r => {
+      const lat1 = latitude;
+      const lon1 = longitude;
+      const lat2 = r.group.latitude;
+      const lon2 = r.group.longitude;
+
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = earthRadiusKm * c;
+
+      return {
+        ...r.group,
+        creator: r.creator!,
+        tour: r.tour || undefined,
+        service: r.service || undefined,
+        _count: {
+          members: Number(r.memberCount),
+          messages: Number(r.messageCount),
+        },
+        distance,
+      };
+    });
+
+    return groupsWithDistance.filter(g => g.distance <= radiusKm);
+  }
+
+  // Get single smart group with details
+  async getSmartGroup(id: string): Promise<SmartGroupWithDetails | null> {
+    const results = await db
+      .select({
+        group: smartGroups,
+        creator: users,
+        tour: tours,
+        service: services,
+      })
+      .from(smartGroups)
+      .leftJoin(users, eq(smartGroups.creatorId, users.id))
+      .leftJoin(tours, eq(smartGroups.tourId, tours.id))
+      .leftJoin(services, eq(smartGroups.serviceId, services.id))
+      .where(eq(smartGroups.id, id))
+      .limit(1);
+
+    if (!results.length) return null;
+
+    const result = results[0];
+
+    // Get members
+    const membersData = await db
+      .select({
+        member: smartGroupMembers,
+        user: users,
+      })
+      .from(smartGroupMembers)
+      .leftJoin(users, eq(smartGroupMembers.userId, users.id))
+      .where(eq(smartGroupMembers.groupId, id));
+
+    // Get counts
+    const counts = await db
+      .select({
+        memberCount: sql<number>`count(distinct ${smartGroupMembers.id})`,
+        messageCount: sql<number>`count(distinct ${smartGroupMessages.id})`,
+      })
+      .from(smartGroups)
+      .leftJoin(smartGroupMembers, eq(smartGroups.id, smartGroupMembers.groupId))
+      .leftJoin(smartGroupMessages, eq(smartGroups.id, smartGroupMessages.groupId))
+      .where(eq(smartGroups.id, id))
+      .groupBy(smartGroups.id);
+
+    return {
+      ...result.group,
+      creator: result.creator!,
+      tour: result.tour || undefined,
+      service: result.service || undefined,
+      members: membersData.map(m => ({ ...m.member, user: m.user! })),
+      _count: {
+        members: Number(counts[0]?.memberCount || 0),
+        messages: Number(counts[0]?.messageCount || 0),
+      },
+    };
+  }
+
+  // Join a smart group
+  async joinSmartGroup(groupId: string, userId: string, inviteCode?: string): Promise<SmartGroupMember> {
+    // Get the group
+    const group = await this.getSmartGroup(groupId);
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    // Validate status
+    if (group.status === 'expired') {
+      throw new Error('This group has expired');
+    }
+    if (group.status === 'completed') {
+      throw new Error('This group is already completed');
+    }
+    if (group.status === 'full') {
+      throw new Error('This group is full');
+    }
+
+    // Check expiration
+    if (new Date(group.expiresAt) < new Date()) {
+      throw new Error('This group has expired');
+    }
+
+    // Check if already a member
+    const existingMember = await db
+      .select()
+      .from(smartGroupMembers)
+      .where(
+        and(
+          eq(smartGroupMembers.groupId, groupId),
+          eq(smartGroupMembers.userId, userId)
+        )
+      )
+      .limit(1);
+
+    if (existingMember.length > 0) {
+      throw new Error('You are already a member of this group');
+    }
+
+    // Validate invite code if provided
+    if (inviteCode && inviteCode !== group.inviteCode) {
+      throw new Error('Invalid invite code');
+    }
+
+    // Check capacity
+    if (group.currentParticipants >= group.targetParticipants) {
+      throw new Error('This group is full');
+    }
+
+    // Add member
+    const [member] = await db
+      .insert(smartGroupMembers)
+      .values({
+        groupId,
+        userId,
+        invitedBy: null, // Could be enhanced to track who shared the invite
+      })
+      .returning();
+
+    // Update participant count
+    const newCount = group.currentParticipants + 1;
+    const newStatus = newCount >= group.targetParticipants ? 'full' : 'active';
+
+    await db
+      .update(smartGroups)
+      .set({
+        currentParticipants: newCount,
+        status: newStatus,
+        updatedAt: new Date(),
+      })
+      .where(eq(smartGroups.id, groupId));
+
+    // Award points to joiner
+    await this.awardPoints(userId, 'smart_group_join', {
+      metadata: {
+        targetId: groupId,
+        description: `Joined smart group: ${group.name}`,
+      },
+    });
+
+    // Award points to group creator for each participant
+    await this.awardPoints(group.creatorId, 'smart_group_join', {
+      metadata: {
+        targetId: groupId,
+        description: `Participant joined your group: ${group.name}`,
+      },
+    });
+
+    // If group is now complete, award completion bonus
+    if (newStatus === 'full') {
+      await this.awardPoints(group.creatorId, 'smart_group_complete', {
+        metadata: {
+          targetId: groupId,
+          description: `Smart group completed: ${group.name}`,
+        },
+      });
+    }
+
+    return member;
+  }
+
+  // Leave a smart group
+  async leaveSmartGroup(groupId: string, userId: string): Promise<void> {
+    // Check if member
+    const memberResult = await db
+      .select()
+      .from(smartGroupMembers)
+      .where(
+        and(
+          eq(smartGroupMembers.groupId, groupId),
+          eq(smartGroupMembers.userId, userId)
+        )
+      )
+      .limit(1);
+
+    if (!memberResult.length) {
+      throw new Error('You are not a member of this group');
+    }
+
+    // Get group to check if user is creator
+    const group = await this.getSmartGroup(groupId);
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    if (group.creatorId === userId) {
+      throw new Error('Group creators cannot leave their own group. Delete it instead.');
+    }
+
+    // Remove member
+    await db
+      .delete(smartGroupMembers)
+      .where(
+        and(
+          eq(smartGroupMembers.groupId, groupId),
+          eq(smartGroupMembers.userId, userId)
+        )
+      );
+
+    // Update participant count
+    const newCount = Math.max(0, group.currentParticipants - 1);
+    await db
+      .update(smartGroups)
+      .set({
+        currentParticipants: newCount,
+        status: 'active', // Reset to active if was full
+        updatedAt: new Date(),
+      })
+      .where(eq(smartGroups.id, groupId));
+  }
+
+  // Get user's smart groups (created or joined)
+  async getMySmartGroups(userId: string): Promise<SmartGroupWithDetails[]> {
+    // Get groups where user is a member
+    const memberGroups = await db
+      .select({ groupId: smartGroupMembers.groupId })
+      .from(smartGroupMembers)
+      .where(eq(smartGroupMembers.userId, userId));
+
+    const groupIds = memberGroups.map(m => m.groupId);
+
+    if (groupIds.length === 0) {
+      return [];
+    }
+
+    // Get full group details
+    const results = await db
+      .select({
+        group: smartGroups,
+        creator: users,
+        tour: tours,
+        service: services,
+        memberCount: sql<number>`count(distinct ${smartGroupMembers.id})`,
+        messageCount: sql<number>`count(distinct ${smartGroupMessages.id})`,
+      })
+      .from(smartGroups)
+      .leftJoin(users, eq(smartGroups.creatorId, users.id))
+      .leftJoin(tours, eq(smartGroups.tourId, tours.id))
+      .leftJoin(services, eq(smartGroups.serviceId, services.id))
+      .leftJoin(smartGroupMembers, eq(smartGroups.id, smartGroupMembers.groupId))
+      .leftJoin(smartGroupMessages, eq(smartGroups.id, smartGroupMessages.groupId))
+      .where(inArray(smartGroups.id, groupIds))
+      .groupBy(smartGroups.id, users.id, tours.id, services.id);
+
+    return results.map(r => ({
+      ...r.group,
+      creator: r.creator!,
+      tour: r.tour || undefined,
+      service: r.service || undefined,
+      _count: {
+        members: Number(r.memberCount),
+        messages: Number(r.messageCount),
+      },
+    }));
+  }
+
+  // Get messages for a smart group
+  async getSmartGroupMessages(groupId: string, limit: number = 50): Promise<(SmartGroupMessage & { user: User })[]> {
+    const results = await db
+      .select({
+        message: smartGroupMessages,
+        user: users,
+      })
+      .from(smartGroupMessages)
+      .leftJoin(users, eq(smartGroupMessages.userId, users.id))
+      .where(eq(smartGroupMessages.groupId, groupId))
+      .orderBy(desc(smartGroupMessages.createdAt))
+      .limit(limit);
+
+    return results.map(r => ({ ...r.message, user: r.user! })).reverse();
+  }
+
+  // Send a message in a smart group
+  async sendGroupMessage(groupId: string, userId: string, message: string): Promise<SmartGroupMessage> {
+    // Verify user is a member
+    const isMember = await db
+      .select()
+      .from(smartGroupMembers)
+      .where(
+        and(
+          eq(smartGroupMembers.groupId, groupId),
+          eq(smartGroupMembers.userId, userId)
+        )
+      )
+      .limit(1);
+
+    if (!isMember.length) {
+      throw new Error('You must be a member to send messages');
+    }
+
+    // Create message
+    const [newMessage] = await db
+      .insert(smartGroupMessages)
+      .values({
+        groupId,
+        userId,
+        message,
+      })
+      .returning();
+
+    return newMessage;
+  }
+
+  // Create a personal invite for a smart group
+  async createGroupInvite(groupId: string, userId: string, expiresAt: Date): Promise<SmartGroupInvite> {
+    // Verify user is a member
+    const isMember = await db
+      .select()
+      .from(smartGroupMembers)
+      .where(
+        and(
+          eq(smartGroupMembers.groupId, groupId),
+          eq(smartGroupMembers.userId, userId)
+        )
+      )
+      .limit(1);
+
+    if (!isMember.length) {
+      throw new Error('You must be a member to create invites');
+    }
+
+    // Generate unique invite code
+    let inviteCode = this.generateInviteCode();
+    let codeExists = true;
+    while (codeExists) {
+      const existing = await db
+        .select()
+        .from(smartGroupInvites)
+        .where(eq(smartGroupInvites.inviteCode, inviteCode))
+        .limit(1);
+      if (existing.length === 0) {
+        codeExists = false;
+      } else {
+        inviteCode = this.generateInviteCode();
+      }
+    }
+
+    // Create invite
+    const [invite] = await db
+      .insert(smartGroupInvites)
+      .values({
+        groupId,
+        inviteCode,
+        createdBy: userId,
+        expiresAt,
+      })
+      .returning();
+
+    return invite;
+  }
+
+  // Expire old smart groups (groups older than 72h)
+  async expireOldGroups(): Promise<number> {
+    const now = new Date();
+
+    const result = await db
+      .update(smartGroups)
+      .set({
+        status: 'expired',
+        updatedAt: now,
+      })
+      .where(
+        and(
+          lte(smartGroups.expiresAt, now),
+          inArray(smartGroups.status, ['active', 'full'])
+        )
+      )
+      .returning({ id: smartGroups.id });
+
+    return result.length;
   }
 }
 

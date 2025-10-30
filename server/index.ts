@@ -118,4 +118,18 @@ app.use((req, res, next) => {
       }
     }
   }, 60000); // Check every minute
+
+  // Expire old smart groups every hour
+  setInterval(async () => {
+    try {
+      const { storage } = await import("./storage");
+      console.log("[Cron] Checking for expired smart groups");
+      const expiredCount = await storage.expireOldGroups();
+      if (expiredCount > 0) {
+        console.log(`[Cron] Expired ${expiredCount} smart group(s)`);
+      }
+    } catch (error) {
+      console.error("[Cron] Error expiring smart groups:", error);
+    }
+  }, 3600000); // Run every hour (60 * 60 * 1000 ms)
 })();

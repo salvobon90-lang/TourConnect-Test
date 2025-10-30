@@ -281,6 +281,40 @@ export class WebSocketServer {
     }
   }
 
+  public async broadcastToRoom(roomId: string, message: any) {
+    try {
+      // Handle smart group chat rooms
+      if (roomId.startsWith('smart_group_chat:')) {
+        const groupId = roomId.replace('smart_group_chat:', '');
+        const group = await storage.getSmartGroup(groupId);
+        
+        if (!group) {
+          console.warn(`[WebSocket] Smart group ${groupId} not found`);
+          return;
+        }
+
+        // Get all group members
+        const memberUserIds = group.members?.map(m => m.userId) || [];
+        const messageStr = JSON.stringify(message);
+
+        memberUserIds.forEach((userId) => {
+          const client = this.clients.get(userId);
+          if (client && client.ws.readyState === WebSocket.OPEN) {
+            try {
+              client.ws.send(messageStr);
+            } catch (error) {
+              console.error(`[WebSocket] Error sending to user ${userId} in room ${roomId}:`, error);
+            }
+          }
+        });
+
+        console.log(`[WebSocket] Broadcast to smart group ${groupId}: ${memberUserIds.length} members notified`);
+      }
+    } catch (error) {
+      console.error(`[WebSocket] Error broadcasting to room ${roomId}:`, error);
+    }
+  }
+
   public close() {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
@@ -319,5 +353,11 @@ export function broadcastToUser(userId: string, message: any) {
 export function broadcastToAll(message: any) {
   if (wsServerInstance) {
     wsServerInstance.broadcast(message);
+  }
+}
+
+export function broadcastToRoom(roomId: string, message: any) {
+  if (wsServerInstance) {
+    wsServerInstance.broadcastToRoom(roomId, message);
   }
 }
