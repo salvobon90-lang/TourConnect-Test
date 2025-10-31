@@ -20,6 +20,8 @@ type WSMessage =
   | { type: 'smart_group_message'; groupId: string; message: any }
   | { type: 'room_joined'; roomId: string }
   | { type: 'room_left'; roomId: string }
+  | { type: 'tour_participant_joined'; tourId: string; tourTitle: string; currentParticipants: number; newPrice: number; discount: number }
+  | { type: 'tour_status_changed'; tourId: string; status: string }
   | { type: 'error'; message: string };
 
 export class WebSocketServer {

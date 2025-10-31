@@ -1365,6 +1365,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .then(() => storage.checkAndAwardStreakBonus(userId))
         .catch(err => console.error("Failed to award booking points:", err));
       
+      // Broadcast WebSocket event for community tours
+      if (booking.tourId) {
+        try {
+          let tour = await storage.getTour(booking.tourId!);
+          if (tour && tour.communityMode && tour.id) {
+            const tourId = tour.id as string; // Save tour ID (already checked not null)
+            
+            // ATOMIC UPDATE with RETURNING: Get updated values in single atomic operation
+            const [updatedTour] = await db.update(tours)
+              .set({ currentParticipants: sql`${tours.currentParticipants} + 1` })
+              .where(eq(tours.id, tourId))
+              .returning();
+            
+            // Only broadcast if tour has price - don't abort request if missing
+            if (updatedTour && updatedTour.price) {
+              const discountRules = updatedTour.discountRules as Array<{ threshold: number; discount: number }> || [];
+              const basePrice = parseFloat(updatedTour.price);
+              const currentParticipants = updatedTour.currentParticipants || 0;
+              
+              let discount = 0;
+              let newPrice = basePrice;
+              
+              if (!isNaN(basePrice) && discountRules.length > 0) {
+                const applicableDiscounts = discountRules.filter(rule => currentParticipants >= rule.threshold);
+                if (applicableDiscounts.length > 0) {
+                  discount = Math.max(...applicableDiscounts.map(rule => rule.discount));
+                  newPrice = basePrice * (1 - discount / 100);
+                }
+              }
+              
+              console.log(`[WebSocket] Broadcasting tour_participant_joined for tour ${updatedTour.id}, participants: ${currentParticipants}, price: €${newPrice.toFixed(2)}, discount: ${discount}%`);
+              
+              broadcastToAll({
+                type: 'tour_participant_joined',
+                tourId: updatedTour.id,
+                tourTitle: updatedTour.title,
+                currentParticipants,
+                newPrice: parseFloat(newPrice.toFixed(2)),
+                discount
+              });
+            } else {
+              console.warn(`[WebSocket] Tour ${tourId} missing price or update failed, skipping broadcast`);
+            }
+          }
+        } catch (wsError: any) {
+          console.error("Failed to broadcast WebSocket event for community tour:", wsError);
+        }
+      }
+      
       res.json(booking);
     } catch (error: any) {
       console.error("Error creating booking:", error);

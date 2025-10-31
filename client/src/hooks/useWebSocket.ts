@@ -2,11 +2,17 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
 export interface WSMessage {
-  type: 'new_message' | 'user_online' | 'user_offline' | 'typing' | 'stop_typing' | 'message_read';
+  type: 'new_message' | 'user_online' | 'user_offline' | 'typing' | 'stop_typing' | 'message_read' | 'tour_participant_joined' | 'tour_status_changed';
   message?: any;
   userId?: string;
   conversationId?: string;
   messageId?: string;
+  tourId?: string;
+  tourTitle?: string;
+  currentParticipants?: number;
+  newPrice?: number;
+  discount?: number;
+  status?: string;
 }
 
 export function useWebSocket(onMessage?: (message: WSMessage) => void) {

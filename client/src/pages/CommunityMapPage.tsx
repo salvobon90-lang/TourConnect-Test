@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useUserLocation } from '@/hooks/use-location';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import type { WSMessage } from '@/hooks/useWebSocket';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -309,6 +311,56 @@ export default function CommunityMapPage() {
   const handleJoinTour = (tourId: string) => {
     joinTourMutation.mutate(tourId);
   };
+
+  // WebSocket event handling for real-time updates
+  const handleWebSocketMessage = useCallback((message: WSMessage) => {
+    try {
+      if (message.type === 'tour_participant_joined') {
+        console.log('[CommunityMap] Tour participant joined event received:', message);
+        
+        // Invalidate community tours cache to refetch with updated data
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/community-tours'] 
+        });
+        
+        // Show toast notification
+        const tourTitle = message.tourTitle || 'a tour';
+        const newPrice = message.newPrice || 0;
+        const discount = message.discount || 0;
+        
+        let description = `A user joined ${tourTitle}!`;
+        if (discount > 0) {
+          description += ` New price: €${newPrice.toFixed(2)} (${discount}% off)`;
+        } else {
+          description += ` New price: €${newPrice.toFixed(2)}`;
+        }
+        
+        toast({
+          title: t('communityTours.newParticipant') || 'New Participant!',
+          description,
+          duration: 5000,
+        });
+      } else if (message.type === 'tour_status_changed') {
+        console.log('[CommunityMap] Tour status changed event received:', message);
+        
+        // Invalidate community tours cache
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/community-tours'] 
+        });
+        
+        toast({
+          title: t('communityTours.statusChanged') || 'Tour Status Changed',
+          description: `Tour status updated to: ${message.status}`,
+          duration: 4000,
+        });
+      }
+    } catch (error) {
+      console.error('[CommunityMap] Error handling WebSocket message:', error);
+    }
+  }, [queryClient, toast, t]);
+
+  // Connect to WebSocket for real-time updates
+  const { isConnected } = useWebSocket(handleWebSocketMessage);
 
   useEffect(() => {
     if (!location) {
