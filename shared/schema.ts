@@ -43,6 +43,14 @@ export type ProviderType = typeof providerTypes[number];
 export const tourCategories = ["walking", "food", "adventure", "cultural", "historical", "nature", "art", "nightlife"] as const;
 export type TourCategory = typeof tourCategories[number];
 
+// Tour status enum
+export const tourStatuses = ["draft", "pending", "active", "confirmed", "closed", "cancelled"] as const;
+export type TourStatus = typeof tourStatuses[number];
+
+// Tour difficulty enum
+export const tourDifficulties = ["easy", "moderate", "challenging", "expert"] as const;
+export type TourDifficulty = typeof tourDifficulties[number];
+
 // Sponsorship duration enum
 export const sponsorshipDurations = ["weekly", "monthly"] as const;
 export type SponsorshipDuration = typeof sponsorshipDurations[number];
@@ -72,8 +80,8 @@ export type LikeTargetType = typeof likeTargetTypes[number];
 export const trustLevels = ["explorer", "pathfinder", "trailblazer", "navigator", "legend"] as const;
 export type TrustLevel = typeof trustLevels[number];
 
-// Reward action types enum (Phase 6, expanded in Phase 8, Phase 9, Phase 10, Phase 11, Phase 13)
-export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share", "search_like", "search_review", "subscription_complete", "partnership_confirmed", "create_public_group", "join_group", "community_interaction", "complete_tour_100", "community_leader_badge", "share_completed_tour", "partner_sale", "package_created", "affiliate_conversion", "service_booking_provider", "service_completion", "service_liked"] as const;
+// Reward action types enum (Phase 6, expanded in Phase 8, Phase 9, Phase 10, Phase 11, Phase 13, Community Tours)
+export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share", "search_like", "search_review", "subscription_complete", "partnership_confirmed", "create_public_group", "join_group", "community_interaction", "complete_tour_100", "community_leader_badge", "share_completed_tour", "partner_sale", "package_created", "affiliate_conversion", "service_booking_provider", "service_completion", "service_liked", "community_tour_create", "community_tour_join"] as const;
 export type RewardActionType = typeof rewardActionTypes[number];
 
 // Reward level tiers enum (Phase 6)
@@ -172,6 +180,9 @@ export const rewardPoints = {
   service_booking_provider: 50,
   service_completion: 25,
   service_liked: 5,
+  // Community Tours rewards
+  community_tour_create: 75, // Guide creates community tour
+  community_tour_join: 30,   // Tourist joins community tour
 } as const;
 
 // Points required for each level
@@ -268,13 +279,34 @@ export const tours = pgTable("tours", {
   duration: integer("duration").notNull(), // in minutes
   maxGroupSize: integer("max_group_size").notNull(),
   images: text("images").array().notNull().default(sql`ARRAY[]::text[]`),
+  videos: text("videos").array().default(sql`ARRAY[]::text[]`),
   meetingPoint: text("meeting_point").notNull(),
   latitude: real("latitude").notNull(),
   longitude: real("longitude").notNull(),
+  radius: real("radius").default(0.5), // radius in km for the tour area
   languages: text("languages").array().notNull().default(sql`ARRAY[]::text[]`),
   included: text("included").array().notNull().default(sql`ARRAY[]::text[]`),
   excluded: text("excluded").array().notNull().default(sql`ARRAY[]::text[]`),
   availableDates: text("available_dates").array().notNull().default(sql`ARRAY[]::text[]`), // ISO date strings
+  difficulty: varchar("difficulty", { length: 20 }).default("easy"),
+  cancellationPolicy: text("cancellation_policy"),
+  
+  // Community tour features
+  communityMode: boolean("community_mode").notNull().default(false),
+  minParticipants: integer("min_participants").default(1),
+  currentParticipants: integer("current_participants").default(0),
+  status: varchar("status", { length: 20 }).notNull().default("draft"), // draft, pending, active, confirmed, closed, cancelled
+  discountRules: jsonb("discount_rules").$type<{
+    threshold: number;
+    discount: number; // percentage
+  }[]>().default(sql`'[]'::jsonb`),
+  addons: jsonb("addons").$type<{
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+  }[]>().default(sql`'[]'::jsonb`),
+  
   approvalStatus: varchar("approval_status", { length: 20 }).notNull().default("pending"), // pending, approved, rejected
   approvedBy: varchar("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),

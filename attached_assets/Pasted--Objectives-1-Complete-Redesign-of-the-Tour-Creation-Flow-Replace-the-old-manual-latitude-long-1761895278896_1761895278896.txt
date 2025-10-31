@@ -1,0 +1,181 @@
+🎯 Objectives
+
+1️⃣ Complete Redesign of the Tour Creation Flow
+
+Replace the old manual latitude/longitude fields with an interactive map picker (Leaflet or Google Maps).
+
+The guide can drop a pin for the meeting point or draw a zone polygon.
+
+Automatically save coordinates, radius, and city name.
+
+Show preview inside the “Community Map” once published.
+
+Replace free-text language entry with a multi-select dropdown containing standard options:
+🇮🇹 Italian, 🇬🇧 English, 🇫🇷 French, 🇩🇪 German, 🇪🇸 Spanish, 🇵🇹 Portuguese, 🇯🇵 Japanese, 🇨🇳 Chinese, 🇷🇺 Russian.
+(Support for more via database if needed.)
+
+2️⃣ Dynamic & Community-Oriented Pricing System
+We’re introducing a smarter price management model designed for both private and community bookings.
+
+🔸 Base Price Settings (Guide Side):
+
+Base price per person.
+
+Minimum and maximum participants.
+
+Group discount thresholds (e.g., 10% off from 4+ people, 25% off from 8+).
+
+“Community Mode” toggle → enables cost sharing.
+
+🔸 Community Mode (New Feature):
+
+If activated, the tour becomes joinable by multiple tourists directly from the “Community Map.”
+
+The price per user drops dynamically as more users join the same tour.
+
+Real-time counter of joined participants + visual progress bar (like crowdfunding).
+
+When the minimum participant goal is reached → tour becomes “Confirmed.”
+
+Tour visibility badge:
+
+🟠 “Active Community Tour” if open for new participants.
+
+🟢 “Confirmed Departure” once the minimum size is met.
+
+🔴 “Closed” once the date/time is full or expired.
+
+🔸 Optional Add-ons:
+
+Guides can add “extras” (meals, transport, souvenirs, etc.) with independent pricing.
+
+Add-ons can be toggled by users during booking.
+
+🔸 Automatic Reward System Integration:
+
+Guide earns +75 points for every confirmed community tour.
+
+Tourists earn +30 points for joining one.
+
+Dynamic price updates and reward triggers must be handled via WebSocket real-time updates.
+
+3️⃣ Tour Creation Wizard (Frontend UI)
+Convert the single static form into a multi-step wizard:
+
+Basic Info: Title, short description, category, duration, language(s).
+
+Details: Full description (rich text), included/excluded items, difficulty, cancellation policy.
+
+Media: Upload images/videos.
+
+Location: Map picker, meeting point, area radius.
+
+Pricing:
+
+Base price, group discounts, community mode toggle.
+
+Add-ons management.
+
+Availability: Calendar picker for available dates & times.
+
+Review & Publish: Preview before submission + “Save as Draft” or “Publish.”
+
+4️⃣ Community Map Integration
+
+Once a tour is published, if “Community Mode” is ON → automatically display it on the Community Map page.
+
+Each tour pin shows:
+
+Title
+
+Starting time/date
+
+Current participant count
+
+Price evolution
+
+Distance from user (based on geolocation).
+
+Clicking the pin opens a quick preview with a “Join Tour” button.
+
+5️⃣ Backend Upgrades
+
+Update database schema:
+
+Add community_mode, min_participants, max_participants, discount_rules, current_participants, status, addons (JSON).
+
+Add API routes:
+
+POST /api/tours → create tour
+
+PATCH /api/tours/:id → update tour
+
+GET /api/community-tours → fetch tours with active community mode
+
+WS /community-tours → real-time updates for participants count and pricing
+
+Add validation for ownership and admin moderation (pending, approved, rejected).
+
+6️⃣ Admin Dashboard
+
+New moderation tab /admin/tours:
+
+Approve, edit, or remove tours.
+
+See map view of all active tours.
+
+Filter by: verified guides, community mode, pending approval.
+
+7️⃣ Translations & Localization
+
+Translate all new fields, labels, and notifications (EN, IT, FR, DE, ES).
+
+Auto-detect default language from guide’s profile.
+
+8️⃣ Testing & QA Checklist
+
+✅ Verify tour creation works end-to-end.
+
+✅ Check map picker saves correct location.
+
+✅ Ensure price adjusts dynamically when new users join.
+
+✅ Ensure reward points are triggered correctly.
+
+✅ Confirm only guides can create tours.
+
+✅ Verify tours appear correctly in Community Map and Discover.
+
+✅ Validate all text in 5 languages.
+
+🎨 Design Standards
+
+Follow the dark grey background + orange accent theme.
+
+Use rounded corners, smooth Framer Motion animations, and card-based layout.
+
+Maintain full responsiveness for mobile/tablet/desktop.
+
+📦 Deliverables
+
+Fully functional “Create Tour” wizard
+
+Map integration (frontend + backend)
+
+Dynamic pricing + community mode
+
+Database schema & API updates
+
+Community Map integration
+
+Multi-language support
+
+Moderation tools
+
+Unit, widget, and integration tests
+
+🧠 Final Instruction
+
+Implement the redesigned Tour Creation System with interactive map selection, dynamic pricing, and community integration.
+Ensure everything connects with existing systems — Rewards, Likes, Group Booking, Trust Level, and Discover.
+Keep the experience frictionless and mobile-first.

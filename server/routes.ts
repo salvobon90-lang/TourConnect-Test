@@ -6,7 +6,7 @@ import { isPartner } from "./middleware/auth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey, insertPartnerSchema, type InsertPartner, type Partner, insertPackageSchema, type InsertPackage, type Package, insertCouponSchema, insertAffiliateLinkSchema, type InsertCoupon, type Coupon, type InsertAffiliateLink, type AffiliateLink, insertExternalConnectorSchema, type InsertExternalConnector, type ExternalConnector } from "@shared/schema";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey, insertPartnerSchema, type InsertPartner, type Partner, insertPackageSchema, type InsertPackage, type Package, insertCouponSchema, insertAffiliateLinkSchema, type InsertCoupon, type Coupon, type InsertAffiliateLink, type AffiliateLink, insertExternalConnectorSchema, type InsertExternalConnector, type ExternalConnector, tours } from "@shared/schema";
 import { randomUUID, createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { 
@@ -34,7 +34,7 @@ import {
 } from './middleware/rateLimiter';
 import { sanitizeBody, sanitizeHtml } from './middleware/sanitize';
 import { db } from "./db";
-import { sql, eq, and, ne } from "drizzle-orm";
+import { sql, eq, and, ne, inArray } from "drizzle-orm";
 import { broadcastToUser, broadcastToAll } from "./websocket";
 import express from "express";
 import { createSubscriptionCheckout, cancelSubscription, handleStripeWebhook, SUBSCRIPTION_TIERS, createConnectAccount, createAccountLink, getAccountStatus, createPackageCheckoutSession, handleConnectWebhook } from './stripe-service';
@@ -71,6 +71,21 @@ function getStripe(): Stripe {
     throw new Error('Stripe is not configured');
   }
   return stripe;
+}
+
+// Helper function to calculate distance between two points using Haversine formula
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 // Image validation constants and helpers
@@ -866,6 +881,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/community-tours', async (req, res) => {
+    try {
+      const { lat, lng, radius = 50 } = req.query;
+      
+      // Fetch all active community tours
+      let communityTours = await db.select().from(tours)
+        .where(
+          and(
+            eq(tours.communityMode, true),
+            eq(tours.isActive, true),
+            eq(tours.approvalStatus, 'approved'),
+            inArray(tours.status, ['active', 'confirmed'])
+          )
+        );
+      
+      // If location provided, filter by distance
+      if (lat !== undefined && lng !== undefined) {
+        const userLat = parseFloat(lat as string);
+        const userLng = parseFloat(lng as string);
+        const maxRadius = parseFloat(radius as string);
+        
+        // Validate parsed values
+        if (!isNaN(userLat) && !isNaN(userLng) && !isNaN(maxRadius)) {
+          communityTours = communityTours.filter((tour: any) => {
+            const distance = calculateDistance(userLat, userLng, tour.latitude, tour.longitude);
+            return distance <= maxRadius;
+          });
+        }
+      }
+      
+      res.json(communityTours);
+    } catch (error) {
+      console.error("Error fetching community tours:", error);
+      res.status(500).json({ message: "Failed to fetch community tours" });
+    }
+  });
+
   app.post('/api/tours', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -884,6 +936,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertTourSchema.parse({ ...req.body, guideId: userId });
       const tour = await storage.createTour(validatedData);
+      
+      // Award reward points if community tour is created
+      if (tour.communityMode) {
+        await storage.addRewardPoints(userId, 'community_tour_create').catch(err => 
+          console.error("Failed to award community tour creation points:", err)
+        );
+      }
+      
       res.json(tour);
     } catch (error: any) {
       console.error("Error creating tour:", error);
