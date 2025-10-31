@@ -30,6 +30,21 @@ TourConnect is a comprehensive tourism platform designed to connect tourists, to
 
 **Note**: Phase 12 authenticated end-to-end testing deferred to pre-deployment QA phase. All code implemented and verified, database operations proven functional, security measures confirmed.
 
+**Phase 13 (October 2025) - Community Tour Creation Flow Redesign:**
+- **7-Step Tour Creation Wizard**: Comprehensive multi-step wizard (Basic Info → Details → Media → Location → Pricing → Availability → Review & Publish) with dynamic step titles, form validation, and progress tracking
+- **Interactive Map Selection**: Leaflet integration with draggable markers and radius slider for tour location/coverage area selection, replacing manual lat/long entry
+- **Multi-Language Support**: Complete internationalization with 9-language multi-select (IT, EN, FR, DE, ES, PT, JP, CN, RU) with flag icons, all UI strings fully localized across 5 languages
+- **Dynamic Pricing System**: Community mode toggle with participant-based group discounts (threshold rules), add-ons management, min/max participant limits
+- **Real-Time Participant Tracking**: WebSocket broadcasting with atomic SQL increment (`db.update().returning()`) to prevent race conditions under concurrent booking load, real-time price updates based on participant thresholds
+- **Community Map Enhancement**: Dual-view toggle (Smart Groups / Community Tours), real-time participant count display, dynamic discount badges, tour-specific filters (difficulty, price range, available spots)
+- **Admin Moderation Dashboard**: Map view + List view toggle for pending tours, community tour filters (community only, has participants, price range, difficulty), approve/reject functionality from both views, enhanced tour details display (participant counts, discount rules, add-ons)
+- **Reward Points Integration**: +75 points for guides creating community tours, +30 points for tourists joining community tours, automatic point awards on tour creation and booking
+- **Translation Coverage**: Complete i18n for all Tour Creation Wizard steps, Community Map UI, WebSocket notifications, admin dashboard filters across EN/IT/FR/DE/ES with proper fallback handling (anonymousUser, userJoinedFallback)
+- **Critical Bug Fixes**: Atomic participant increment eliminates race conditions, location filtering for zero-valued coordinates (equator/prime meridian), React Query cache invalidation for instant UI updates, request abort prevention for missing tour price
+- **Database Schema**: Extended tours table with `communityMode`, `currentParticipants`, `discountRules` (JSONB), `addOns` (JSONB), `minParticipants`, `maxParticipants`, `status` fields
+
+**Note**: Phase 13 production-ready and architect-approved. All localization complete with zero hard-coded strings, atomic WebSocket operations verified, end-to-end tour creation flow functional.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
