@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useUserLocation } from '@/hooks/use-location';
 import { Header } from '@/components/layout/Header';
@@ -8,12 +8,16 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { JoinGroupModal } from '@/components/JoinGroupModal';
 import { GroupStatusBadge } from '@/components/GroupStatusBadge';
 import { GroupProgressBar } from '@/components/GroupProgressBar';
-import { MapPin, Filter, X, Users } from 'lucide-react';
+import { MapPin, Filter, X, Users, Compass, Euro, TrendingDown, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SEO } from '@/components/seo';
+import { useToast } from '@/hooks/use-toast';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -25,9 +29,19 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Custom orange marker icon
+// Custom orange marker icon for smart groups
 const orangeIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+// Custom blue marker icon for community tours
+const blueIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -51,6 +65,106 @@ interface SmartGroup {
   distance?: number;
 }
 
+interface CommunityTour {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: 'easy' | 'moderate' | 'challenging' | 'expert';
+  price: string;
+  currentParticipants: number;
+  maxGroupSize: number;
+  status: 'draft' | 'pending' | 'active' | 'confirmed' | 'closed' | 'cancelled';
+  latitude: number;
+  longitude: number;
+  discountRules: Array<{
+    threshold: number;
+    discount: number;
+  }>;
+  guideId: string;
+  guideName?: string;
+}
+
+type ViewMode = 'groups' | 'tours';
+
+// Calculate dynamic price based on current participants and discount rules
+function calculateDynamicPrice(basePrice: string, currentParticipants: number, discountRules: Array<{ threshold: number; discount: number }>) {
+  const price = parseFloat(basePrice);
+  if (isNaN(price) || !discountRules || discountRules.length === 0) {
+    return { price, discount: 0 };
+  }
+
+  // Find the highest applicable discount
+  const applicableDiscounts = discountRules.filter(rule => currentParticipants >= rule.threshold);
+  if (applicableDiscounts.length === 0) {
+    return { price, discount: 0 };
+  }
+
+  const highestDiscount = Math.max(...applicableDiscounts.map(rule => rule.discount));
+  const discountedPrice = price * (1 - highestDiscount / 100);
+
+  return {
+    price: discountedPrice,
+    discount: highestDiscount,
+    originalPrice: price
+  };
+}
+
+// Tour Status Badge Component
+function TourStatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
+  
+  const statusStyles: Record<string, string> = {
+    draft: 'bg-gray-400 text-white',
+    pending: 'bg-yellow-500 text-white',
+    active: 'bg-green-500 text-white',
+    confirmed: 'bg-blue-500 text-white',
+    closed: 'bg-red-500 text-white',
+    cancelled: 'bg-gray-500 text-white',
+  };
+
+  const statusLabels: Record<string, string> = {
+    draft: t('tours.status.draft') || 'Draft',
+    pending: t('tours.status.pending') || 'Pending',
+    active: t('tours.status.active') || 'Active',
+    confirmed: t('tours.status.confirmed') || 'Confirmed',
+    closed: t('tours.status.closed') || 'Closed',
+    cancelled: t('tours.status.cancelled') || 'Cancelled',
+  };
+
+  return (
+    <Badge className={statusStyles[status] || statusStyles.draft}>
+      {statusLabels[status] || status}
+    </Badge>
+  );
+}
+
+// Difficulty Badge Component
+function DifficultyBadge({ difficulty }: { difficulty: string }) {
+  const { t } = useTranslation();
+  
+  const difficultyStyles: Record<string, string> = {
+    easy: 'bg-green-100 text-green-800 border-green-300',
+    moderate: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    challenging: 'bg-orange-100 text-orange-800 border-orange-300',
+    expert: 'bg-red-100 text-red-800 border-red-300',
+  };
+
+  const difficultyLabels: Record<string, string> = {
+    easy: t('tours.difficulty.easy') || 'Easy',
+    moderate: t('tours.difficulty.moderate') || 'Moderate',
+    challenging: t('tours.difficulty.challenging') || 'Challenging',
+    expert: t('tours.difficulty.expert') || 'Expert',
+  };
+
+  return (
+    <Badge variant="outline" className={difficultyStyles[difficulty] || difficultyStyles.easy}>
+      <Compass className="w-3 h-3 mr-1" />
+      {difficultyLabels[difficulty] || difficulty}
+    </Badge>
+  );
+}
+
 function MapController({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
@@ -61,13 +175,20 @@ function MapController({ center }: { center: [number, number] }) {
 
 export default function CommunityMapPage() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const { location, requestLocation, loading: locationLoading } = useUserLocation();
   const [showFilters, setShowFilters] = useState(true);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('groups');
   const [filters, setFilters] = useState({
     category: 'all' as 'all' | 'tours' | 'services',
     status: 'all' as 'all' | 'active' | 'almostFull',
     radius: 50,
+    difficulty: 'all' as 'all' | 'easy' | 'moderate' | 'challenging' | 'expert',
+    minPrice: 0,
+    maxPrice: 500,
+    minSpots: 0,
   });
 
   // Default to Rome if no location
@@ -75,7 +196,7 @@ export default function CommunityMapPage() {
     ? [location.latitude, location.longitude]
     : [41.9028, 12.4964];
 
-  const { data: groups = [], isLoading } = useQuery<SmartGroup[]>({
+  const { data: groups = [], isLoading: groupsLoading } = useQuery<SmartGroup[]>({
     queryKey: ['/api/smart-groups/nearby', location?.latitude, location?.longitude, filters.radius],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -94,6 +215,27 @@ export default function CommunityMapPage() {
     enabled: !!location || true,
   });
 
+  const { data: tours = [], isLoading: toursLoading } = useQuery<CommunityTour[]>({
+    queryKey: ['/api/community-tours', location?.latitude, location?.longitude, filters.radius],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        lat: (location?.latitude || 41.9028).toString(),
+        lng: (location?.longitude || 12.4964).toString(),
+        radius: filters.radius.toString(),
+      });
+      const res = await fetch(`/api/community-tours?${params}`, {
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        throw new Error('Failed to fetch community tours');
+      }
+      return res.json();
+    },
+    enabled: !!location || true,
+  });
+
+  const isLoading = viewMode === 'groups' ? groupsLoading : toursLoading;
+
   // Filter groups based on selected filters
   const filteredGroups = groups.filter((group) => {
     if (filters.category !== 'all') {
@@ -107,6 +249,66 @@ export default function CommunityMapPage() {
     }
     return true;
   });
+
+  // Filter tours based on selected filters
+  const filteredTours = tours.filter((tour) => {
+    if (filters.difficulty !== 'all' && tour.difficulty !== filters.difficulty) return false;
+    
+    const pricing = calculateDynamicPrice(tour.price, tour.currentParticipants, tour.discountRules || []);
+    if (pricing.price < filters.minPrice || pricing.price > filters.maxPrice) return false;
+    
+    const availableSpots = tour.maxGroupSize - tour.currentParticipants;
+    if (availableSpots < filters.minSpots) return false;
+    
+    return true;
+  });
+
+  const queryClient = useQueryClient();
+  
+  const joinTourMutation = useMutation({
+    mutationFn: async (tourId: string) => {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tourId }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to join tour');
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('booking.success') || 'Success!',
+        description: t('communityTours.joinSuccess') || 'You have joined the community tour! +30 reward points earned.',
+      });
+
+      // Invalidate queries to refresh participant counts and pricing
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/community-tours', location?.latitude, location?.longitude, filters.radius] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/tours'] 
+      });
+
+      setSelectedTourId(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('common.error') || 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleJoinTour = (tourId: string) => {
+    joinTourMutation.mutate(tourId);
+  };
 
   useEffect(() => {
     if (!location) {
@@ -124,6 +326,24 @@ export default function CommunityMapPage() {
         <Header />
 
         <div className="relative h-[calc(100vh-4rem)]">
+          {/* View Mode Toggle */}
+          <div className="absolute top-4 right-4 z-[1000]">
+            <Card className="p-2 shadow-lg">
+              <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="groups" className="flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    {t('smartGroups.title') || 'Smart Groups'}
+                  </TabsTrigger>
+                  <TabsTrigger value="tours" className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    {t('communityTours.title') || 'Community Tours'}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </Card>
+          </div>
+
           {/* Filters Sidebar */}
           <AnimatePresence>
             {showFilters && (
@@ -151,49 +371,126 @@ export default function CommunityMapPage() {
                   </div>
 
                   <div className="space-y-6">
-                    {/* Category Filter */}
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
-                        {t('tours.category')}
-                      </label>
-                      <div className="space-y-2">
-                        {(['all', 'tours', 'services'] as const).map((cat) => (
-                          <Button
-                            key={cat}
-                            variant={filters.category === cat ? 'default' : 'outline'}
-                            className={`w-full justify-start ${
-                              filters.category === cat ? 'bg-[#FF6600] hover:bg-[#FF6600]/90' : ''
-                            }`}
-                            onClick={() => setFilters({ ...filters, category: cat })}
-                          >
-                            {t(`smartGroups.filters.${cat}`)}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
+                    {/* Smart Groups Filters */}
+                    {viewMode === 'groups' && (
+                      <>
+                        {/* Category Filter */}
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">
+                            {t('tours.category')}
+                          </label>
+                          <div className="space-y-2">
+                            {(['all', 'tours', 'services'] as const).map((cat) => (
+                              <Button
+                                key={cat}
+                                variant={filters.category === cat ? 'default' : 'outline'}
+                                className={`w-full justify-start ${
+                                  filters.category === cat ? 'bg-[#FF6600] hover:bg-[#FF6600]/90' : ''
+                                }`}
+                                onClick={() => setFilters({ ...filters, category: cat })}
+                              >
+                                {t(`smartGroups.filters.${cat}`)}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
 
-                    {/* Status Filter */}
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
-                        {t('booking.status')}
-                      </label>
-                      <div className="space-y-2">
-                        {(['all', 'active', 'almostFull'] as const).map((status) => (
-                          <Button
-                            key={status}
-                            variant={filters.status === status ? 'default' : 'outline'}
-                            className={`w-full justify-start ${
-                              filters.status === status ? 'bg-[#FF6600] hover:bg-[#FF6600]/90' : ''
-                            }`}
-                            onClick={() => setFilters({ ...filters, status })}
-                          >
-                            {t(`smartGroups.filters.${status}`)}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
+                        {/* Status Filter */}
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">
+                            {t('booking.status')}
+                          </label>
+                          <div className="space-y-2">
+                            {(['all', 'active', 'almostFull'] as const).map((status) => (
+                              <Button
+                                key={status}
+                                variant={filters.status === status ? 'default' : 'outline'}
+                                className={`w-full justify-start ${
+                                  filters.status === status ? 'bg-[#FF6600] hover:bg-[#FF6600]/90' : ''
+                                }`}
+                                onClick={() => setFilters({ ...filters, status })}
+                              >
+                                {t(`smartGroups.filters.${status}`)}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
 
-                    {/* Distance Slider */}
+                    {/* Community Tours Filters */}
+                    {viewMode === 'tours' && (
+                      <>
+                        {/* Difficulty Filter */}
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">
+                            {t('tours.difficulty.label') || 'Difficulty'}
+                          </label>
+                          <div className="space-y-2">
+                            {(['all', 'easy', 'moderate', 'challenging', 'expert'] as const).map((diff) => (
+                              <Button
+                                key={diff}
+                                variant={filters.difficulty === diff ? 'default' : 'outline'}
+                                className={`w-full justify-start ${
+                                  filters.difficulty === diff ? 'bg-[#FF6600] hover:bg-[#FF6600]/90' : ''
+                                }`}
+                                onClick={() => setFilters({ ...filters, difficulty: diff })}
+                              >
+                                {diff === 'all' ? t('common.all') || 'All' : (t(`tours.difficulty.${diff}`) || diff)}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Price Range Filter */}
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">
+                            {t('tours.priceRange') || 'Price Range'}: €{filters.minPrice} - €{filters.maxPrice}
+                          </label>
+                          <div className="space-y-4">
+                            <div>
+                              <label className="text-xs text-muted-foreground">{t('tours.minPrice') || 'Min'}</label>
+                              <Slider
+                                value={[filters.minPrice]}
+                                onValueChange={([value]) => setFilters({ ...filters, minPrice: value })}
+                                min={0}
+                                max={500}
+                                step={10}
+                                className="mt-2"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">{t('tours.maxPrice') || 'Max'}</label>
+                              <Slider
+                                value={[filters.maxPrice]}
+                                onValueChange={([value]) => setFilters({ ...filters, maxPrice: value })}
+                                min={0}
+                                max={500}
+                                step={10}
+                                className="mt-2"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Min Available Spots Filter */}
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">
+                            {t('communityTours.minSpots') || 'Min Available Spots'}: {filters.minSpots}
+                          </label>
+                          <Slider
+                            value={[filters.minSpots]}
+                            onValueChange={([value]) => setFilters({ ...filters, minSpots: value })}
+                            min={0}
+                            max={20}
+                            step={1}
+                            className="mt-2"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {/* Distance Slider (common) */}
                     <div>
                       <label className="text-sm font-medium mb-2 block">
                         {t('smartGroups.distance', { distance: filters.radius })}
@@ -215,7 +512,10 @@ export default function CommunityMapPage() {
                     {/* Results Count */}
                     <div className="pt-4 border-t">
                       <p className="text-sm text-muted-foreground">
-                        {filteredGroups.length} {t('smartGroups.nearbyGroups').toLowerCase()}
+                        {viewMode === 'groups' 
+                          ? `${filteredGroups.length} ${t('smartGroups.nearbyGroups').toLowerCase()}`
+                          : `${filteredTours.length} ${t('communityTours.nearbyTours') || 'nearby tours'}`
+                        }
                       </p>
                     </div>
                   </div>
@@ -274,8 +574,8 @@ export default function CommunityMapPage() {
                 </Marker>
               )}
 
-              {/* Group Markers */}
-              {filteredGroups.map((group) => {
+              {/* Smart Group Markers */}
+              {viewMode === 'groups' && filteredGroups.map((group) => {
                 if (!group.latitude || !group.longitude) return null;
 
                 return (
@@ -321,16 +621,132 @@ export default function CommunityMapPage() {
                   </Marker>
                 );
               })}
+
+              {/* Community Tour Markers */}
+              {viewMode === 'tours' && filteredTours.map((tour) => {
+                if (!tour.latitude || !tour.longitude) return null;
+
+                const availableSpots = tour.maxGroupSize - tour.currentParticipants;
+                const pricing = calculateDynamicPrice(tour.price, tour.currentParticipants, tour.discountRules || []);
+                const progressPercent = (tour.currentParticipants / tour.maxGroupSize) * 100;
+
+                return (
+                  <Marker
+                    key={tour.id}
+                    position={[tour.latitude, tour.longitude]}
+                    icon={blueIcon}
+                  >
+                    <Popup className="custom-popup" maxWidth={300}>
+                      <div className="w-72 space-y-3">
+                        {/* Header with title and status */}
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-semibold text-base flex-1">{tour.title}</h3>
+                          <TourStatusBadge status={tour.status} />
+                        </div>
+
+                        {/* Category and difficulty badges */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-xs">
+                            {tour.category}
+                          </Badge>
+                          <DifficultyBadge difficulty={tour.difficulty} />
+                        </div>
+
+                        {/* Description */}
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {tour.description}
+                        </p>
+
+                        {/* Participants and progress */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="flex items-center gap-1">
+                              <Users className="w-4 h-4" />
+                              {tour.currentParticipants} / {tour.maxGroupSize}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {availableSpots} {t('communityTours.spotsLeft') || 'spots left'}
+                            </span>
+                          </div>
+                          <Progress value={progressPercent} className="h-2" />
+                        </div>
+
+                        {/* Dynamic Pricing */}
+                        <div className="bg-muted p-3 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Euro className="w-4 h-4 text-[#FF6600]" />
+                              <div>
+                                <p className="font-semibold text-lg">
+                                  €{pricing.price.toFixed(2)}
+                                </p>
+                                {pricing.discount > 0 && (
+                                  <p className="text-xs text-muted-foreground line-through">
+                                    €{pricing.originalPrice?.toFixed(2)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {pricing.discount > 0 && (
+                              <Badge className="bg-green-500 text-white flex items-center gap-1">
+                                <TrendingDown className="w-3 h-3" />
+                                {pricing.discount}% {t('tours.discount') || 'off'}
+                              </Badge>
+                            )}
+                          </div>
+                          {pricing.discount > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {t('communityTours.groupDiscount') || 'Group discount applied!'}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Join button */}
+                        <Button
+                          onClick={() => handleJoinTour(tour.id)}
+                          className="w-full bg-[#FF6600] hover:bg-[#FF6600]/90"
+                          size="sm"
+                          disabled={
+                            availableSpots === 0 || 
+                            tour.status === 'closed' || 
+                            tour.status === 'cancelled' || 
+                            joinTourMutation.isPending
+                          }
+                        >
+                          <Award className="w-4 h-4 mr-2" />
+                          {joinTourMutation.isPending 
+                            ? (t('common.loading') || 'Joining...') 
+                            : `${t('communityTours.joinTour') || 'Join Tour'} (+30 pts)`
+                          }
+                        </Button>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
             </MapContainer>
           )}
 
-          {/* No Groups Message */}
-          {!isLoading && filteredGroups.length === 0 && (
+          {/* No Results Message */}
+          {!isLoading && (
+            (viewMode === 'groups' && filteredGroups.length === 0) ||
+            (viewMode === 'tours' && filteredTours.length === 0)
+          ) && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <Card className="p-8 text-center pointer-events-auto">
                 <MapPin className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">{t('smartGroups.noGroupsNearby')}</h3>
-                <p className="text-muted-foreground mb-4">{t('smartGroups.createFirstGroup')}</p>
+                <h3 className="text-lg font-semibold mb-2">
+                  {viewMode === 'groups' 
+                    ? t('smartGroups.noGroupsNearby')
+                    : t('communityTours.noToursNearby') || 'No tours nearby'
+                  }
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  {viewMode === 'groups'
+                    ? t('smartGroups.createFirstGroup')
+                    : t('communityTours.adjustFilters') || 'Try adjusting your filters or increasing the distance'
+                  }
+                </p>
               </Card>
             </div>
           )}
