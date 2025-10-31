@@ -126,12 +126,12 @@ function TourStatusBadge({ status }: { status: string }) {
   };
 
   const statusLabels: Record<string, string> = {
-    draft: t('tours.status.draft') || 'Draft',
-    pending: t('tours.status.pending') || 'Pending',
-    active: t('tours.status.active') || 'Active',
-    confirmed: t('tours.status.confirmed') || 'Confirmed',
-    closed: t('tours.status.closed') || 'Closed',
-    cancelled: t('tours.status.cancelled') || 'Cancelled',
+    draft: t('tours.status.draft'),
+    pending: t('tours.status.pending'),
+    active: t('tours.status.active'),
+    confirmed: t('tours.status.confirmed'),
+    closed: t('tours.status.closed'),
+    cancelled: t('tours.status.cancelled'),
   };
 
   return (
@@ -153,10 +153,10 @@ function DifficultyBadge({ difficulty }: { difficulty: string }) {
   };
 
   const difficultyLabels: Record<string, string> = {
-    easy: t('tours.difficulty.easy') || 'Easy',
-    moderate: t('tours.difficulty.moderate') || 'Moderate',
-    challenging: t('tours.difficulty.challenging') || 'Challenging',
-    expert: t('tours.difficulty.expert') || 'Expert',
+    easy: t('tours.difficulty.easy'),
+    moderate: t('tours.difficulty.moderate'),
+    challenging: t('tours.difficulty.challenging'),
+    expert: t('tours.difficulty.expert'),
   };
 
   return (
@@ -285,8 +285,8 @@ export default function CommunityMapPage() {
     },
     onSuccess: () => {
       toast({
-        title: t('booking.success') || 'Success!',
-        description: t('communityTours.joinSuccess') || 'You have joined the community tour! +30 reward points earned.',
+        title: t('booking.success'),
+        description: t('communityTours.joinSuccess'),
       });
 
       // Invalidate queries to refresh participant counts and pricing
@@ -301,7 +301,7 @@ export default function CommunityMapPage() {
     },
     onError: (error: any) => {
       toast({
-        title: t('common.error') || 'Error',
+        title: t('common.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -324,19 +324,24 @@ export default function CommunityMapPage() {
         });
         
         // Show toast notification
-        const tourTitle = message.tourTitle || 'a tour';
+        const userName = message.userName || t('communityMap.anonymousUser');
+        const tourTitle = message.tourTitle;
         const newPrice = message.newPrice || 0;
         const discount = message.discount || 0;
         
-        let description = `A user joined ${tourTitle}!`;
+        // Use fallback when tourTitle is missing
+        let description = tourTitle 
+          ? t('communityMap.userJoined', { userName, tourTitle })
+          : t('communityMap.userJoinedFallback', { userName });
+          
         if (discount > 0) {
-          description += ` New price: €${newPrice.toFixed(2)} (${discount}% off)`;
+          description += ` ${t('communityTours.newPrice', { price: newPrice.toFixed(2), discount })}`;
         } else {
-          description += ` New price: €${newPrice.toFixed(2)}`;
+          description += ` ${t('communityTours.newPriceNoDiscount', { price: newPrice.toFixed(2) })}`;
         }
         
         toast({
-          title: t('communityTours.newParticipant') || 'New Participant!',
+          title: t('communityTours.newParticipant'),
           description,
           duration: 5000,
         });
@@ -349,8 +354,8 @@ export default function CommunityMapPage() {
         });
         
         toast({
-          title: t('communityTours.statusChanged') || 'Tour Status Changed',
-          description: `Tour status updated to: ${message.status}`,
+          title: t('communityTours.statusChanged'),
+          description: t('communityTours.statusUpdated', { status: message.status }),
           duration: 4000,
         });
       }
@@ -385,11 +390,11 @@ export default function CommunityMapPage() {
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="groups" className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    {t('smartGroups.title') || 'Smart Groups'}
+                    {t('communityMap.viewToggle.smartGroups')}
                   </TabsTrigger>
                   <TabsTrigger value="tours" className="flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
-                    {t('communityTours.title') || 'Community Tours'}
+                    {t('communityMap.viewToggle.communityTours')}
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -476,7 +481,7 @@ export default function CommunityMapPage() {
                         {/* Difficulty Filter */}
                         <div>
                           <label className="text-sm font-medium mb-2 block">
-                            {t('tours.difficulty.label') || 'Difficulty'}
+                            {t('tours.difficulty.label')}
                           </label>
                           <div className="space-y-2">
                             {(['all', 'easy', 'moderate', 'challenging', 'expert'] as const).map((diff) => (
@@ -488,7 +493,7 @@ export default function CommunityMapPage() {
                                 }`}
                                 onClick={() => setFilters({ ...filters, difficulty: diff })}
                               >
-                                {diff === 'all' ? t('common.all') || 'All' : (t(`tours.difficulty.${diff}`) || diff)}
+                                {diff === 'all' ? t('common.all') : t(`tours.difficulty.${diff}`)}
                               </Button>
                             ))}
                           </div>
@@ -497,11 +502,11 @@ export default function CommunityMapPage() {
                         {/* Price Range Filter */}
                         <div>
                           <label className="text-sm font-medium mb-2 block">
-                            {t('tours.priceRange') || 'Price Range'}: €{filters.minPrice} - €{filters.maxPrice}
+                            {t('tours.priceRange')}: €{filters.minPrice} - €{filters.maxPrice}
                           </label>
                           <div className="space-y-4">
                             <div>
-                              <label className="text-xs text-muted-foreground">{t('tours.minPrice') || 'Min'}</label>
+                              <label className="text-xs text-muted-foreground">{t('tours.minPrice')}</label>
                               <Slider
                                 value={[filters.minPrice]}
                                 onValueChange={([value]) => setFilters({ ...filters, minPrice: value })}
@@ -512,7 +517,7 @@ export default function CommunityMapPage() {
                               />
                             </div>
                             <div>
-                              <label className="text-xs text-muted-foreground">{t('tours.maxPrice') || 'Max'}</label>
+                              <label className="text-xs text-muted-foreground">{t('tours.maxPrice')}</label>
                               <Slider
                                 value={[filters.maxPrice]}
                                 onValueChange={([value]) => setFilters({ ...filters, maxPrice: value })}
@@ -528,7 +533,7 @@ export default function CommunityMapPage() {
                         {/* Min Available Spots Filter */}
                         <div>
                           <label className="text-sm font-medium mb-2 block">
-                            {t('communityTours.minSpots') || 'Min Available Spots'}: {filters.minSpots}
+                            {t('communityTours.minSpots')}: {filters.minSpots}
                           </label>
                           <Slider
                             value={[filters.minSpots]}
@@ -566,7 +571,7 @@ export default function CommunityMapPage() {
                       <p className="text-sm text-muted-foreground">
                         {viewMode === 'groups' 
                           ? `${filteredGroups.length} ${t('smartGroups.nearbyGroups').toLowerCase()}`
-                          : `${filteredTours.length} ${t('communityTours.nearbyTours') || 'nearby tours'}`
+                          : `${filteredTours.length} ${t('communityTours.nearbyTours')}`
                         }
                       </p>
                     </div>
@@ -620,7 +625,7 @@ export default function CommunityMapPage() {
                   <Popup>
                     <div className="text-center">
                       <p className="font-semibold">{t('discover.nearYou')}</p>
-                      <p className="text-sm text-muted-foreground">{t('common.you') || 'You are here'}</p>
+                      <p className="text-sm text-muted-foreground">{t('common.you')}</p>
                     </div>
                   </Popup>
                 </Marker>
@@ -717,7 +722,7 @@ export default function CommunityMapPage() {
                               {tour.currentParticipants} / {tour.maxGroupSize}
                             </span>
                             <span className="text-muted-foreground">
-                              {availableSpots} {t('communityTours.spotsLeft') || 'spots left'}
+                              {t('communityMap.spotsLeft', { count: availableSpots })}
                             </span>
                           </div>
                           <Progress value={progressPercent} className="h-2" />
@@ -742,13 +747,13 @@ export default function CommunityMapPage() {
                             {pricing.discount > 0 && (
                               <Badge className="bg-green-500 text-white flex items-center gap-1">
                                 <TrendingDown className="w-3 h-3" />
-                                {pricing.discount}% {t('tours.discount') || 'off'}
+                                {pricing.discount}% {t('tours.discount')}
                               </Badge>
                             )}
                           </div>
                           {pricing.discount > 0 && (
                             <p className="text-xs text-muted-foreground mt-1">
-                              {t('communityTours.groupDiscount') || 'Group discount applied!'}
+                              {t('communityTours.groupDiscount')}
                             </p>
                           )}
                         </div>
@@ -767,8 +772,8 @@ export default function CommunityMapPage() {
                         >
                           <Award className="w-4 h-4 mr-2" />
                           {joinTourMutation.isPending 
-                            ? (t('common.loading') || 'Joining...') 
-                            : `${t('communityTours.joinTour') || 'Join Tour'} (+30 pts)`
+                            ? t('common.loading') 
+                            : `${t('communityTours.joinTour')} (+30 pts)`
                           }
                         </Button>
                       </div>
@@ -790,13 +795,13 @@ export default function CommunityMapPage() {
                 <h3 className="text-lg font-semibold mb-2">
                   {viewMode === 'groups' 
                     ? t('smartGroups.noGroupsNearby')
-                    : t('communityTours.noToursNearby') || 'No tours nearby'
+                    : t('communityTours.noToursNearby')
                   }
                 </h3>
                 <p className="text-muted-foreground mb-4">
                   {viewMode === 'groups'
                     ? t('smartGroups.createFirstGroup')
-                    : t('communityTours.adjustFilters') || 'Try adjusting your filters or increasing the distance'
+                    : t('communityTours.adjustFilters')
                   }
                 </p>
               </Card>

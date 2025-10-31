@@ -22,13 +22,13 @@ import Step6Availability from './Step6Availability';
 import Step7Review from './Step7Review';
 
 const STEPS = [
-  { number: 1, title: 'Basic Info', component: Step1BasicInfo },
-  { number: 2, title: 'Details', component: Step2Details },
-  { number: 3, title: 'Media', component: Step3Media },
-  { number: 4, title: 'Location', component: Step4Location },
-  { number: 5, title: 'Pricing', component: Step5Pricing },
-  { number: 6, title: 'Availability', component: Step6Availability },
-  { number: 7, title: 'Review', component: Step7Review },
+  { number: 1, titleKey: 'tourCreation.steps.basicInfo', component: Step1BasicInfo },
+  { number: 2, titleKey: 'tourCreation.steps.details', component: Step2Details },
+  { number: 3, titleKey: 'tourCreation.steps.media', component: Step3Media },
+  { number: 4, titleKey: 'tourCreation.steps.location', component: Step4Location },
+  { number: 5, titleKey: 'tourCreation.steps.pricing', component: Step5Pricing },
+  { number: 6, titleKey: 'tourCreation.steps.availability', component: Step6Availability },
+  { number: 7, titleKey: 'tourCreation.steps.review', component: Step7Review },
 ];
 
 function WizardContent() {
@@ -160,9 +160,13 @@ function WizardContent() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
-                <h1 className="text-2xl font-serif font-semibold">Create New Tour</h1>
+                <h1 className="text-2xl font-serif font-semibold">{t('tourCreation.createNewTour')}</h1>
                 <p className="text-sm text-muted-foreground">
-                  Step {currentStep} of {STEPS.length}: {STEPS[currentStep - 1].title}
+                  {t('tourCreation.stepProgress', { 
+                    step: currentStep, 
+                    total: STEPS.length, 
+                    stepName: t(STEPS[currentStep - 1].titleKey) 
+                  })}
                 </p>
               </div>
             </div>
@@ -209,7 +213,7 @@ function WizardContent() {
                       isCurrent ? 'text-foreground' : 'text-muted-foreground'
                     }`}
                   >
-                    {step.title}
+                    {t(step.titleKey)}
                   </span>
                 </button>
               );
@@ -232,7 +236,7 @@ function WizardContent() {
                 data-testid="button-previous"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Previous
+                {t('common.previous')}
               </Button>
 
               {currentStep < STEPS.length ? (
@@ -241,7 +245,7 @@ function WizardContent() {
                   onClick={handleNext}
                   data-testid="button-next"
                 >
-                  Next
+                  {t('common.next')}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               ) : (
@@ -250,7 +254,7 @@ function WizardContent() {
                   disabled={mutation.isPending}
                   data-testid="button-submit"
                 >
-                  {mutation.isPending ? 'Creating...' : 'Create Tour'}
+                  {mutation.isPending ? t('tourCreation.creating') : t('tourCreation.createTour')}
                 </Button>
               )}
             </div>

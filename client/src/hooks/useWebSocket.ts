@@ -5,6 +5,7 @@ export interface WSMessage {
   type: 'new_message' | 'user_online' | 'user_offline' | 'typing' | 'stop_typing' | 'message_read' | 'tour_participant_joined' | 'tour_status_changed';
   message?: any;
   userId?: string;
+  userName?: string;
   conversationId?: string;
   messageId?: string;
   tourId?: string;

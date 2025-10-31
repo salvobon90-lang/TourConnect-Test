@@ -1,7 +1,24 @@
 {
+  "common": {
+    "success": "Success",
+    "error": "Error",
+    "loading": "Loading...",
+    "previous": "Previous",
+    "next": "Next",
+    "all": "All",
+    "you": "You"
+  },
+  "createTour": {
+    "success": "Tour created successfully!",
+    "error": "Failed to create tour. Please try again."
+  },
   "tourCreation": {
     "title": "Create Community Tour",
     "subtitle": "Share your local expertise with travelers",
+    "createNewTour": "Create New Tour",
+    "stepProgress": "Step {step} of {total}: {stepName}",
+    "creating": "Creating...",
+    "createTour": "Create Tour",
     "steps": {
       "basicInfo": "Basic Info",
       "details": "Details",
@@ -29,6 +46,19 @@
     "maxParticipants": "Maximum Participants",
     "currentParticipants": "Current Participants"
   },
+  "tours": {
+    "discount": "off",
+    "priceRange": "Price Range",
+    "minPrice": "Min",
+    "maxPrice": "Max",
+    "difficulty": {
+      "label": "Difficulty",
+      "easy": "Easy",
+      "moderate": "Moderate",
+      "challenging": "Challenging",
+      "expert": "Expert"
+    }
+  },
   "communityMap": {
     "title": "Community Tours",
     "viewToggle": {
@@ -42,6 +72,25 @@
     },
     "participantCount": "{count} participants",
     "discount": "{percent}% off",
-    "spotsLeft": "{count} spots left"
+    "spotsLeft": "{count} spots left",
+    "userJoined": "{userName} joined {tourTitle}!",
+    "userJoinedFallback": "{userName} joined a tour!",
+    "aTour": "a tour",
+    "anonymousUser": "A user"
+  },
+  "communityTours": {
+    "joinTour": "Join Tour",
+    "nearbyTours": "nearby tours",
+    "noToursNearby": "No tours nearby",
+    "adjustFilters": "Try adjusting your filters or increasing the distance",
+    "joinSuccess": "You have joined the community tour! +30 reward points earned.",
+    "groupDiscount": "Group discount applied!",
+    "newParticipant": "New Participant!",
+    "statusChanged": "Tour Status Changed",
+    "userJoined": "A user joined {tourTitle}!",
+    "newPrice": "New price: €{price} ({discount}% off)",
+    "newPriceNoDiscount": "New price: €{price}",
+    "statusUpdated": "Tour status updated to: {status}",
+    "minSpots": "Min Available Spots"
   }
 }

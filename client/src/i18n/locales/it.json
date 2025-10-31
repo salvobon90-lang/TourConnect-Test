@@ -1,7 +1,24 @@
 {
+  "common": {
+    "success": "Successo",
+    "error": "Errore",
+    "loading": "Caricamento...",
+    "previous": "Precedente",
+    "next": "Successivo",
+    "all": "Tutti",
+    "you": "Tu"
+  },
+  "createTour": {
+    "success": "Tour creato con successo!",
+    "error": "Impossibile creare il tour. Riprova."
+  },
   "tourCreation": {
     "title": "Crea Tour della Comunità",
     "subtitle": "Condividi la tua esperienza locale con i viaggiatori",
+    "createNewTour": "Crea Nuovo Tour",
+    "stepProgress": "Passo {step} di {total}: {stepName}",
+    "creating": "Creazione in corso...",
+    "createTour": "Crea Tour",
     "steps": {
       "basicInfo": "Info Base",
       "details": "Dettagli",
@@ -29,6 +46,19 @@
     "maxParticipants": "Partecipanti Massimi",
     "currentParticipants": "Partecipanti Attuali"
   },
+  "tours": {
+    "discount": "sconto",
+    "priceRange": "Fascia di Prezzo",
+    "minPrice": "Min",
+    "maxPrice": "Max",
+    "difficulty": {
+      "label": "Difficoltà",
+      "easy": "Facile",
+      "moderate": "Moderato",
+      "challenging": "Impegnativo",
+      "expert": "Esperto"
+    }
+  },
   "communityMap": {
     "title": "Tour della Comunità",
     "viewToggle": {
@@ -42,6 +72,25 @@
     },
     "participantCount": "{count} partecipanti",
     "discount": "{percent}% di sconto",
-    "spotsLeft": "{count} posti rimasti"
+    "spotsLeft": "{count} posti rimasti",
+    "userJoined": "{userName} si è unito a {tourTitle}!",
+    "userJoinedFallback": "{userName} si è unito a un tour!",
+    "aTour": "un tour",
+    "anonymousUser": "Un utente"
+  },
+  "communityTours": {
+    "joinTour": "Unisciti al Tour",
+    "nearbyTours": "tour nelle vicinanze",
+    "noToursNearby": "Nessun tour nelle vicinanze",
+    "adjustFilters": "Prova a regolare i filtri o ad aumentare la distanza",
+    "joinSuccess": "Ti sei unito al tour della comunità! +30 punti premio guadagnati.",
+    "groupDiscount": "Sconto di gruppo applicato!",
+    "newParticipant": "Nuovo Partecipante!",
+    "statusChanged": "Stato del Tour Cambiato",
+    "userJoined": "Un utente si è unito a {tourTitle}!",
+    "newPrice": "Nuovo prezzo: €{price} ({discount}% di sconto)",
+    "newPriceNoDiscount": "Nuovo prezzo: €{price}",
+    "statusUpdated": "Stato del tour aggiornato a: {status}",
+    "minSpots": "Posti Minimi Disponibili"
   }
 }

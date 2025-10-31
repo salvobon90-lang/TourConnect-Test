@@ -1,7 +1,24 @@
 {
+  "common": {
+    "success": "Erfolg",
+    "error": "Fehler",
+    "loading": "Lädt...",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "all": "Alle",
+    "you": "Sie"
+  },
+  "createTour": {
+    "success": "Tour erfolgreich erstellt!",
+    "error": "Fehler beim Erstellen der Tour. Bitte versuchen Sie es erneut."
+  },
   "tourCreation": {
     "title": "Community-Tour Erstellen",
     "subtitle": "Teilen Sie Ihr lokales Wissen mit Reisenden",
+    "createNewTour": "Neue Tour Erstellen",
+    "stepProgress": "Schritt {step} von {total}: {stepName}",
+    "creating": "Erstelle...",
+    "createTour": "Tour Erstellen",
     "steps": {
       "basicInfo": "Grundinfos",
       "details": "Details",
@@ -29,6 +46,19 @@
     "maxParticipants": "Maximale Teilnehmer",
     "currentParticipants": "Aktuelle Teilnehmer"
   },
+  "tours": {
+    "discount": "Rabatt",
+    "priceRange": "Preisspanne",
+    "minPrice": "Min",
+    "maxPrice": "Max",
+    "difficulty": {
+      "label": "Schwierigkeit",
+      "easy": "Leicht",
+      "moderate": "Moderat",
+      "challenging": "Herausfordernd",
+      "expert": "Experte"
+    }
+  },
   "communityMap": {
     "title": "Community-Touren",
     "viewToggle": {
@@ -42,6 +72,25 @@
     },
     "participantCount": "{count} Teilnehmer",
     "discount": "{percent}% Rabatt",
-    "spotsLeft": "{count} Plätze verfügbar"
+    "spotsLeft": "{count} Plätze verfügbar",
+    "userJoined": "{userName} ist {tourTitle} beigetreten!",
+    "userJoinedFallback": "{userName} ist einer Tour beigetreten!",
+    "aTour": "einer Tour",
+    "anonymousUser": "Ein Benutzer"
+  },
+  "communityTours": {
+    "joinTour": "Tour Beitreten",
+    "nearbyTours": "Touren in der Nähe",
+    "noToursNearby": "Keine Touren in der Nähe",
+    "adjustFilters": "Versuchen Sie, Ihre Filter anzupassen oder die Entfernung zu erhöhen",
+    "joinSuccess": "Sie sind der Community-Tour beigetreten! +30 Belohnungspunkte verdient.",
+    "groupDiscount": "Gruppenrabatt angewendet!",
+    "newParticipant": "Neuer Teilnehmer!",
+    "statusChanged": "Tour-Status Geändert",
+    "userJoined": "Ein Benutzer ist {tourTitle} beigetreten!",
+    "newPrice": "Neuer Preis: €{price} ({discount}% Rabatt)",
+    "newPriceNoDiscount": "Neuer Preis: €{price}",
+    "statusUpdated": "Tour-Status aktualisiert auf: {status}",
+    "minSpots": "Mindest Verfügbare Plätze"
   }
 }
