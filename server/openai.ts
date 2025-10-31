@@ -6,13 +6,20 @@ Follow these instructions when using this blueprint:
 */
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
-const openai = new OpenAI({
+const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
-});
+}) : null;
 
 // Export openai for use in other services (e.g., search-service)
 export { openai };
+
+function ensureOpenAI(): OpenAI {
+  if (!openai) {
+    throw new Error('OpenAI integration not configured. Please set up AI Integrations in Replit.');
+  }
+  return openai;
+}
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -39,7 +46,7 @@ export async function chatWithAssistant(
   };
   
   // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-  const completion = await openai.chat.completions.create({
+  const completion = await ensureOpenAI().chat.completions.create({
     model: 'gpt-5',
     messages: [systemPrompt, ...messages],
     max_completion_tokens: 8192,
@@ -69,7 +76,7 @@ export async function* chatWithAssistantStream(
   };
   
   // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-  const stream = await openai.chat.completions.create({
+  const stream = await ensureOpenAI().chat.completions.create({
     model: 'gpt-5',
     messages: [systemPrompt, ...messages],
     max_completion_tokens: 8192,
@@ -173,7 +180,7 @@ Return ONLY valid JSON with this structure:
 }`;
 
   // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-  const response = await openai.chat.completions.create({
+  const response = await ensureOpenAI().chat.completions.create({
     model: "gpt-5",
     messages: [
       { role: "system", content: "You are a travel planning expert. Always respond with valid JSON only, no markdown formatting." },
@@ -216,7 +223,7 @@ ${request.text}
 Provide ONLY the translated text, no explanations or formatting.`;
 
   // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-  const response = await openai.chat.completions.create({
+  const response = await ensureOpenAI().chat.completions.create({
     model: "gpt-5",
     messages: [
       { role: "system", content: "You are a professional tourism translator. Provide only the translated text, maintaining cultural sensitivity and tourism terminology." },
@@ -285,7 +292,7 @@ Return ONLY valid JSON:
 }`;
 
   // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-  const response = await openai.chat.completions.create({
+  const response = await ensureOpenAI().chat.completions.create({
     model: "gpt-5",
     messages: [
       { role: "system", content: "You are a tourism review analyst. Always respond with valid JSON only." },
@@ -337,7 +344,7 @@ export async function moderateContent(
   reason: string | null;
 }> {
   // Use OpenAI Moderation API
-  const moderation = await openai.moderations.create({
+  const moderation = await ensureOpenAI().moderations.create({
     model: "omni-moderation-latest",
     input: content
   });
@@ -606,7 +613,7 @@ Respond in ${params.language} with ONLY valid JSON:
 }`;
 
   // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-  const response = await openai.chat.completions.create({
+  const response = await ensureOpenAI().chat.completions.create({
     model: "gpt-5",
     messages: [
       { role: "system", content: "You are a helpful local guide. Always respond with valid JSON only." },
@@ -718,7 +725,7 @@ Return ONLY valid JSON:
 }`;
 
   // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-  const response = await openai.chat.completions.create({
+  const response = await ensureOpenAI().chat.completions.create({
     model: "gpt-5",
     messages: [
       { role: "system", content: "You are a creative travel writer who creates engaging, positive tour summaries. Always respond with valid JSON only." },
@@ -818,7 +825,7 @@ Respond in ${params.language} with ONLY valid JSON:
 }`;
 
   // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-  const response = await openai.chat.completions.create({
+  const response = await ensureOpenAI().chat.completions.create({
     model: "gpt-5",
     messages: [
       { role: "system", content: "You are a helpful scheduling assistant. Always respond with valid JSON only." },

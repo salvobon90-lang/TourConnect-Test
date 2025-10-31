@@ -1,4 +1,4 @@
-modules = ["python-3.11", "nodejs-20", "postgresql-16"]
+modules = ["nodejs-20", "web"]
 [agent]
 expertMode = true
 integrations = ["javascript_openai_ai_integrations:1.0.0"]
@@ -22,20 +22,20 @@ args = "Server"
 name = "Server"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [[ports]]
 localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 35229
+localPort = 36301
 externalPort = 3000
 
 [[ports]]
@@ -45,4 +45,4 @@ externalPort = 3001
 [deployment]
 deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
-run = ["npm", "start"]
+run = ["npm", "run", "start"]
