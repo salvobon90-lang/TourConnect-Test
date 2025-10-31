@@ -939,7 +939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Award reward points if community tour is created
       if (tour.communityMode) {
-        await storage.addRewardPoints(userId, 'community_tour_create').catch(err => 
+        await storage.awardPoints(userId, 'community_tour_create').catch((err: any) => 
           console.error("Failed to award community tour creation points:", err)
         );
       }
