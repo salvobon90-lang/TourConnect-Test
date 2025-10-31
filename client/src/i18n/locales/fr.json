@@ -1,0 +1,47 @@
+{
+  "tourCreation": {
+    "title": "Créer un Tour Communautaire",
+    "subtitle": "Partagez votre expertise locale avec les voyageurs",
+    "steps": {
+      "basicInfo": "Infos de Base",
+      "details": "Détails",
+      "media": "Médias",
+      "location": "Localisation",
+      "pricing": "Tarification",
+      "availability": "Disponibilité",
+      "review": "Révision"
+    },
+    "communityMode": "Mode Tour Communautaire",
+    "communityModeDesc": "Activer la tarification dynamique selon le nombre de participants",
+    "languages": "Langues Proposées",
+    "selectLanguages": "Sélectionner les langues",
+    "mapPicker": "Sélectionner l'Emplacement du Tour",
+    "dragMarker": "Faites glisser le marqueur pour définir l'emplacement",
+    "coverageRadius": "Rayon de Couverture (km)",
+    "discountRules": "Réductions de Groupe",
+    "addDiscount": "Ajouter une Règle de Réduction",
+    "threshold": "Participants",
+    "discount": "Réduction %",
+    "addOns": "Options Supplémentaires",
+    "addOnName": "Nom de l'option",
+    "addOnPrice": "Prix",
+    "minParticipants": "Participants Minimum",
+    "maxParticipants": "Participants Maximum",
+    "currentParticipants": "Participants Actuels"
+  },
+  "communityMap": {
+    "title": "Tours Communautaires",
+    "viewToggle": {
+      "smartGroups": "Groupes Intelligents",
+      "communityTours": "Tours Communautaires"
+    },
+    "filters": {
+      "difficulty": "Difficulté",
+      "priceRange": "Gamme de Prix",
+      "availableSpots": "Places Disponibles"
+    },
+    "participantCount": "{count} participants",
+    "discount": "{percent}% de réduction",
+    "spotsLeft": "{count} places restantes"
+  }
+}

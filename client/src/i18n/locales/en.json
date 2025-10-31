@@ -1,0 +1,47 @@
+{
+  "tourCreation": {
+    "title": "Create Community Tour",
+    "subtitle": "Share your local expertise with travelers",
+    "steps": {
+      "basicInfo": "Basic Info",
+      "details": "Details",
+      "media": "Media",
+      "location": "Location",
+      "pricing": "Pricing",
+      "availability": "Availability",
+      "review": "Review"
+    },
+    "communityMode": "Community Tour Mode",
+    "communityModeDesc": "Enable dynamic pricing based on participant count",
+    "languages": "Languages Offered",
+    "selectLanguages": "Select languages",
+    "mapPicker": "Select Tour Location",
+    "dragMarker": "Drag the marker to set location",
+    "coverageRadius": "Coverage Radius (km)",
+    "discountRules": "Group Discounts",
+    "addDiscount": "Add Discount Rule",
+    "threshold": "Participants",
+    "discount": "Discount %",
+    "addOns": "Add-Ons",
+    "addOnName": "Add-on name",
+    "addOnPrice": "Price",
+    "minParticipants": "Minimum Participants",
+    "maxParticipants": "Maximum Participants",
+    "currentParticipants": "Current Participants"
+  },
+  "communityMap": {
+    "title": "Community Tours",
+    "viewToggle": {
+      "smartGroups": "Smart Groups",
+      "communityTours": "Community Tours"
+    },
+    "filters": {
+      "difficulty": "Difficulty",
+      "priceRange": "Price Range",
+      "availableSpots": "Available Spots"
+    },
+    "participantCount": "{count} participants",
+    "discount": "{percent}% off",
+    "spotsLeft": "{count} spots left"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "tourCreation": {
+    "title": "Crea Tour della Comunità",
+    "subtitle": "Condividi la tua esperienza locale con i viaggiatori",
+    "steps": {
+      "basicInfo": "Info Base",
+      "details": "Dettagli",
+      "media": "Media",
+      "location": "Posizione",
+      "pricing": "Prezzi",
+      "availability": "Disponibilità",
+      "review": "Riepilogo"
+    },
+    "communityMode": "Modalità Tour Comunitario",
+    "communityModeDesc": "Abilita prezzi dinamici in base al numero di partecipanti",
+    "languages": "Lingue Offerte",
+    "selectLanguages": "Seleziona lingue",
+    "mapPicker": "Seleziona Posizione del Tour",
+    "dragMarker": "Trascina il marcatore per impostare la posizione",
+    "coverageRadius": "Raggio di Copertura (km)",
+    "discountRules": "Sconti di Gruppo",
+    "addDiscount": "Aggiungi Regola di Sconto",
+    "threshold": "Partecipanti",
+    "discount": "Sconto %",
+    "addOns": "Servizi Extra",
+    "addOnName": "Nome servizio extra",
+    "addOnPrice": "Prezzo",
+    "minParticipants": "Partecipanti Minimi",
+    "maxParticipants": "Partecipanti Massimi",
+    "currentParticipants": "Partecipanti Attuali"
+  },
+  "communityMap": {
+    "title": "Tour della Comunità",
+    "viewToggle": {
+      "smartGroups": "Gruppi Intelligenti",
+      "communityTours": "Tour della Comunità"
+    },
+    "filters": {
+      "difficulty": "Difficoltà",
+      "priceRange": "Fascia di Prezzo",
+      "availableSpots": "Posti Disponibili"
+    },
+    "participantCount": "{count} partecipanti",
+    "discount": "{percent}% di sconto",
+    "spotsLeft": "{count} posti rimasti"
+  }
+}
