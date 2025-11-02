@@ -65,6 +65,7 @@ const ServiceList = lazy(() => import("@/pages/ServiceList"));
 const ServiceDetail = lazy(() => import("@/pages/ServiceDetail"));
 const AdminServicesPanel = lazy(() => import("@/pages/AdminServicesPanel"));
 const ServiceFormPage = lazy(() => import("@/pages/ServiceFormPage"));
+const GuideProfile = lazy(() => import("@/pages/guide-profile"));
 
 // Loading fallback component
 function PageLoader() {
@@ -111,6 +112,7 @@ function Router() {
               <Route path="/tours" component={Tours} />
               <Route path="/tours/:id/3d" component={Tour3DPage} />
               <Route path="/tours/:id" component={TourDetail} />
+              <Route path="/guide/:id" component={GuideProfile} />
               <Route component={NotFound} />
             </Switch>
           </Suspense>
@@ -170,6 +172,7 @@ function Router() {
             <Route path="/subscriptions/cancel" component={SubscriptionCancel} />
             <Route path="/tours/:id/3d" component={Tour3DPage} />
             <Route path="/tours/:id" component={TourDetail} />
+            <Route path="/guide/:id" component={GuideProfile} />
             <Route path="/packages/:id" component={PackageDetail} />
             <Route path="/services" component={ServiceList} />
             <Route path="/services/:id" component={ServiceDetail} />

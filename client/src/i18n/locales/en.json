@@ -120,12 +120,29 @@
     "priceRange": "Price Range",
     "minPrice": "Min",
     "maxPrice": "Max",
+    "perPerson": "per person",
     "difficulty": {
       "label": "Difficulty",
       "easy": "Easy",
       "moderate": "Moderate",
       "challenging": "Challenging",
       "expert": "Expert"
+    }
+  },
+  "guide": {
+    "profile": {
+      "title": "Tour Guide",
+      "toursBy": "Tours by {name}",
+      "experience": "{years} years of experience",
+      "noTours": "No tours available yet",
+      "languages": "Languages",
+      "specialties": "Specialties",
+      "about": "About",
+      "completedTours": "completed tours",
+      "notFound": "Guide Not Found",
+      "notFoundDesc": "The guide you're looking for doesn't exist or is not available.",
+      "browseTours": "Browse Tours",
+      "defaultDesc": "Discover tours by {name}"
     }
   },
   "communityMap": {

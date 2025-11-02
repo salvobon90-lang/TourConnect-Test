@@ -1048,6 +1048,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Guide Profile - Public endpoint to view any guide's profile
+  app.get('/api/guides/:id', async (req, res) => {
+    try {
+      const guide = await storage.getUserById(req.params.id);
+      
+      if (!guide || guide.role !== 'guide') {
+        return res.status(404).json({ message: 'Guide not found' });
+      }
+      
+      // Get guide's tours (approved and active)
+      const allTours = await storage.getMyTours(guide.id);
+      const tours = allTours.filter(t => t.isActive && t.approvalStatus === 'approved');
+      
+      // Get average rating for the guide
+      const averageRating = await storage.getGuideAverageRating(guide.id);
+      
+      // Get total likes for this guide's profile
+      const likesCount = await storage.getLikesByTarget(guide.id, 'profile');
+      
+      // Get total completed bookings
+      const stats = await storage.getGuideStats(guide.id);
+      
+      // Return public profile data
+      return res.json({
+        id: guide.id,
+        firstName: guide.firstName,
+        lastName: guide.lastName,
+        bio: guide.bio,
+        city: guide.city,
+        country: guide.country,
+        profileImageUrl: guide.profileImageUrl,
+        languages: guide.guideLanguages || [],
+        specialties: guide.guideSpecialties || [],
+        experience: guide.guideExperience || 0,
+        verified: guide.verified,
+        averageRating: averageRating ? Number(averageRating).toFixed(1) : '0.0',
+        totalCompletedTours: stats?.totalBookings ?? 0,
+        likesCount: likesCount ?? 0,
+        tours: tours.map(t => ({
+          id: t.id,
+          title: t.title,
+          description: t.description,
+          price: t.price,
+          duration: t.duration,
+          category: t.category,
+          imageUrl: t.imageUrl,
+          latitude: t.latitude,
+          longitude: t.longitude,
+        })),
+      });
+    } catch (error) {
+      console.error("Error fetching guide profile:", error);
+      res.status(500).json({ message: "Failed to fetch guide profile" });
+    }
+  });
+
   // Service routes
   app.get('/api/services', async (req, res) => {
     try {

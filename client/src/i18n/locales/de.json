@@ -120,12 +120,29 @@
     "priceRange": "Preisspanne",
     "minPrice": "Min",
     "maxPrice": "Max",
+    "perPerson": "pro Person",
     "difficulty": {
       "label": "Schwierigkeit",
       "easy": "Leicht",
       "moderate": "Moderat",
       "challenging": "Herausfordernd",
       "expert": "Experte"
+    }
+  },
+  "guide": {
+    "profile": {
+      "title": "Reiseleiter",
+      "toursBy": "Touren von {name}",
+      "experience": "{years} Jahre Erfahrung",
+      "noTours": "Noch keine Touren verfügbar",
+      "languages": "Sprachen",
+      "specialties": "Fachgebiete",
+      "about": "Über",
+      "completedTours": "abgeschlossene Touren",
+      "notFound": "Guide Nicht Gefunden",
+      "notFoundDesc": "Der gesuchte Reiseleiter existiert nicht oder ist nicht verfügbar.",
+      "browseTours": "Touren Durchsuchen",
+      "defaultDesc": "Entdecken Sie Touren von {name}"
     }
   },
   "communityMap": {

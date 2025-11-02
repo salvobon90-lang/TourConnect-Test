@@ -120,12 +120,29 @@
     "priceRange": "Gamme de Prix",
     "minPrice": "Min",
     "maxPrice": "Max",
+    "perPerson": "par personne",
     "difficulty": {
       "label": "Difficulté",
       "easy": "Facile",
       "moderate": "Modéré",
       "challenging": "Difficile",
       "expert": "Expert"
+    }
+  },
+  "guide": {
+    "profile": {
+      "title": "Guide Touristique",
+      "toursBy": "Tours de {name}",
+      "experience": "{years} années d'expérience",
+      "noTours": "Aucun tour disponible pour le moment",
+      "languages": "Langues",
+      "specialties": "Spécialités",
+      "about": "À propos",
+      "completedTours": "tours terminés",
+      "notFound": "Guide Non Trouvé",
+      "notFoundDesc": "Le guide que vous recherchez n'existe pas ou n'est pas disponible.",
+      "browseTours": "Parcourir les Tours",
+      "defaultDesc": "Découvrez les tours de {name}"
     }
   },
   "communityMap": {
