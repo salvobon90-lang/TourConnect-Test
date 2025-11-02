@@ -15,6 +15,7 @@ import {
   getTourRecommendations, 
   generateItinerary, 
   translateText, 
+  translateContent,
   summarizeReviews, 
   moderateContent,
   suggestMeetingPoint,
@@ -977,7 +978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/tours', isAuthenticated, async (req: any, res) => {
+  app.post('/api/tours', isAuthenticated, aiLimiter, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -994,7 +995,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const validatedData = insertTourSchema.parse({ ...req.body, guideId: userId });
-      const tour = await storage.createTour(validatedData);
+      
+      // Auto-translate content to selected languages
+      let i18n_payload = {};
+      
+      if (validatedData.languages && validatedData.languages.length > 0) {
+        try {
+          // Extract base language (assume first language or default to 'en')
+          const sourceLanguage = validatedData.languages[0] || 'en';
+          const targetLanguages = validatedData.languages.filter(lang => lang !== sourceLanguage);
+          
+          if (targetLanguages.length > 0) {
+            console.log(`[Translation] Translating tour from ${sourceLanguage} to ${targetLanguages.join(', ')}`);
+            
+            const translationResult = await translateContent({
+              sourceLanguage,
+              targetLanguages,
+              contentType: 'tour',
+              content: {
+                title: validatedData.title,
+                description: validatedData.description,
+                itinerary: validatedData.itinerary,
+                included: validatedData.included,
+                excluded: validatedData.excluded,
+                cancellationPolicy: validatedData.cancellationPolicy || undefined,
+              }
+            });
+            
+            i18n_payload = translationResult;
+            console.log(`[Translation] Successfully translated tour to ${Object.keys(translationResult).length} languages`);
+          }
+        } catch (translationError: any) {
+          console.error('[Translation] Error during translation:', translationError);
+          // Graceful degradation - continue without translations
+        }
+      }
+      
+      const tour = await storage.createTour({ ...validatedData, i18n_payload });
       
       // Award reward points if community tour is created
       if (tour.communityMode) {
@@ -1010,7 +1047,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/tours/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/tours/:id', isAuthenticated, aiLimiter, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const tour = await storage.getTour(req.params.id);
@@ -1020,9 +1057,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (tour.guideId !== userId) {
         return res.status(403).json({ message: "You can only update your own tours" });
       }
+      
       // Validate the update data with the schema, but allow partial updates
       const validatedData = insertTourSchema.partial().parse(req.body);
-      const updated = await storage.updateTour(req.params.id, validatedData);
+      
+      // Auto-translate if content or languages changed
+      let i18n_payload = tour.i18n_payload || {};
+      
+      // Check if languages or content fields changed
+      const languagesChanged = validatedData.languages && 
+        JSON.stringify(validatedData.languages) !== JSON.stringify(tour.languages);
+      const contentChanged = validatedData.title || validatedData.description || 
+        validatedData.itinerary || validatedData.included || 
+        validatedData.excluded || validatedData.cancellationPolicy;
+      
+      if ((languagesChanged || contentChanged) && validatedData.languages && validatedData.languages.length > 0) {
+        try {
+          const sourceLanguage = validatedData.languages[0] || tour.languages?.[0] || 'en';
+          const targetLanguages = validatedData.languages.filter(lang => lang !== sourceLanguage);
+          
+          if (targetLanguages.length > 0) {
+            console.log(`[Translation] Re-translating tour from ${sourceLanguage} to ${targetLanguages.join(', ')}`);
+            
+            const translationResult = await translateContent({
+              sourceLanguage,
+              targetLanguages,
+              contentType: 'tour',
+              content: {
+                title: validatedData.title || tour.title,
+                description: validatedData.description || tour.description,
+                itinerary: validatedData.itinerary || tour.itinerary,
+                included: validatedData.included || tour.included,
+                excluded: validatedData.excluded || tour.excluded,
+                cancellationPolicy: validatedData.cancellationPolicy || tour.cancellationPolicy || undefined,
+              }
+            });
+            
+            i18n_payload = translationResult;
+            console.log(`[Translation] Successfully re-translated tour to ${Object.keys(translationResult).length} languages`);
+          }
+        } catch (translationError: any) {
+          console.error('[Translation] Error during re-translation:', translationError);
+          // Keep existing translations on error
+        }
+      }
+      
+      const updated = await storage.updateTour(req.params.id, { ...validatedData, i18n_payload });
       res.json(updated);
     } catch (error: any) {
       console.error("Error updating tour:", error);
@@ -1167,7 +1247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/services', isAuthenticated, async (req: any, res) => {
+  app.post('/api/services', isAuthenticated, aiLimiter, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -1184,7 +1264,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const validatedData = insertServiceSchema.parse({ ...req.body, providerId: userId });
-      const service = await storage.createService(validatedData);
+      
+      // Auto-translate content to selected languages
+      let i18n_payload = {};
+      
+      if (validatedData.languages && validatedData.languages.length > 0) {
+        try {
+          const sourceLanguage = validatedData.languages[0] || 'en';
+          const targetLanguages = validatedData.languages.filter(lang => lang !== sourceLanguage);
+          
+          if (targetLanguages.length > 0) {
+            console.log(`[Translation] Translating service from ${sourceLanguage} to ${targetLanguages.join(', ')}`);
+            
+            const translationResult = await translateContent({
+              sourceLanguage,
+              targetLanguages,
+              contentType: 'service',
+              content: {
+                title: validatedData.title || validatedData.name,
+                description: validatedData.description,
+                specialOffer: validatedData.specialOffer || undefined,
+              }
+            });
+            
+            i18n_payload = translationResult;
+            console.log(`[Translation] Successfully translated service to ${Object.keys(translationResult).length} languages`);
+          }
+        } catch (translationError: any) {
+          console.error('[Translation] Error during translation:', translationError);
+          // Graceful degradation - continue without translations
+        }
+      }
+      
+      const service = await storage.createService({ ...validatedData, i18n_payload });
       res.json(service);
     } catch (error: any) {
       console.error("Error creating service:", error);
@@ -1192,7 +1304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/services/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/services/:id', isAuthenticated, aiLimiter, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const service = await storage.getService(req.params.id);
@@ -1202,9 +1314,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (service.providerId !== userId) {
         return res.status(403).json({ message: "You can only update your own services" });
       }
+      
       // Validate the update data with the schema, but allow partial updates
       const validatedData = insertServiceSchema.partial().parse(req.body);
-      const updated = await storage.updateService(req.params.id, validatedData);
+      
+      // Auto-translate if content or languages changed
+      let i18n_payload = service.i18n_payload || {};
+      
+      const languagesChanged = validatedData.languages && 
+        JSON.stringify(validatedData.languages) !== JSON.stringify(service.languages);
+      const contentChanged = validatedData.title || validatedData.name || 
+        validatedData.description || validatedData.specialOffer;
+      
+      if ((languagesChanged || contentChanged) && validatedData.languages && validatedData.languages.length > 0) {
+        try {
+          const sourceLanguage = validatedData.languages[0] || service.languages?.[0] || 'en';
+          const targetLanguages = validatedData.languages.filter(lang => lang !== sourceLanguage);
+          
+          if (targetLanguages.length > 0) {
+            console.log(`[Translation] Re-translating service from ${sourceLanguage} to ${targetLanguages.join(', ')}`);
+            
+            const translationResult = await translateContent({
+              sourceLanguage,
+              targetLanguages,
+              contentType: 'service',
+              content: {
+                title: validatedData.title || validatedData.name || service.title || service.name,
+                description: validatedData.description || service.description,
+                specialOffer: validatedData.specialOffer || service.specialOffer || undefined,
+              }
+            });
+            
+            i18n_payload = translationResult;
+            console.log(`[Translation] Successfully re-translated service to ${Object.keys(translationResult).length} languages`);
+          }
+        } catch (translationError: any) {
+          console.error('[Translation] Error during re-translation:', translationError);
+          // Keep existing translations on error
+        }
+      }
+      
+      const updated = await storage.updateService(req.params.id, { ...validatedData, i18n_payload });
       res.json(updated);
     } catch (error: any) {
       console.error("Error updating service:", error);

@@ -108,10 +108,27 @@ export function ServiceForm({ initialData, onSubmit }: ServiceFormProps) {
 
       <Card className="p-6">
         <div>
-          <label className="font-medium block mb-2">{t('serviceForm.languages')}</label>
-          <div className="flex gap-4 mt-2 flex-wrap">
+          <label className="font-medium block mb-2">{t('serviceForm.languages')} (Select at least one) *</label>
+          <p className="text-sm text-muted-foreground mb-3">
+            ✨ Content will be automatically translated to selected languages using AI
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
             {languages.map(lang => (
-              <label key={lang} className="flex items-center gap-2 cursor-pointer">
+              <div
+                key={lang}
+                className={`flex items-center space-x-2 p-3 border rounded-lg cursor-pointer transition-colors ${
+                  currentLanguages.includes(lang)
+                    ? 'bg-primary/10 border-primary'
+                    : 'hover:bg-muted'
+                }`}
+                onClick={() => {
+                  const current = watch('languages') || [];
+                  setValue('languages', currentLanguages.includes(lang)
+                    ? current.filter((l: string) => l !== lang)
+                    : [...current, lang]
+                  );
+                }}
+              >
                 <Checkbox 
                   checked={currentLanguages.includes(lang)}
                   onCheckedChange={(checked) => {
@@ -122,8 +139,8 @@ export function ServiceForm({ initialData, onSubmit }: ServiceFormProps) {
                     );
                   }}
                 />
-                <span className="text-sm">{lang.toUpperCase()}</span>
-              </label>
+                <span className="text-sm font-medium">{lang.toUpperCase()}</span>
+              </div>
             ))}
           </div>
           {errors.languages && <p className="text-sm text-destructive mt-1">{errors.languages.message as string}</p>}

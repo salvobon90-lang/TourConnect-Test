@@ -389,6 +389,113 @@ Provide ONLY the translated text, no explanations or formatting.`;
   return response.choices[0].message.content?.trim() || "";
 }
 
+// ========== CONTENT TRANSLATION FOR TOURS & SERVICES ==========
+
+export interface TranslationInput {
+  sourceLanguage: string; // e.g., 'en'
+  targetLanguages: string[]; // e.g., ['it', 'fr', 'de', 'es']
+  contentType: 'tour' | 'service';
+  content: {
+    title: string;
+    description: string;
+    itinerary?: string; // tours only
+    included?: string[]; // tours only
+    excluded?: string[]; // tours only
+    cancellationPolicy?: string; // tours only
+    specialOffer?: string; // services only
+  };
+}
+
+export async function translateContent(input: TranslationInput): Promise<{
+  [languageCode: string]: typeof input.content;
+}> {
+  const languageNames: Record<string, string> = {
+    en: "English",
+    it: "Italian",
+    fr: "French",
+    de: "German",
+    es: "Spanish",
+    pt: "Portuguese",
+    jp: "Japanese",
+    cn: "Chinese",
+    ru: "Russian"
+  };
+
+  const results: { [languageCode: string]: typeof input.content } = {};
+
+  // Translate to each target language
+  for (const targetLang of input.targetLanguages) {
+    // Skip if target is same as source
+    if (targetLang === input.sourceLanguage) {
+      results[targetLang] = input.content;
+      continue;
+    }
+
+    try {
+      // Build structured JSON prompt for batch translation
+      const contentToTranslate = {
+        title: input.content.title,
+        description: input.content.description,
+        ...(input.content.itinerary && { itinerary: input.content.itinerary }),
+        ...(input.content.included && { included: input.content.included }),
+        ...(input.content.excluded && { excluded: input.content.excluded }),
+        ...(input.content.cancellationPolicy && { cancellationPolicy: input.content.cancellationPolicy }),
+        ...(input.content.specialOffer && { specialOffer: input.content.specialOffer })
+      };
+
+      const prompt = `Translate the following ${input.contentType} content from ${languageNames[input.sourceLanguage] || input.sourceLanguage} to ${languageNames[targetLang] || targetLang}.
+
+Maintain:
+- Professional, engaging tone appropriate for tourism
+- Cultural appropriateness and local context
+- Original formatting (line breaks, bullet points)
+- Tourism-specific terminology
+
+Content to translate (JSON format):
+${JSON.stringify(contentToTranslate, null, 2)}
+
+Return ONLY valid JSON with the same structure, translated to ${languageNames[targetLang] || targetLang}. Do not include markdown formatting or explanations.`;
+
+      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      const response = await ensureOpenAI().chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional tourism content translator. Translate the following tour/service content while maintaining professional tone, cultural appropriateness, and formatting. Always respond with valid JSON only."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.3,
+        response_format: { type: "json_object" }
+      });
+
+      const translatedContent = response.choices[0].message.content?.trim() || "{}";
+      
+      // Parse and validate JSON response
+      try {
+        const parsed = JSON.parse(translatedContent);
+        results[targetLang] = parsed;
+        
+        console.log(`[Translation] Successfully translated ${input.contentType} to ${targetLang}`);
+      } catch (parseError) {
+        console.error(`[Translation] Failed to parse JSON for ${targetLang}:`, parseError);
+        // Fallback: store original content if parsing fails
+        results[targetLang] = input.content;
+      }
+    } catch (error: any) {
+      console.error(`[Translation] Error translating to ${targetLang}:`, error.message);
+      // Graceful degradation: store original content if translation fails
+      results[targetLang] = input.content;
+    }
+  }
+
+  return results;
+}
+
 // ========== AI REVIEW SUMMARIES ==========
 
 export interface ReviewForSummary {

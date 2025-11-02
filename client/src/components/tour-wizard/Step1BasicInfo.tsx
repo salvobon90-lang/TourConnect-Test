@@ -112,7 +112,10 @@ export default function Step1BasicInfo() {
         name="languages"
         render={() => (
           <FormItem>
-            <FormLabel>Languages Offered *</FormLabel>
+            <FormLabel>Languages (Select at least one) *</FormLabel>
+            <p className="text-sm text-muted-foreground mb-3">
+              ✨ Content will be automatically translated to selected languages using AI
+            </p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
               {LANGUAGES.map((lang) => (
                 <div

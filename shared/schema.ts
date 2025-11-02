@@ -315,6 +315,18 @@ export const tours = pgTable("tours", {
   difficulty: varchar("difficulty", { length: 20 }).default("easy"),
   cancellationPolicy: text("cancellation_policy"),
   
+  // Multilingual content storage (auto-translated)
+  i18n_payload: jsonb("i18n_payload").$type<{
+    [languageCode: string]: {
+      title?: string;
+      description?: string;
+      itinerary?: string;
+      included?: string[];
+      excluded?: string[];
+      cancellationPolicy?: string;
+    };
+  }>(),
+  
   // Community tour features
   communityMode: boolean("community_mode").notNull().default(false),
   minParticipants: integer("min_participants").default(1),
@@ -378,6 +390,15 @@ export const services = pgTable("services", {
   operatingHours: text("operating_hours"),
   priceRange: varchar("price_range", { length: 10 }), // $, $$, $$$
   specialOffer: text("special_offer"),
+  
+  // Multilingual content storage (auto-translated)
+  i18n_payload: jsonb("i18n_payload").$type<{
+    [languageCode: string]: {
+      title?: string;
+      description?: string;
+      specialOffer?: string;
+    };
+  }>(),
   
   // Phase 13 - New service fields
   categoryId: varchar("category_id").references(() => serviceCategories.id),
@@ -1899,7 +1920,7 @@ export const insertTourSchema = createInsertSchema(tours).omit({
   images: z.array(z.string().url()).max(10),
   included: z.array(z.string()).max(20),
   excluded: z.array(z.string()).max(20),
-  languages: z.array(z.string()).max(10),
+  languages: z.array(z.string()).min(1, "Select at least one language").max(10),
   price: z.string().refine((val) => {
     const num = parseFloat(val);
     return !isNaN(num) && num >= 0 && num <= 100000;
@@ -1916,6 +1937,7 @@ export const insertServiceSchema = createInsertSchema(services).omit({
   description: z.string().min(20).max(2000),
   images: z.array(z.string().url()).max(10),
   amenities: z.array(z.string()).max(20),
+  languages: z.array(z.string()).min(1, "Select at least one language").max(10),
 });
 
 export const insertBookingSchema = createInsertSchema(bookings).omit({
