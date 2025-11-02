@@ -45,8 +45,11 @@ import {
   auditLogs,
   externalConnectors,
   externalInventoryMap,
+  userSettings,
   type User,
   type UpsertUser,
+  type UserSettings,
+  type UpdateUserSettings,
   type Tour,
   type InsertTour,
   type Service,
@@ -525,6 +528,10 @@ export interface IStorage {
   anonymizePartnerPayouts(partnerId: string): Promise<void>;
   getUserReviews(userId: string): Promise<Review[]>;
   getUserBookings(userId: string): Promise<BookingWithDetails[]>;
+  
+  // User Settings (Geolocation) operations
+  getUserSettings(userId: string): Promise<UserSettings | undefined>;
+  upsertUserSettings(userId: string, settings: UpdateUserSettings): Promise<UserSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -5787,6 +5794,44 @@ export class DatabaseStorage implements IStorage {
         errors: [error.message],
       };
     }
+  }
+
+  async getUserSettings(userId: string): Promise<UserSettings | undefined> {
+    const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+    return settings;
+  }
+
+  async upsertUserSettings(userId: string, settings: UpdateUserSettings): Promise<UserSettings> {
+    const existingSettings = await this.getUserSettings(userId);
+    
+    const updatePayload: any = {
+      ...settings,
+      updatedAt: new Date(),
+    };
+    
+    if (settings.geoConsent !== undefined && existingSettings) {
+      if (settings.geoConsent === true && existingSettings.geoConsent === false) {
+        updatePayload.consentGrantedAt = new Date();
+        updatePayload.consentRevokedAt = null;
+      } else if (settings.geoConsent === false && existingSettings.geoConsent === true) {
+        updatePayload.consentRevokedAt = new Date();
+      }
+    } else if (settings.geoConsent === true && !existingSettings) {
+      updatePayload.consentGrantedAt = new Date();
+    }
+    
+    const [result] = await db
+      .insert(userSettings)
+      .values({
+        userId,
+        ...updatePayload,
+      })
+      .onConflictDoUpdate({
+        target: userSettings.userId,
+        set: updatePayload,
+      })
+      .returning();
+    return result;
   }
 }
 

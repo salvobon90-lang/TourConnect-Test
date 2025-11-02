@@ -30,7 +30,8 @@ import {
   aiLimiter, 
   messageLimiter, 
   reviewLimiter,
-  bookingLimiter 
+  bookingLimiter,
+  geoLimiter
 } from './middleware/rateLimiter';
 import { sanitizeBody, sanitizeHtml } from './middleware/sanitize';
 import { db } from "./db";
@@ -290,6 +291,23 @@ const translationSchema = z.object({
 const moderationSchema = z.object({
   content: z.string().min(1, "Content required"),
   contentType: z.enum(["post", "review", "comment", "general"]).optional().default("general")
+});
+
+// Geolocation Update Validation Schema
+const geoUpdateSchema = z.object({
+  geoConsent: z.boolean().optional(),
+  lastKnownLocation: z.object({
+    lat: z.number().min(-90, "Latitude must be between -90 and 90").max(90, "Latitude must be between -90 and 90"),
+    lng: z.number().min(-180, "Longitude must be between -180 and 180").max(180, "Longitude must be between -180 and 180"),
+    accuracy: z.number().positive("Accuracy must be a positive number")
+  }).optional(),
+  preferredDestination: z.object({
+    city: z.string().min(1, "City is required").max(100, "City name too long"),
+    country: z.string().min(1, "Country is required").max(100, "Country name too long"),
+    lat: z.number().min(-90, "Latitude must be between -90 and 90").max(90, "Latitude must be between -90 and 90"),
+    lng: z.number().min(-180, "Longitude must be between -180 and 180").max(180, "Longitude must be between -180 and 180")
+  }).optional(),
+  radiusKm: z.number().int().min(1, "Radius must be at least 1 km").max(500, "Radius cannot exceed 500 km").optional()
 });
 
 // Phase 9: AI Travel Companion Validation Schemas
@@ -7383,6 +7401,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting connector:", error);
       res.status(400).json({ message: error.message || "Failed to delete connector" });
+    }
+  });
+
+  // ===== GEOLOCATION API =====
+  
+  // GET /api/geo/context - Get user's geolocation context
+  app.get('/api/geo/context', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const settings = await storage.getUserSettings(userId);
+      
+      if (!settings) {
+        return res.json({
+          location: null,
+          radius: 20,
+          hasConsent: false,
+        });
+      }
+      
+      let location = null;
+      let type: 'gps' | 'destination' | null = null;
+      
+      if (settings.geoConsent) {
+        if (settings.lastKnownLocation) {
+          location = {
+            latitude: settings.lastKnownLocation.lat,
+            longitude: settings.lastKnownLocation.lng,
+          };
+          type = 'gps';
+        } else if (settings.preferredDestination) {
+          location = {
+            latitude: settings.preferredDestination.latitude,
+            longitude: settings.preferredDestination.longitude,
+          };
+          type = 'destination';
+        }
+      }
+      
+      res.json({
+        location: location ? { ...location, type } : null,
+        radius: settings.defaultRadiusKm,
+        hasConsent: settings.geoConsent,
+      });
+    } catch (error: any) {
+      console.error("Error getting geo context:", error);
+      res.status(500).json({ message: "Failed to get geolocation context" });
+    }
+  });
+  
+  // POST /api/geo/update - Update user's geolocation settings
+  app.post('/api/geo/update', isAuthenticated, geoLimiter, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const validationResult = geoUpdateSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Invalid request data",
+          errors: validationResult.error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          }))
+        });
+      }
+      
+      const validatedData = validationResult.data;
+      const updateData: any = {};
+      
+      if (validatedData.geoConsent !== undefined) {
+        if (validatedData.geoConsent === true) {
+          const existingSettings = await storage.getUserSettings(userId);
+          if (!existingSettings?.consentGrantedAt && !existingSettings?.geoConsent) {
+            updateData.consentGrantedAt = new Date();
+          }
+        }
+        updateData.geoConsent = validatedData.geoConsent;
+      }
+      
+      if (validatedData.lastKnownLocation) {
+        const { lat, lng, accuracy } = validatedData.lastKnownLocation;
+        updateData.lastKnownLocation = {
+          lat,
+          lng,
+          accuracy,
+          timestamp: new Date().toISOString(),
+        };
+      }
+      
+      if (validatedData.preferredDestination) {
+        const { city, country, lat, lng } = validatedData.preferredDestination;
+        updateData.preferredDestination = {
+          city,
+          country,
+          latitude: lat,
+          longitude: lng,
+        };
+      }
+      
+      if (validatedData.radiusKm !== undefined) {
+        updateData.defaultRadiusKm = validatedData.radiusKm;
+      }
+      
+      const settings = await storage.upsertUserSettings(userId, updateData);
+      
+      res.json({
+        success: true,
+        settings: {
+          geoConsent: settings.geoConsent,
+          consentGrantedAt: settings.consentGrantedAt,
+          consentRevokedAt: settings.consentRevokedAt,
+          lastKnownLocation: settings.lastKnownLocation,
+          preferredDestination: settings.preferredDestination,
+          defaultRadiusKm: settings.defaultRadiusKm,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error updating geo settings:", error);
+      res.status(400).json({ message: error.message || "Failed to update geolocation settings" });
     }
   });
 

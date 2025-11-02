@@ -267,6 +267,29 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   apiKeys: many(apiKeys),
 }));
 
+// User Settings table - GDPR-compliant geolocation preferences
+export const userSettings = pgTable("user_settings", {
+  userId: varchar("user_id").primaryKey().notNull().references(() => users.id, { onDelete: "cascade" }),
+  lastKnownLocation: jsonb("last_known_location").$type<{
+    lat: number;
+    lng: number;
+    accuracy: number;
+    timestamp: string;
+  }>(),
+  preferredDestination: jsonb("preferred_destination").$type<{
+    city: string;
+    country: string;
+    latitude: number;
+    longitude: number;
+  }>(),
+  geoConsent: boolean("geo_consent").notNull().default(false),
+  consentGrantedAt: timestamp("consent_granted_at"),
+  consentRevokedAt: timestamp("consent_revoked_at"),
+  defaultRadiusKm: integer("default_radius_km").notNull().default(20),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Tours table - created by guides
 export const tours = pgTable("tours", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1834,6 +1857,28 @@ export const updateProfileSchema = z.object({
   }).optional().nullable(),
 });
 
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateUserSettingsSchema = z.object({
+  lastKnownLocation: z.object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    accuracy: z.number().positive(),
+    timestamp: z.string(),
+  }).optional(),
+  preferredDestination: z.object({
+    city: z.string().min(1).max(100),
+    country: z.string().min(1).max(100),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+  }).optional(),
+  geoConsent: z.boolean().optional(),
+  defaultRadiusKm: z.number().int().min(1).max(500).optional(),
+});
+
 export const insertTourSchema = createInsertSchema(tours).omit({
   id: true,
   createdAt: true,
@@ -2233,6 +2278,9 @@ export const updateGroupStatusSchema = z.object({
 // TypeScript types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+export type UserSettings = typeof userSettings.$inferSelect;
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
+export type UpdateUserSettings = z.infer<typeof updateUserSettingsSchema>;
 export type InsertTour = z.infer<typeof insertTourSchema>;
 export type Tour = typeof tours.$inferSelect;
 export type InsertService = z.infer<typeof insertServiceSchema>;

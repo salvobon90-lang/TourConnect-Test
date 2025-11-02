@@ -53,3 +53,12 @@ export const bookingLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
+
+// Geolocation update rate limiter
+export const geoLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 requests per minute
+  message: 'Too many geolocation updates, please slow down.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
