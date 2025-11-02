@@ -224,7 +224,90 @@
       "deleted": "Gefällt mir entfernt"
     },
     "errors": {
-      "generic": "Fehler beim Aktualisieren des Gefällt mir"
+      "generic": "Fehler beim Aktualisieren des Gefällt mir",
+      "loginRequired": "Anmeldung Erforderlich",
+      "loginRequiredDesc": "Bitte melden Sie sich an, um Inhalte zu liken",
+      "notAllowed": "Nicht Erlaubt",
+      "notAllowedDesc": "Nur Touristen können Inhalte liken"
     }
+  },
+  "geolocation": {
+    "consentDialog": {
+      "title": "Standortdienste Aktivieren",
+      "description": "Wir verwenden Ihren Standort, um Ihnen Touren und Erlebnisse in der Nähe zu zeigen",
+      "allow": "Erlauben",
+      "deny": "Nicht Jetzt"
+    },
+    "errors": {
+      "denied": "Standortberechtigung verweigert",
+      "unavailable": "Standortdienste nicht verfügbar",
+      "notSupported": "Geolokalisierung wird von Ihrem Browser nicht unterstützt"
+    },
+    "userLocation": "Ihr Standort",
+    "enableLocation": "Standort Aktivieren",
+    "enableLocationPrompt": "Aktivieren Sie Standortdienste, um Touren in der Nähe zu sehen und personalisierte Empfehlungen zu erhalten"
+  },
+  "discover": {
+    "locationDenied": "Standortzugriff Verweigert",
+    "centered": "Karte Zentriert",
+    "centeredOnLocation": "Karte auf Ihren Standort zentriert"
+  },
+  "exploreMap": {
+    "userLocation": "Ihr Standort",
+    "radiusFilter": "Suchradius",
+    "distanceAway": "{distance} km entfernt",
+    "sponsored": "Gesponsert",
+    "searchRadius": "Suchradius (km)",
+    "filters": "Filter",
+    "showFilters": "Filter Anzeigen",
+    "hideFilters": "Filter Ausblenden"
+  },
+  "categories": {
+    "all": "Alle Kategorien",
+    "walking": "Zu Fuß",
+    "food": "Essen & Kulinarik",
+    "adventure": "Abenteuer",
+    "cultural": "Kulturell",
+    "historical": "Historisch",
+    "nature": "Natur",
+    "art": "Kunst",
+    "nightlife": "Nachtleben"
+  },
+  "forms": {
+    "title": "Titel",
+    "description": "Beschreibung",
+    "category": "Kategorie",
+    "selectCategory": "Kategorie auswählen",
+    "basicInfo": "Grundinformationen",
+    "basicInfoDesc": "Erzählen Sie uns von Ihrer Tour",
+    "titlePlaceholder": "z.B. Historischer Rundgang durch Rom",
+    "descriptionPlaceholder": "Beschreiben Sie Ihre Tour im Detail. Was macht sie einzigartig? Was werden die Teilnehmer erleben?",
+    "languagesLabel": "Sprachen (Wählen Sie mindestens eine)",
+    "languagesDescription": "✨ Inhalte werden automatisch in die ausgewählten Sprachen mit KI übersetzt",
+    "languagesValidation": "Wählen Sie mindestens eine Sprache"
+  },
+  "selectLanguage": "Wählen Sie Ihre Sprache",
+  "choosePreferred": "Wählen Sie Ihre bevorzugte Sprache, um fortzufahren",
+  "languageNames": {
+    "en": "English",
+    "it": "Italiano",
+    "fr": "Français",
+    "de": "Deutsch",
+    "es": "Español"
+  },
+  "trustBadges": {
+    "explorer": "Entdecker",
+    "pathfinder": "Pfadfinder",
+    "trailblazer": "Vorreiter",
+    "navigator": "Navigator",
+    "legend": "Legende"
+  },
+  "tourStatus": {
+    "draft": "Entwurf",
+    "pending": "Ausstehend",
+    "active": "Aktiv",
+    "confirmed": "Bestätigt",
+    "closed": "Geschlossen",
+    "cancelled": "Abgesagt"
   }
 }

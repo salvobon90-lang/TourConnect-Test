@@ -224,7 +224,90 @@
       "deleted": "Like removed"
     },
     "errors": {
-      "generic": "Failed to update like"
+      "generic": "Failed to update like",
+      "loginRequired": "Login Required",
+      "loginRequiredDesc": "Please log in to like content",
+      "notAllowed": "Not Allowed",
+      "notAllowedDesc": "Only tourists can like content"
     }
+  },
+  "geolocation": {
+    "consentDialog": {
+      "title": "Enable Location Services",
+      "description": "We'll use your location to show nearby tours and experiences",
+      "allow": "Allow",
+      "deny": "Not Now"
+    },
+    "errors": {
+      "denied": "Location permission denied",
+      "unavailable": "Location services unavailable",
+      "notSupported": "Geolocation is not supported by your browser"
+    },
+    "userLocation": "Your location",
+    "enableLocation": "Enable Location",
+    "enableLocationPrompt": "Enable location services to see nearby tours and get personalized recommendations"
+  },
+  "discover": {
+    "locationDenied": "Location Access Denied",
+    "centered": "Map Centered",
+    "centeredOnLocation": "Map centered on your location"
+  },
+  "exploreMap": {
+    "userLocation": "Your location",
+    "radiusFilter": "Search radius",
+    "distanceAway": "{distance} km away",
+    "sponsored": "Sponsored",
+    "searchRadius": "Search Radius (km)",
+    "filters": "Filters",
+    "showFilters": "Show Filters",
+    "hideFilters": "Hide Filters"
+  },
+  "categories": {
+    "all": "All Categories",
+    "walking": "Walking",
+    "food": "Food & Culinary",
+    "adventure": "Adventure",
+    "cultural": "Cultural",
+    "historical": "Historical",
+    "nature": "Nature",
+    "art": "Art",
+    "nightlife": "Nightlife"
+  },
+  "forms": {
+    "title": "Title",
+    "description": "Description",
+    "category": "Category",
+    "selectCategory": "Select a category",
+    "basicInfo": "Basic Information",
+    "basicInfoDesc": "Tell us about your tour",
+    "titlePlaceholder": "e.g., Historical Walking Tour of Rome",
+    "descriptionPlaceholder": "Describe your tour in detail. What makes it unique? What will participants experience?",
+    "languagesLabel": "Languages (Select at least one)",
+    "languagesDescription": "✨ Content will be automatically translated to selected languages using AI",
+    "languagesValidation": "Select at least one language"
+  },
+  "selectLanguage": "Select Your Language",
+  "choosePreferred": "Choose your preferred language to continue",
+  "languageNames": {
+    "en": "English",
+    "it": "Italiano",
+    "fr": "Français",
+    "de": "Deutsch",
+    "es": "Español"
+  },
+  "trustBadges": {
+    "explorer": "Explorer",
+    "pathfinder": "Pathfinder",
+    "trailblazer": "Trailblazer",
+    "navigator": "Navigator",
+    "legend": "Legend"
+  },
+  "tourStatus": {
+    "draft": "Draft",
+    "pending": "Pending",
+    "active": "Active",
+    "confirmed": "Confirmed",
+    "closed": "Closed",
+    "cancelled": "Cancelled"
   }
 }

@@ -224,7 +224,90 @@
       "deleted": "J'aime supprimé"
     },
     "errors": {
-      "generic": "Échec de la mise à jour du j'aime"
+      "generic": "Échec de la mise à jour du j'aime",
+      "loginRequired": "Connexion Requise",
+      "loginRequiredDesc": "Veuillez vous connecter pour aimer le contenu",
+      "notAllowed": "Non Autorisé",
+      "notAllowedDesc": "Seuls les touristes peuvent aimer le contenu"
     }
+  },
+  "geolocation": {
+    "consentDialog": {
+      "title": "Activer les Services de Localisation",
+      "description": "Nous utiliserons votre position pour vous montrer les tours et expériences à proximité",
+      "allow": "Autoriser",
+      "deny": "Pas Maintenant"
+    },
+    "errors": {
+      "denied": "Permission de localisation refusée",
+      "unavailable": "Services de localisation indisponibles",
+      "notSupported": "La géolocalisation n'est pas prise en charge par votre navigateur"
+    },
+    "userLocation": "Votre position",
+    "enableLocation": "Activer la Localisation",
+    "enableLocationPrompt": "Activez les services de localisation pour voir les tours à proximité et obtenir des recommandations personnalisées"
+  },
+  "discover": {
+    "locationDenied": "Accès à la Localisation Refusé",
+    "centered": "Carte Centrée",
+    "centeredOnLocation": "Carte centrée sur votre position"
+  },
+  "exploreMap": {
+    "userLocation": "Votre position",
+    "radiusFilter": "Rayon de recherche",
+    "distanceAway": "à {distance} km",
+    "sponsored": "Sponsorisé",
+    "searchRadius": "Rayon de Recherche (km)",
+    "filters": "Filtres",
+    "showFilters": "Afficher les Filtres",
+    "hideFilters": "Masquer les Filtres"
+  },
+  "categories": {
+    "all": "Toutes les Catégories",
+    "walking": "À Pied",
+    "food": "Gastronomie",
+    "adventure": "Aventure",
+    "cultural": "Culturel",
+    "historical": "Historique",
+    "nature": "Nature",
+    "art": "Art",
+    "nightlife": "Vie Nocturne"
+  },
+  "forms": {
+    "title": "Titre",
+    "description": "Description",
+    "category": "Catégorie",
+    "selectCategory": "Sélectionner une catégorie",
+    "basicInfo": "Informations de Base",
+    "basicInfoDesc": "Parlez-nous de votre tour",
+    "titlePlaceholder": "ex., Visite Historique à Pied de Rome",
+    "descriptionPlaceholder": "Décrivez votre tour en détail. Qu'est-ce qui le rend unique? Que vivront les participants?",
+    "languagesLabel": "Langues (Sélectionnez au moins une)",
+    "languagesDescription": "✨ Le contenu sera automatiquement traduit dans les langues sélectionnées grâce à l'IA",
+    "languagesValidation": "Sélectionnez au moins une langue"
+  },
+  "selectLanguage": "Sélectionnez Votre Langue",
+  "choosePreferred": "Choisissez votre langue préférée pour continuer",
+  "languageNames": {
+    "en": "English",
+    "it": "Italiano",
+    "fr": "Français",
+    "de": "Deutsch",
+    "es": "Español"
+  },
+  "trustBadges": {
+    "explorer": "Explorateur",
+    "pathfinder": "Éclaireur",
+    "trailblazer": "Pionnier",
+    "navigator": "Navigateur",
+    "legend": "Légende"
+  },
+  "tourStatus": {
+    "draft": "Brouillon",
+    "pending": "En Attente",
+    "active": "Actif",
+    "confirmed": "Confirmé",
+    "closed": "Fermé",
+    "cancelled": "Annulé"
   }
 }

@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 interface LikeButtonProps {
   targetId: string;
@@ -21,6 +22,7 @@ export function LikeButton({
   variant = "ghost",
   size = "sm"
 }: LikeButtonProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -85,8 +87,8 @@ export function LikeButton({
   const handleClick = () => {
     if (!user) {
       toast({
-        title: "Login Required",
-        description: "Please log in to like content",
+        title: t('likes.errors.loginRequired'),
+        description: t('likes.errors.loginRequiredDesc'),
         variant: "destructive",
       });
       return;
@@ -94,8 +96,8 @@ export function LikeButton({
 
     if (user.role !== "tourist") {
       toast({
-        title: "Not Allowed",
-        description: "Only tourists can like content",
+        title: t('likes.errors.notAllowed'),
+        description: t('likes.errors.notAllowedDesc'),
         variant: "destructive",
       });
       return;

@@ -224,7 +224,90 @@
       "deleted": "Me gusta eliminado"
     },
     "errors": {
-      "generic": "Error al actualizar me gusta"
+      "generic": "Error al actualizar me gusta",
+      "loginRequired": "Inicio de Sesión Requerido",
+      "loginRequiredDesc": "Por favor inicie sesión para dar me gusta al contenido",
+      "notAllowed": "No Permitido",
+      "notAllowedDesc": "Solo los turistas pueden dar me gusta al contenido"
     }
+  },
+  "geolocation": {
+    "consentDialog": {
+      "title": "Activar Servicios de Ubicación",
+      "description": "Usaremos su ubicación para mostrarle tours y experiencias cercanas",
+      "allow": "Permitir",
+      "deny": "Ahora No"
+    },
+    "errors": {
+      "denied": "Permiso de ubicación denegado",
+      "unavailable": "Servicios de ubicación no disponibles",
+      "notSupported": "La geolocalización no es compatible con su navegador"
+    },
+    "userLocation": "Su ubicación",
+    "enableLocation": "Activar Ubicación",
+    "enableLocationPrompt": "Active los servicios de ubicación para ver tours cercanos y obtener recomendaciones personalizadas"
+  },
+  "discover": {
+    "locationDenied": "Acceso a Ubicación Denegado",
+    "centered": "Mapa Centrado",
+    "centeredOnLocation": "Mapa centrado en su ubicación"
+  },
+  "exploreMap": {
+    "userLocation": "Su ubicación",
+    "radiusFilter": "Radio de búsqueda",
+    "distanceAway": "a {distance} km",
+    "sponsored": "Patrocinado",
+    "searchRadius": "Radio de Búsqueda (km)",
+    "filters": "Filtros",
+    "showFilters": "Mostrar Filtros",
+    "hideFilters": "Ocultar Filtros"
+  },
+  "categories": {
+    "all": "Todas las Categorías",
+    "walking": "A Pie",
+    "food": "Gastronomía",
+    "adventure": "Aventura",
+    "cultural": "Cultural",
+    "historical": "Histórico",
+    "nature": "Naturaleza",
+    "art": "Arte",
+    "nightlife": "Vida Nocturna"
+  },
+  "forms": {
+    "title": "Título",
+    "description": "Descripción",
+    "category": "Categoría",
+    "selectCategory": "Seleccionar una categoría",
+    "basicInfo": "Información Básica",
+    "basicInfoDesc": "Cuéntanos sobre tu tour",
+    "titlePlaceholder": "ej., Tour Histórico a Pie por Roma",
+    "descriptionPlaceholder": "Describe tu tour en detalle. ¿Qué lo hace único? ¿Qué experimentarán los participantes?",
+    "languagesLabel": "Idiomas (Selecciona al menos uno)",
+    "languagesDescription": "✨ El contenido será traducido automáticamente a los idiomas seleccionados usando IA",
+    "languagesValidation": "Selecciona al menos un idioma"
+  },
+  "selectLanguage": "Selecciona Tu Idioma",
+  "choosePreferred": "Elige tu idioma preferido para continuar",
+  "languageNames": {
+    "en": "English",
+    "it": "Italiano",
+    "fr": "Français",
+    "de": "Deutsch",
+    "es": "Español"
+  },
+  "trustBadges": {
+    "explorer": "Explorador",
+    "pathfinder": "Buscador",
+    "trailblazer": "Pionero",
+    "navigator": "Navegante",
+    "legend": "Leyenda"
+  },
+  "tourStatus": {
+    "draft": "Borrador",
+    "pending": "Pendiente",
+    "active": "Activo",
+    "confirmed": "Confirmado",
+    "closed": "Cerrado",
+    "cancelled": "Cancelado"
   }
 }

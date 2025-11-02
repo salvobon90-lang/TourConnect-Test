@@ -10,12 +10,12 @@ import { useMessageTranslation } from '@/hooks/aiQueries';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
 
-const LANGUAGES = [
-  { code: 'en', label: 'English', flag: '🇬🇧' },
-  { code: 'it', label: 'Italian', flag: '🇮🇹' },
-  { code: 'de', label: 'German', flag: '🇩🇪' },
-  { code: 'fr', label: 'French', flag: '🇫🇷' },
-  { code: 'es', label: 'Spanish', flag: '🇪🇸' }
+const SUPPORTED_LANGUAGES = [
+  { code: 'en', flag: '🇬🇧' },
+  { code: 'it', flag: '🇮🇹' },
+  { code: 'de', flag: '🇩🇪' },
+  { code: 'fr', flag: '🇫🇷' },
+  { code: 'es', flag: '🇪🇸' }
 ];
 
 interface TranslationMenuProps {
@@ -90,7 +90,7 @@ export function TranslationMenu({ messageId, messageText, groupId }: Translation
                 {t('aiAssistant.selectLanguage')}
               </p>
               <div className="space-y-1">
-                {LANGUAGES.map((language) => (
+                {SUPPORTED_LANGUAGES.map((language) => (
                   <Button
                     key={language.code}
                     onClick={() => handleTranslate(language.code)}
@@ -99,7 +99,7 @@ export function TranslationMenu({ messageId, messageText, groupId }: Translation
                     className="w-full justify-start gap-2 h-9"
                   >
                     <span className="text-base">{language.flag}</span>
-                    <span className="text-sm">{language.label}</span>
+                    <span className="text-sm">{t(`languageNames.${language.code}`)}</span>
                     {translateMutation.isPending && (
                       <div className="ml-auto">
                         <LoadingSpinner size="sm" />

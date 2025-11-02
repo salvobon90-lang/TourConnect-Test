@@ -5,12 +5,12 @@ import { Card } from '@/components/ui/card';
 import { Globe } from 'lucide-react';
 import { Logo } from '@/components/logo';
 
-const languages = [
-  { code: 'en', name: 'English', flag: '🇬🇧' },
-  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
-  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
+const SUPPORTED_LANGUAGES = [
+  { code: 'en', flag: '🇬🇧' },
+  { code: 'it', flag: '🇮🇹' },
+  { code: 'de', flag: '🇩🇪' },
+  { code: 'fr', flag: '🇫🇷' },
+  { code: 'es', flag: '🇪🇸' },
 ];
 
 interface LanguageSelectionProps {
@@ -44,12 +44,12 @@ export default function LanguageSelection({ onLanguageSelected }: LanguageSelect
             {t('selectLanguage')}
           </h1>
           <p className="text-lg text-muted-foreground">
-            Choose your preferred language to continue
+            {t('choosePreferred')}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {languages.map((lang) => (
+          {SUPPORTED_LANGUAGES.map((lang) => (
             <Card
               key={lang.code}
               className={`p-6 cursor-pointer transition-all hover-elevate active-elevate-2 ${
@@ -62,7 +62,7 @@ export default function LanguageSelection({ onLanguageSelected }: LanguageSelect
                 <span className="text-5xl">{lang.flag}</span>
                 <div className="flex-1">
                   <h3 className="text-xl font-semibold text-foreground">
-                    {lang.name}
+                    {t(`languageNames.${lang.code}`)}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {lang.code.toUpperCase()}

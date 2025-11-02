@@ -9,6 +9,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+
+const SUPPORTED_LANGUAGES = [
+  { code: 'en', flag: '🇬🇧' },
+  { code: 'it', flag: '🇮🇹' },
+  { code: 'fr', flag: '🇫🇷' },
+  { code: 'de', flag: '🇩🇪' },
+  { code: 'es', flag: '🇪🇸' },
+];
 
 const serviceSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
@@ -44,7 +53,6 @@ export function ServiceForm({ initialData, onSubmit }: ServiceFormProps) {
     },
   });
   
-  const languages = ['en', 'it', 'de', 'fr', 'es'];
   const currentLanguages = watch('languages') || [];
   
   return (
@@ -113,33 +121,36 @@ export function ServiceForm({ initialData, onSubmit }: ServiceFormProps) {
             ✨ Content will be automatically translated to selected languages using AI
           </p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
-            {languages.map(lang => (
+            {SUPPORTED_LANGUAGES.map(lang => (
               <div
-                key={lang}
+                key={lang.code}
                 className={`flex items-center space-x-2 p-3 border rounded-lg cursor-pointer transition-colors ${
-                  currentLanguages.includes(lang)
+                  currentLanguages.includes(lang.code)
                     ? 'bg-primary/10 border-primary'
                     : 'hover:bg-muted'
                 }`}
                 onClick={() => {
                   const current = watch('languages') || [];
-                  setValue('languages', currentLanguages.includes(lang)
-                    ? current.filter((l: string) => l !== lang)
-                    : [...current, lang]
+                  setValue('languages', currentLanguages.includes(lang.code)
+                    ? current.filter((l: string) => l !== lang.code)
+                    : [...current, lang.code]
                   );
                 }}
               >
                 <Checkbox 
-                  checked={currentLanguages.includes(lang)}
+                  checked={currentLanguages.includes(lang.code)}
                   onCheckedChange={(checked) => {
                     const current = watch('languages') || [];
                     setValue('languages', checked 
-                      ? [...current, lang]
-                      : current.filter((l: string) => l !== lang)
+                      ? [...current, lang.code]
+                      : current.filter((l: string) => l !== lang.code)
                     );
                   }}
                 />
-                <span className="text-sm font-medium">{lang.toUpperCase()}</span>
+                <Label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-2xl">{lang.flag}</span>
+                  <span>{t(`languageNames.${lang.code}`)}</span>
+                </Label>
               </div>
             ))}
           </div>
