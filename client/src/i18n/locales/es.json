@@ -161,5 +161,22 @@
     "newPriceNoDiscount": "Nuevo precio: €{price}",
     "statusUpdated": "Estado del tour actualizado a: {status}",
     "minSpots": "Plazas Mínimas Disponibles"
+  },
+  "itineraryBuilder": {
+    "title": "Creador de Itinerarios IA",
+    "subtitle": "Crea itinerarios personalizados en segundos",
+    "generating": "Generando tu itinerario...",
+    "success": "¡Itinerario creado con éxito!",
+    "retry": "Intentar de nuevo",
+    "saveItinerary": "Guardar itinerario",
+    "downloadPDF": "Descargar PDF",
+    "errors": {
+      "invalidDestination": "Ingrese un destino válido (3-100 caracteres)",
+      "invalidDays": "El viaje debe durar entre 1 y 14 días",
+      "invalidLanguage": "Seleccione un idioma",
+      "rateLimit": "Demasiadas solicitudes. Espere un momento antes de intentarlo de nuevo.",
+      "aiFailed": "No se pudo generar el itinerario. Mostrando itinerario sugerido.",
+      "generic": "Error al generar el itinerario. Por favor, inténtelo de nuevo."
+    }
   }
 }

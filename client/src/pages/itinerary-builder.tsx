@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useTranslation } from 'react-i18next';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,18 +13,25 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, Sparkles, MapPin, UtensilsCrossed, Compass, Car, Euro, Lightbulb } from 'lucide-react';
+import { Loader2, Sparkles, MapPin, Euro, Lightbulb, AlertCircle, RotateCcw, Download, Save, Info } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
+
+// UI State type
+type UIState = 'idle' | 'loading' | 'success' | 'error';
 
 // Validation schema matching backend
 const itineraryFormSchema = z.object({
-  destination: z.string().min(3, 'Destinazione troppo corta').max(100),
-  days: z.number().min(1).max(14),
-  interests: z.array(z.string()).min(1, 'Seleziona almeno un interesse'),
+  destination: z.string().min(3, 'Destination too short').max(100, 'Destination too long'),
+  days: z.number().min(1, 'Minimum 1 day').max(14, 'Maximum 14 days'),
+  interests: z.array(z.string()).min(1, 'Select at least one interest'),
   budget: z.enum(['budget', 'moderate', 'luxury']),
-  travelStyle: z.enum(['relaxed', 'balanced', 'packed'])
+  travelStyle: z.enum(['relaxed', 'balanced', 'packed']),
+  language: z.string().min(1, 'Language is required')
 });
 
 type ItineraryFormValues = z.infer<typeof itineraryFormSchema>;
@@ -35,8 +43,12 @@ const INTERESTS = [
 ];
 
 export default function ItineraryBuilder() {
+  const { t, i18n } = useTranslation();
   const { toast } = useToast();
+  const [uiState, setUiState] = useState<UIState>('idle');
   const [generatedItinerary, setGeneratedItinerary] = useState<any>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [loadingProgress, setLoadingProgress] = useState<number>(0);
   
   // Form with React Hook Form + Zod
   const form = useForm<ItineraryFormValues>({
@@ -46,34 +58,122 @@ export default function ItineraryBuilder() {
       days: 3,
       interests: [],
       budget: 'moderate',
-      travelStyle: 'balanced'
+      travelStyle: 'balanced',
+      language: i18n.language || 'en'
     }
   });
+  
+  // Simulate progress during loading
+  const startProgressSimulation = () => {
+    setLoadingProgress(0);
+    const interval = setInterval(() => {
+      setLoadingProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(interval);
+          return 90;
+        }
+        return prev + 10;
+      });
+    }, 500);
+    return interval;
+  };
   
   // Generate itinerary mutation
   const generateMutation = useMutation({
     mutationFn: async (data: ItineraryFormValues) => {
       return await apiRequest('POST', '/api/ai/itinerary', data);
     },
-    onSuccess: (data) => {
-      setGeneratedItinerary(data);
-      toast({ 
-        title: 'Itinerario creato!', 
-        description: 'Il tuo itinerario personalizzato è pronto.' 
-      });
+    onMutate: () => {
+      setUiState('loading');
+      setErrorMessage('');
+      const interval = startProgressSimulation();
+      return { interval };
     },
-    onError: (error: any) => {
+    onSuccess: (data, _, context: any) => {
+      if (context?.interval) clearInterval(context.interval);
+      setLoadingProgress(100);
+      setGeneratedItinerary(data);
+      setUiState('success');
+      
+      // Show fallback warning if AI used fallback
+      if (data.isFallback) {
+        toast({ 
+          title: t('itineraryBuilder.success'),
+          description: t('itineraryBuilder.errors.aiFailed'),
+          variant: 'default'
+        });
+      } else {
+        toast({ 
+          title: t('itineraryBuilder.success'),
+          description: t('itineraryBuilder.subtitle')
+        });
+      }
+    },
+    onError: (error: any, _, context: any) => {
+      if (context?.interval) clearInterval(context.interval);
+      setUiState('error');
+      
+      // Handle different error types and show localized messages
+      let errorKey = 'itineraryBuilder.errors.generic';
+      
+      if (error.message) {
+        const errorMsg = error.message.toLowerCase();
+        if (errorMsg.includes('rate limit') || errorMsg.includes('too many')) {
+          errorKey = 'itineraryBuilder.errors.rateLimit';
+        } else if (errorMsg.includes('destination')) {
+          errorKey = 'itineraryBuilder.errors.invalidDestination';
+        } else if (errorMsg.includes('days')) {
+          errorKey = 'itineraryBuilder.errors.invalidDays';
+        } else if (errorMsg.includes('language')) {
+          errorKey = 'itineraryBuilder.errors.invalidLanguage';
+        }
+      }
+      
+      // Check for error code in response
+      if (error.errorCode) {
+        switch (error.errorCode) {
+          case 'RATE_LIMIT':
+          case 'RATE_LIMIT_EXCEEDED':
+            errorKey = 'itineraryBuilder.errors.rateLimit';
+            break;
+          case 'VALIDATION_ERROR':
+            errorKey = 'itineraryBuilder.errors.generic';
+            break;
+          case 'AI_GENERATION_FAILED':
+          case 'AI_UNAVAILABLE':
+            errorKey = 'itineraryBuilder.errors.aiFailed';
+            break;
+        }
+      }
+      
+      const localizedError = t(errorKey);
+      setErrorMessage(localizedError);
+      
       toast({
-        title: 'Errore',
-        description: error.message || 'Impossibile generare l\'itinerario. Riprova.',
+        title: t('common.error'),
+        description: localizedError,
         variant: 'destructive'
       });
+      
       console.error('[generateItinerary] Error:', error);
     }
   });
   
   const onSubmit = (data: ItineraryFormValues) => {
     generateMutation.mutate(data);
+  };
+  
+  const handleRetry = () => {
+    setUiState('idle');
+    setErrorMessage('');
+    setLoadingProgress(0);
+  };
+  
+  const handleNewItinerary = () => {
+    setGeneratedItinerary(null);
+    setUiState('idle');
+    setErrorMessage('');
+    setLoadingProgress(0);
   };
   
   // Toggle interest selection
@@ -107,13 +207,49 @@ export default function ItineraryBuilder() {
           </p>
         </div>
         
+        {/* Error State */}
+        {uiState === 'error' && (
+          <div className="max-w-3xl mx-auto mb-6">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>{t('common.error')}</AlertTitle>
+              <AlertDescription className="flex items-center justify-between">
+                <span>{errorMessage}</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRetry}
+                  className="ml-4"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  {t('itineraryBuilder.retry')}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+        
+        {/* Loading State */}
+        {uiState === 'loading' && (
+          <Card className="max-w-3xl mx-auto">
+            <CardContent className="pt-6">
+              <div className="space-y-4 text-center">
+                <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+                <h3 className="text-lg font-semibold">{t('itineraryBuilder.generating')}</h3>
+                <Progress value={loadingProgress} className="w-full" />
+                <p className="text-sm text-muted-foreground">{loadingProgress}%</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
         {/* Form Card */}
-        {!generatedItinerary && (
+        {uiState === 'idle' && (
           <Card className="max-w-3xl mx-auto" data-testid="card-itinerary-form">
             <CardHeader>
-              <CardTitle>Costruisci il Tuo Itinerario</CardTitle>
+              <CardTitle>{t('itineraryBuilder.title')}</CardTitle>
               <CardDescription>
-                Fornisci i dettagli del tuo viaggio e l'AI creerà un itinerario perfetto
+                {t('itineraryBuilder.subtitle')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -125,14 +261,40 @@ export default function ItineraryBuilder() {
                     name="destination"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Destinazione</FormLabel>
+                        <FormLabel>Destination</FormLabel>
                         <FormControl>
                           <Input 
-                            placeholder="Roma, Italia" 
+                            placeholder="Rome, Italy" 
                             {...field} 
                             data-testid="input-destination"
                           />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Language */}
+                  <FormField
+                    control={form.control}
+                    name="language"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Language</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-language">
+                              <SelectValue placeholder="Select language" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="en">English</SelectItem>
+                            <SelectItem value="it">Italiano</SelectItem>
+                            <SelectItem value="fr">Français</SelectItem>
+                            <SelectItem value="de">Deutsch</SelectItem>
+                            <SelectItem value="es">Español</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -256,94 +418,162 @@ export default function ItineraryBuilder() {
           </Card>
         )}
         
-        {/* Generated Itinerary Display */}
-        {generatedItinerary && (
+        {/* Generated Itinerary Display - Success State */}
+        {uiState === 'success' && generatedItinerary && (
           <div className="max-w-4xl mx-auto space-y-6">
-            {/* Header with Regenerate Button */}
+            {/* Fallback Warning */}
+            {generatedItinerary.isFallback && (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>Suggested Itinerary</AlertTitle>
+                <AlertDescription>
+                  {t('itineraryBuilder.errors.aiFailed')}
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {/* Header with Actions */}
             <div className="flex justify-between items-center">
-              <h2 className="text-3xl font-bold">Il Tuo Itinerario</h2>
-              <Button 
-                onClick={() => setGeneratedItinerary(null)}
-                variant="outline"
-                data-testid="button-new-itinerary"
-              >
-                Crea Nuovo Itinerario
-              </Button>
+              <h2 className="text-3xl font-bold">
+                {generatedItinerary.destination}
+              </h2>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toast({ title: 'Coming soon!', description: 'Save feature will be available soon.' })}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {t('itineraryBuilder.saveItinerary')}
+                </Button>
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toast({ title: 'Coming soon!', description: 'PDF download will be available soon.' })}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {t('itineraryBuilder.downloadPDF')}
+                </Button>
+                <Button 
+                  onClick={handleNewItinerary}
+                  variant="default"
+                  data-testid="button-new-itinerary"
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  New Itinerary
+                </Button>
+              </div>
             </div>
             
             {/* Total Cost Summary */}
             <Card data-testid="card-cost-summary">
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Costo Totale Stimato
+                  Estimated Total Cost
                 </CardTitle>
                 <Euro className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {generatedItinerary.totalEstimatedCost || 'N/A'}
+                  €{generatedItinerary.estimatedTotalCost || generatedItinerary.totalEstimatedCost || 'N/A'}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {generatedItinerary.totalDays} days trip
+                </p>
               </CardContent>
             </Card>
             
             {/* Day-by-Day Itinerary */}
             <Card data-testid="card-itinerary">
               <CardHeader>
-                <CardTitle>Programma Giornaliero</CardTitle>
+                <CardTitle>Daily Plan</CardTitle>
               </CardHeader>
               <CardContent>
                 <Accordion type="single" collapsible className="w-full">
-                  {generatedItinerary.itinerary?.map((day: any) => (
+                  {generatedItinerary.dailyPlans?.map((day: any) => (
                     <AccordionItem 
                       key={day.day} 
                       value={`day-${day.day}`}
                       data-testid={`accordion-day-${day.day}`}
                     >
                       <AccordionTrigger>
-                        <div className="text-left">
-                          <div className="font-semibold">Giorno {day.day}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {day.date} - {day.title}
+                        <div className="text-left w-full">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <div className="font-semibold">Day {day.day}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {day.title}
+                              </div>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              €{day.estimatedCost}
+                            </div>
                           </div>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-4 pl-4">
-                          {day.activities?.map((activity: any, idx: number) => (
-                            <div 
-                              key={idx} 
-                              className="flex gap-4 border-l-2 border-primary/20 pl-4"
-                              data-testid={`activity-${day.day}-${idx}`}
-                            >
-                              {/* Icon based on type */}
-                              <div className="flex-shrink-0 mt-1">
-                                {activity.type === 'tour' && <MapPin className="h-5 w-5 text-primary" />}
-                                {activity.type === 'restaurant' && <UtensilsCrossed className="h-5 w-5 text-primary" />}
-                                {activity.type === 'activity' && <Compass className="h-5 w-5 text-primary" />}
-                                {activity.type === 'transport' && <Car className="h-5 w-5 text-primary" />}
-                              </div>
-                              
-                              <div className="flex-1">
-                                <div className="flex items-baseline gap-2 mb-1">
-                                  <span className="text-sm font-semibold text-muted-foreground">
-                                    {activity.time}
-                                  </span>
-                                  <h4 className="font-semibold">{activity.title}</h4>
-                                </div>
-                                <p className="text-sm text-muted-foreground mb-2">
-                                  {activity.description}
-                                </p>
-                                <div className="flex gap-3 text-xs text-muted-foreground">
-                                  {activity.duration && (
-                                    <span>⏱️ {activity.duration}</span>
-                                  )}
-                                  {activity.estimatedCost && (
-                                    <span>💰 {activity.estimatedCost}</span>
-                                  )}
-                                </div>
-                              </div>
+                          {/* Morning */}
+                          {day.morning && day.morning.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold text-sm mb-2">☀️ Morning</h4>
+                              <ul className="space-y-1 pl-4">
+                                {day.morning.map((activity: string, idx: number) => (
+                                  <li key={idx} className="text-sm flex gap-2">
+                                    <span className="text-primary">•</span>
+                                    <span>{activity}</span>
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
-                          ))}
+                          )}
+                          
+                          {/* Afternoon */}
+                          {day.afternoon && day.afternoon.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold text-sm mb-2">🌤️ Afternoon</h4>
+                              <ul className="space-y-1 pl-4">
+                                {day.afternoon.map((activity: string, idx: number) => (
+                                  <li key={idx} className="text-sm flex gap-2">
+                                    <span className="text-primary">•</span>
+                                    <span>{activity}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {/* Evening */}
+                          {day.evening && day.evening.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold text-sm mb-2">🌙 Evening</h4>
+                              <ul className="space-y-1 pl-4">
+                                {day.evening.map((activity: string, idx: number) => (
+                                  <li key={idx} className="text-sm flex gap-2">
+                                    <span className="text-primary">•</span>
+                                    <span>{activity}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {/* Day Tips */}
+                          {day.tips && day.tips.length > 0 && (
+                            <div className="mt-3 p-3 bg-muted/50 rounded-md">
+                              <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
+                                <Lightbulb className="h-4 w-4" /> Tips
+                              </h4>
+                              <ul className="space-y-1 pl-4">
+                                {day.tips.map((tip: string, idx: number) => (
+                                  <li key={idx} className="text-xs text-muted-foreground flex gap-2">
+                                    <span>💡</span>
+                                    <span>{tip}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -352,18 +582,39 @@ export default function ItineraryBuilder() {
               </CardContent>
             </Card>
             
-            {/* Tips Section */}
-            {generatedItinerary.tips && generatedItinerary.tips.length > 0 && (
+            {/* Packing List */}
+            {generatedItinerary.packingList && generatedItinerary.packingList.length > 0 && (
+              <Card data-testid="card-packing-list">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    🎒 Packing List
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {generatedItinerary.packingList.map((item: string, idx: number) => (
+                      <div key={idx} className="flex items-center gap-2 text-sm">
+                        <span className="text-primary">✓</span>
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Local Tips */}
+            {generatedItinerary.localTips && generatedItinerary.localTips.length > 0 && (
               <Card data-testid="card-tips">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Lightbulb className="h-5 w-5 text-primary" />
-                    Consigli di Viaggio
+                    Local Tips & Customs
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2">
-                    {generatedItinerary.tips.map((tip: string, idx: number) => (
+                    {generatedItinerary.localTips.map((tip: string, idx: number) => (
                       <li key={idx} className="flex gap-2">
                         <span className="text-primary">•</span>
                         <span>{tip}</span>

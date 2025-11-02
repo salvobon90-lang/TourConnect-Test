@@ -161,5 +161,22 @@
     "newPriceNoDiscount": "Neuer Preis: €{price}",
     "statusUpdated": "Tour-Status aktualisiert auf: {status}",
     "minSpots": "Mindest Verfügbare Plätze"
+  },
+  "itineraryBuilder": {
+    "title": "KI-Reiseplanung",
+    "subtitle": "Erstellen Sie personalisierte Reisepläne in Sekunden",
+    "generating": "Ihr Reiseplan wird erstellt...",
+    "success": "Reiseplan erfolgreich erstellt!",
+    "retry": "Erneut versuchen",
+    "saveItinerary": "Reiseplan speichern",
+    "downloadPDF": "PDF herunterladen",
+    "errors": {
+      "invalidDestination": "Bitte geben Sie ein gültiges Reiseziel ein (3-100 Zeichen)",
+      "invalidDays": "Die Reise muss zwischen 1 und 14 Tagen dauern",
+      "invalidLanguage": "Bitte wählen Sie eine Sprache",
+      "rateLimit": "Zu viele Anfragen. Bitte warten Sie einen Moment, bevor Sie es erneut versuchen.",
+      "aiFailed": "Reiseplan konnte nicht erstellt werden. Zeige vorgeschlagenen Reiseplan.",
+      "generic": "Fehler beim Erstellen des Reiseplans. Bitte versuchen Sie es erneut."
+    }
   }
 }

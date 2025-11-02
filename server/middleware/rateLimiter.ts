@@ -62,3 +62,19 @@ export const geoLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
+
+// AI Itinerary Builder rate limiter (strict to prevent API abuse)
+export const itineraryLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // 5 requests per minute per IP
+  message: 'Too many itinerary requests. Please wait before trying again.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+      message: 'Too many itinerary requests. Please wait a moment before trying again.'
+    });
+  }
+});

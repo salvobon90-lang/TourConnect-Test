@@ -31,7 +31,8 @@ import {
   messageLimiter, 
   reviewLimiter,
   bookingLimiter,
-  geoLimiter
+  geoLimiter,
+  itineraryLimiter
 } from './middleware/rateLimiter';
 import { sanitizeBody, sanitizeHtml } from './middleware/sanitize';
 import { db } from "./db";
@@ -275,11 +276,20 @@ function requireRole(...roles: string[]) {
 
 // AI Validation Schemas
 const itinerarySchema = z.object({
-  destination: z.string().min(2, "Destination required"),
-  days: z.number().int().min(1).max(30),
+  destination: z.string()
+    .min(3, "Destination must be at least 3 characters")
+    .max(100, "Destination must not exceed 100 characters")
+    .trim(),
+  days: z.number()
+    .int("Days must be a whole number")
+    .min(1, "Trip must be at least 1 day")
+    .max(14, "Trip cannot exceed 14 days"),
+  language: z.enum(["it", "en", "de", "fr", "es"], {
+    errorMap: () => ({ message: "Language must be one of: it, en, de, fr, es" })
+  }),
   interests: z.array(z.string()).optional().default([]),
-  budget: z.enum(["low", "medium", "high"]).optional().default("medium"),
-  language: z.enum(["it", "en", "de", "fr", "es"]).optional().default("en")
+  budget: z.enum(["budget", "moderate", "luxury"]).optional().default("moderate"),
+  travelStyle: z.enum(["relaxed", "balanced", "packed"]).optional().default("balanced")
 });
 
 const translationSchema = z.object({
@@ -3772,26 +3782,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========== AI ITINERARY BUILDER ==========
 
-  app.post("/api/ai/itinerary", isAuthenticated, aiLimiter, async (req: any, res) => {
+  app.post("/api/ai/itinerary", isAuthenticated, itineraryLimiter, async (req: any, res) => {
     try {
+      const userId = req.user?.claims?.sub || 'anonymous';
+      
       // ✅ VALIDATE with Zod
       const validated = itinerarySchema.parse({
         ...req.body,
         days: parseInt(req.body.days)  // Parse to number for validation
       });
       
-      const itinerary = await generateItinerary(validated);
+      // Generate itinerary with fallback (already includes logging)
+      const itinerary = await generateItinerary({
+        destination: validated.destination,
+        days: validated.days,
+        interests: validated.interests,
+        budget: validated.budget as "budget" | "moderate" | "luxury",
+        language: validated.language,
+        travelStyle: validated.travelStyle as "relaxed" | "balanced" | "packed"
+      }, userId);
       
       res.json(itinerary);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
+        // Return detailed validation errors with error codes
+        const fieldErrors: Record<string, string> = {};
+        error.errors.forEach(err => {
+          const field = err.path[0];
+          fieldErrors[field] = err.message;
+        });
+        
         return res.status(400).json({ 
-          message: "Validation error",
-          errors: error.errors 
+          errorCode: "VALIDATION_ERROR",
+          message: "Invalid input data",
+          fields: fieldErrors,
+          errors: error.errors
         });
       }
-      console.error("Error generating itinerary:", error);
-      res.status(500).json({ message: error.message });
+      
+      // Check if it's a rate limit error
+      if (error.message && error.message.includes('Rate limit')) {
+        return res.status(429).json({ 
+          errorCode: "RATE_LIMIT",
+          message: "Too many itinerary requests. Please wait before trying again."
+        });
+      }
+      
+      console.error("[Itinerary] Error generating itinerary:", error);
+      res.status(500).json({ 
+        errorCode: "AI_GENERATION_FAILED",
+        message: error.message || "Failed to generate itinerary. Please try again."
+      });
     }
   });
 

@@ -120,8 +120,9 @@ export interface ItineraryRequest {
   destination: string;
   days: number;
   interests: string[];
-  budget: "low" | "medium" | "high";
+  budget: "budget" | "moderate" | "luxury";
   language: string;
+  travelStyle?: "relaxed" | "balanced" | "packed";
 }
 
 export interface DayPlan {
@@ -134,18 +135,127 @@ export interface DayPlan {
   tips: string[];
 }
 
-export async function generateItinerary(request: ItineraryRequest): Promise<{
+/**
+ * Generate a simple rule-based fallback itinerary when AI fails
+ * Supports popular destinations with basic tourist attractions
+ */
+function generateFallbackItinerary(destination: string, days: number): {
   destination: string;
   totalDays: number;
   dailyPlans: DayPlan[];
   estimatedTotalCost: number;
   packingList: string[];
   localTips: string[];
+  isFallback: boolean;
+} {
+  const destinationLower = destination.toLowerCase();
+  
+  // Popular destinations with curated POIs
+  const destinationData: Record<string, {
+    pois: string[];
+    dailyCost: number;
+    tips: string[];
+  }> = {
+    'rome': {
+      pois: ['Colosseum', 'Vatican Museums', 'Trevi Fountain', 'Spanish Steps', 'Pantheon', 'Roman Forum', 'Trastevere', 'Villa Borghese'],
+      dailyCost: 80,
+      tips: ['Book Colosseum tickets in advance', 'Wear comfortable walking shoes', 'Visit attractions early morning', 'Try authentic carbonara in Trastevere']
+    },
+    'siracusa': {
+      pois: ['Ortigia Island', 'Archaeological Park', 'Fonte Aretusa', 'Duomo di Siracusa', 'Castello Maniace', 'Teatro Greco', 'Market of Ortigia'],
+      dailyCost: 60,
+      tips: ['Explore Ortigia on foot', 'Try arancini at the market', 'Visit early to avoid heat', 'Swim at Fontane Bianche beach']
+    },
+    'paris': {
+      pois: ['Eiffel Tower', 'Louvre Museum', 'Notre-Dame', 'Champs-Élysées', 'Montmartre', 'Arc de Triomphe', 'Latin Quarter', 'Versailles'],
+      dailyCost: 100,
+      tips: ['Get a Paris Museum Pass', 'Use metro for transport', 'Visit bakeries early morning', 'Book Eiffel Tower tickets online']
+    },
+    'florence': {
+      pois: ['Uffizi Gallery', 'Duomo', 'Ponte Vecchio', 'Accademia Gallery', 'Piazzale Michelangelo', 'Boboli Gardens', 'Pitti Palace'],
+      dailyCost: 75,
+      tips: ['Reserve Uffizi tickets ahead', 'Climb the Duomo early', 'Try gelato at local shops', 'Walk everywhere in historic center']
+    },
+    'barcelona': {
+      pois: ['Sagrada Familia', 'Park Güell', 'Las Ramblas', 'Gothic Quarter', 'Casa Batlló', 'Barceloneta Beach', 'Camp Nou'],
+      dailyCost: 85,
+      tips: ['Book Gaudí sites in advance', 'Try tapas in Gothic Quarter', 'Use metro extensively', 'Visit Sagrada Familia at sunset']
+    }
+  };
+  
+  // Find matching destination
+  let destinationKey = Object.keys(destinationData).find(key => 
+    destinationLower.includes(key) || key.includes(destinationLower)
+  );
+  
+  // Default fallback if destination not found
+  const data = destinationKey ? destinationData[destinationKey] : {
+    pois: ['City Center', 'Main Square', 'Historical Museum', 'Local Market', 'Cathedral', 'Park', 'Viewpoint'],
+    dailyCost: 70,
+    tips: ['Research local customs', 'Learn basic local phrases', 'Try local cuisine', 'Use public transport']
+  };
+  
+  // Generate daily plans
+  const dailyPlans: DayPlan[] = [];
+  const poisPerDay = Math.ceil(data.pois.length / days);
+  
+  for (let day = 1; day <= days; day++) {
+    const startIdx = (day - 1) * poisPerDay;
+    const dayPois = data.pois.slice(startIdx, startIdx + poisPerDay);
+    
+    dailyPlans.push({
+      day,
+      title: `Day ${day}: Exploring ${destination}`,
+      morning: dayPois.slice(0, Math.ceil(dayPois.length / 2)),
+      afternoon: dayPois.slice(Math.ceil(dayPois.length / 2)),
+      evening: ['Dinner at local restaurant', 'Evening stroll'],
+      estimatedCost: data.dailyCost,
+      tips: data.tips.slice(0, 2)
+    });
+  }
+  
+  return {
+    destination,
+    totalDays: days,
+    dailyPlans,
+    estimatedTotalCost: data.dailyCost * days,
+    packingList: ['Comfortable walking shoes', 'Camera', 'Sunscreen', 'Hat', 'Water bottle', 'Daypack', 'Travel adapter', 'Guidebook', 'Umbrella', 'Light jacket'],
+    localTips: data.tips,
+    isFallback: true
+  };
+}
+
+export async function generateItinerary(request: ItineraryRequest, userId?: string): Promise<{
+  destination: string;
+  totalDays: number;
+  dailyPlans: DayPlan[];
+  estimatedTotalCost: number;
+  packingList: string[];
+  localTips: string[];
+  isFallback?: boolean;
 }> {
-  const prompt = `You are an expert travel planner. Create a detailed ${request.days}-day itinerary for ${request.destination}.
+  const requestId = randomUUID();
+  const startTime = Date.now();
+  
+  // Structured logging - START
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    requestId,
+    userId: userId || 'anonymous',
+    action: 'itinerary_build_start',
+    destination: request.destination,
+    days: request.days,
+    budget: request.budget,
+    travelStyle: request.travelStyle || 'balanced',
+    interestsCount: request.interests.length
+  }));
+  
+  try {
+    const prompt = `You are an expert travel planner. Create a detailed ${request.days}-day itinerary for ${request.destination}.
 
 Interests: ${request.interests.join(", ") || "general tourism"}
 Budget: ${request.budget}
+Travel Style: ${request.travelStyle || "balanced"}
 Language: ${request.language}
 
 For each day, provide:
@@ -179,22 +289,66 @@ Return ONLY valid JSON with this structure:
   "localTips": string[]
 }`;
 
-  // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-  const response = await ensureOpenAI().chat.completions.create({
-    model: "gpt-5",
-    messages: [
-      { role: "system", content: "You are a travel planning expert. Always respond with valid JSON only, no markdown formatting." },
-      { role: "user", content: prompt }
-    ],
-    temperature: 0.7
-  });
-  
-  const content = response.choices[0].message.content || "{}";
-  
-  // Clean markdown if present
-  const jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  
-  return JSON.parse(jsonContent);
+    // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+    const response = await ensureOpenAI().chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        { role: "system", content: "You are a travel planning expert. Always respond with valid JSON only, no markdown formatting." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7
+    });
+    
+    const content = response.choices[0].message.content || "{}";
+    
+    // Clean markdown if present
+    const jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    const result = JSON.parse(jsonContent);
+    
+    // Structured logging - SUCCESS
+    const latency = Date.now() - startTime;
+    console.log(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      requestId,
+      userId: userId || 'anonymous',
+      action: 'itinerary_build_success',
+      destination: request.destination,
+      days: request.days,
+      latencyMs: latency,
+      daysGenerated: result.dailyPlans?.length || 0,
+      isFallback: false
+    }));
+    
+    return result;
+  } catch (error: any) {
+    // Structured logging - ERROR
+    const latency = Date.now() - startTime;
+    console.log(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      requestId,
+      userId: userId || 'anonymous',
+      action: 'itinerary_build_error',
+      destination: request.destination,
+      days: request.days,
+      latencyMs: latency,
+      errorType: error.name || 'UnknownError',
+      errorMessage: error.message,
+      usingFallback: true
+    }));
+    
+    // Return fallback itinerary
+    console.log(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      requestId,
+      userId: userId || 'anonymous',
+      action: 'itinerary_fallback_used',
+      destination: request.destination,
+      days: request.days
+    }));
+    
+    return generateFallbackItinerary(request.destination, request.days);
+  }
 }
 
 // ========== AI LANGUAGE TRANSLATION ==========
