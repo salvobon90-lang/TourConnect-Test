@@ -178,5 +178,19 @@
       "aiFailed": "Reiseplan konnte nicht erstellt werden. Zeige vorgeschlagenen Reiseplan.",
       "generic": "Fehler beim Erstellen des Reiseplans. Bitte versuchen Sie es erneut."
     }
+  },
+  "reviews": {
+    "errors": {
+      "bookingNotFound": "Buchung nicht gefunden",
+      "bookingNotYours": "Diese Buchung gehört Ihnen nicht",
+      "bookingNotCompleted": "Sie können nur abgeschlossene Buchungen bewerten",
+      "reviewAlreadyExists": "Sie haben diese Buchung bereits bewertet",
+      "generic": "Bewertung konnte nicht eingereicht werden. Bitte versuchen Sie es erneut."
+    },
+    "success": {
+      "created": "Bewertung erfolgreich eingereicht"
+    },
+    "leaveReview": "Bewertung Schreiben",
+    "viewReview": "Bewertung Ansehen"
   }
 }

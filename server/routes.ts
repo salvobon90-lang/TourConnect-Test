@@ -1756,24 +1756,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       const schema = z.object({
-        tourId: z.string().optional(),
-        serviceId: z.string().optional(),
+        bookingId: z.string(),
         rating: z.number().int().min(1).max(5),
         comment: z.string().min(10).max(2000).transform(sanitizeHtml),
         images: z.array(z.string().url()).max(10).optional()
-      }).refine((data) => data.tourId || data.serviceId, {
-        message: "Either tourId or serviceId must be provided"
       });
       
       const data = schema.parse(req.body);
       
-      if (data.tourId) {
-        const hasBooking = await storage.userHasBookingForTour(userId, data.tourId);
-        if (!hasBooking) {
-          return res.status(403).json({ 
-            message: 'You must book this tour to leave a review' 
-          });
-        }
+      // 1. Validate booking exists
+      const booking = await storage.getBooking(data.bookingId);
+      if (!booking) {
+        return res.status(400).json({ 
+          message: 'reviews.errors.bookingNotFound'
+        });
+      }
+      
+      // 2. Validate booking belongs to authenticated user
+      if (booking.userId !== userId) {
+        return res.status(403).json({ 
+          message: 'reviews.errors.bookingNotYours'
+        });
+      }
+      
+      // 3. Validate booking is COMPLETED
+      if (booking.status !== 'completed') {
+        return res.status(400).json({ 
+          message: 'reviews.errors.bookingNotCompleted'
+        });
+      }
+      
+      // 4. Validate no existing review for this booking (1:1 relationship)
+      const existingReview = await storage.getReviewByBookingId(data.bookingId);
+      if (existingReview) {
+        return res.status(400).json({ 
+          message: 'reviews.errors.reviewAlreadyExists'
+        });
       }
       
       // Auto-moderate if comment provided
@@ -1799,9 +1817,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Derive tourId/serviceId from booking
+      const tourId = booking.tourId || undefined;
+      const serviceId = undefined; // bookings currently only link to tours
+      
       const review = await storage.createReview({
-        ...data,
         userId,
+        bookingId: data.bookingId,
+        tourId,
+        serviceId,
+        rating: data.rating,
+        comment: data.comment,
         images: data.images || []
       });
       
@@ -1810,12 +1836,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Award review points (fire-and-forget)
       storage.awardPoints(userId, 'review', {
         reviewId: review.id,
-        targetId: (review.tourId || review.serviceId) || undefined,
+        targetId: tourId || undefined,
         description: 'Review submitted'
       }).catch(err => console.error("Failed to award review points:", err));
       
-      if (review.tourId) {
-        const tour = await storage.getTour(review.tourId);
+      if (tourId) {
+        const tour = await storage.getTour(tourId);
         if (tour?.guideId) {
           await Promise.all([
             storage.updateUserBadges(tour.guideId),

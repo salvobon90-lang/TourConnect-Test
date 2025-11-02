@@ -178,5 +178,19 @@
       "aiFailed": "Impossible de générer l'itinéraire. Affichage d'un itinéraire suggéré.",
       "generic": "Échec de la génération de l'itinéraire. Veuillez réessayer."
     }
+  },
+  "reviews": {
+    "errors": {
+      "bookingNotFound": "Réservation introuvable",
+      "bookingNotYours": "Cette réservation ne vous appartient pas",
+      "bookingNotCompleted": "Vous ne pouvez évaluer que les réservations terminées",
+      "reviewAlreadyExists": "Vous avez déjà évalué cette réservation",
+      "generic": "Échec de la soumission de l'avis. Veuillez réessayer."
+    },
+    "success": {
+      "created": "Avis soumis avec succès"
+    },
+    "leaveReview": "Laisser un Avis",
+    "viewReview": "Voir l'Avis"
   }
 }

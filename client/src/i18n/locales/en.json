@@ -178,5 +178,19 @@
       "aiFailed": "Unable to generate itinerary. Showing suggested itinerary instead.",
       "generic": "Failed to generate itinerary. Please try again."
     }
+  },
+  "reviews": {
+    "errors": {
+      "bookingNotFound": "Booking not found",
+      "bookingNotYours": "This booking doesn't belong to you",
+      "bookingNotCompleted": "You can only review completed bookings",
+      "reviewAlreadyExists": "You've already reviewed this booking",
+      "generic": "Failed to submit review. Please try again."
+    },
+    "success": {
+      "created": "Review submitted successfully"
+    },
+    "leaveReview": "Leave a Review",
+    "viewReview": "View Review"
   }
 }

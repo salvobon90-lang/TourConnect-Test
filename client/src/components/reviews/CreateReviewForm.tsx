@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,14 +22,14 @@ const reviewSchema = z.object({
 type ReviewFormData = z.infer<typeof reviewSchema>;
 
 interface CreateReviewFormProps {
-  tourId?: string;
-  serviceId?: string;
+  bookingId: string;
   onSuccess?: () => void;
 }
 
-export function CreateReviewForm({ tourId, serviceId, onSuccess }: CreateReviewFormProps) {
+export function CreateReviewForm({ bookingId, onSuccess }: CreateReviewFormProps) {
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const { toast } = useToast();
+  const { t } = useTranslation();
   
   const form = useForm<ReviewFormData>({
     resolver: zodResolver(reviewSchema),
@@ -42,27 +43,28 @@ export function CreateReviewForm({ tourId, serviceId, onSuccess }: CreateReviewF
   const createReviewMutation = useMutation({
     mutationFn: async (data: ReviewFormData) => {
       return await apiRequest('POST', '/api/reviews', {
-        tourId,
-        serviceId,
+        bookingId,
         rating: data.rating,
         comment: data.comment,
         images: imageUrls
       });
     },
     onSuccess: () => {
-      toast({ title: 'Review posted successfully!' });
+      const successMessage = t('reviews.success.created');
+      toast({ title: successMessage });
       queryClient.invalidateQueries({ queryKey: ['/api/reviews'] });
-      if (tourId) {
-        queryClient.invalidateQueries({ queryKey: ['/api/tours', tourId, 'rating'] });
-      }
+      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
       form.reset();
       setImageUrls([]);
       onSuccess?.();
     },
     onError: (error: any) => {
+      const errorMessage = error.message?.startsWith('reviews.') 
+        ? t(error.message) 
+        : error.message || t('reviews.errors.generic');
       toast({ 
-        title: 'Failed to post review', 
-        description: error.message,
+        title: t('common.error'), 
+        description: errorMessage,
         variant: 'destructive' 
       });
     }

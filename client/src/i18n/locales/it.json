@@ -178,5 +178,19 @@
       "aiFailed": "Impossibile generare l'itinerario. Mostro un itinerario suggerito.",
       "generic": "Impossibile generare l'itinerario. Riprova."
     }
+  },
+  "reviews": {
+    "errors": {
+      "bookingNotFound": "Prenotazione non trovata",
+      "bookingNotYours": "Questa prenotazione non ti appartiene",
+      "bookingNotCompleted": "Puoi recensire solo prenotazioni completate",
+      "reviewAlreadyExists": "Hai già recensito questa prenotazione",
+      "generic": "Impossibile inviare la recensione. Riprova."
+    },
+    "success": {
+      "created": "Recensione inviata con successo"
+    },
+    "leaveReview": "Lascia una Recensione",
+    "viewReview": "Visualizza Recensione"
   }
 }

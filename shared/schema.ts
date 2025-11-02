@@ -425,7 +425,7 @@ export const bookings = pgTable("bookings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const bookingsRelations = relations(bookings, ({ one }) => ({
+export const bookingsRelations = relations(bookings, ({ one, many }) => ({
   user: one(users, {
     fields: [bookings.userId],
     references: [users.id],
@@ -438,14 +438,19 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
     fields: [bookings.groupBookingId],
     references: [groupBookings.id],
   }),
+  review: one(reviews, {
+    fields: [bookings.id],
+    references: [reviews.bookingId],
+  }),
 }));
 
 // Reviews table - for both tours and services
 export const reviews = pgTable("reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  tourId: varchar("tour_id").references(() => tours.id, { onDelete: "cascade" }),
-  serviceId: varchar("service_id").references(() => services.id, { onDelete: "cascade" }),
+  bookingId: varchar("booking_id").unique().references(() => bookings.id, { onDelete: "cascade" }), // UNIQUE constraint, nullable for legacy reviews
+  tourId: varchar("tour_id").references(() => tours.id, { onDelete: "cascade" }), // Keep for backwards compatibility/direct queries
+  serviceId: varchar("service_id").references(() => services.id, { onDelete: "cascade" }), // Keep for backwards compatibility
   rating: integer("rating").notNull(), // 1-5
   comment: text("comment").notNull(),
   images: text("images").array().notNull().default(sql`ARRAY[]::text[]`),
@@ -458,6 +463,10 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   user: one(users, {
     fields: [reviews.userId],
     references: [users.id],
+  }),
+  booking: one(bookings, {
+    fields: [reviews.bookingId],
+    references: [bookings.id],
   }),
   tour: one(tours, {
     fields: [reviews.tourId],

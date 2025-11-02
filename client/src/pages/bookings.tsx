@@ -4,20 +4,44 @@ import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Users, ArrowLeft } from 'lucide-react';
-import type { BookingWithDetails } from '@shared/schema';
+import { Calendar, MapPin, Users, ArrowLeft, Star } from 'lucide-react';
+import type { BookingWithDetails, Review } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'wouter';
 import { format } from 'date-fns';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CreateReviewForm } from '@/components/reviews/CreateReviewForm';
 
 export default function Bookings() {
   const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
 
   const { data: bookings, isLoading } = useQuery<BookingWithDetails[]>({
     queryKey: ['/api/bookings'],
     enabled: isAuthenticated,
   });
+
+  const { data: reviews } = useQuery<Review[]>({
+    queryKey: ['/api/reviews'],
+    enabled: isAuthenticated,
+  });
+
+  const getReviewForBooking = (bookingId: string) => {
+    return reviews?.find(review => review.bookingId === bookingId);
+  };
+
+  const handleLeaveReview = (bookingId: string) => {
+    setSelectedBookingId(bookingId);
+    setReviewDialogOpen(true);
+  };
+
+  const handleReviewSuccess = () => {
+    setReviewDialogOpen(false);
+    setSelectedBookingId(null);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -101,6 +125,27 @@ export default function Bookings() {
                       {booking.status === 'pending' && (
                         <Button variant="outline" size="sm">{t('bookings.cancelBooking')}</Button>
                       )}
+                      {booking.status === 'completed' && !getReviewForBooking(booking.id) && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleLeaveReview(booking.id)}
+                          data-testid={`leave-review-${booking.id}`}
+                        >
+                          <Star className="w-4 h-4 mr-1" />
+                          {t('reviews.leaveReview')}
+                        </Button>
+                      )}
+                      {booking.status === 'completed' && getReviewForBooking(booking.id) && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          data-testid={`view-review-${booking.id}`}
+                        >
+                          <Star className="w-4 h-4 mr-1 fill-current" />
+                          {t('reviews.viewReview')}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -120,6 +165,20 @@ export default function Bookings() {
           </Card>
         )}
       </div>
+
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('reviews.leaveReview')}</DialogTitle>
+          </DialogHeader>
+          {selectedBookingId && (
+            <CreateReviewForm 
+              bookingId={selectedBookingId} 
+              onSuccess={handleReviewSuccess}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

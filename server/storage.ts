@@ -242,6 +242,7 @@ export interface IStorage {
   getReviewsByService(serviceId: string, sortBy?: 'recent' | 'rating'): Promise<Review[]>;
   getReviewsByUser(userId: string): Promise<Review[]>;
   getReview(id: string): Promise<Review | undefined>;
+  getReviewByBookingId(bookingId: string): Promise<Review | undefined>;
   createReview(review: InsertReview): Promise<Review>;
   updateReview(id: string, data: Partial<InsertReview>): Promise<Review>;
   updateReviewResponse(id: string, response: string): Promise<Review>;
@@ -1106,6 +1107,14 @@ export class DatabaseStorage implements IStorage {
     const [review] = await db.select()
       .from(reviews)
       .where(eq(reviews.id, id))
+      .limit(1);
+    return review;
+  }
+
+  async getReviewByBookingId(bookingId: string): Promise<Review | undefined> {
+    const [review] = await db.select()
+      .from(reviews)
+      .where(eq(reviews.bookingId, bookingId))
       .limit(1);
     return review;
   }
