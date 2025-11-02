@@ -1,0 +1,252 @@
+Prompt — Geo + AI Itinerary + Reviews Policy + Hype + Guide Profile + Languages (Tours & Services)
+
+Goal: Fix tourist Explore Map geolocation & targeting; fix AI Itinerary Builder errors; enforce reviews only after purchase & use; add Like for Hype ranking; make guide name link to profile; require language selection for tours/services with auto-translation and language-filtered visibility.
+
+1) Geolocalizzazione sempre attiva (Home → “Esplora Mappa”)
+
+Requisiti
+
+Dopo login o avvio PWA, chiedere consenso e salvare lastKnownLocation (lat, lng, accuracy, timestamp) in user_settings (DB) e in client state (React Query/Context).
+
+Se l’utente rifiuta o non ha GPS: offrire “Imposta destinazione” (city search/place picker). Salva in preferred_destination.
+
+Quando si clicca “Esplora Mappa”:
+
+Centra la mappa su lastKnownLocation o in fallback su preferred_destination.
+
+Applica filtri per raggio (default 20 km, modificabile) e lingua (vedi §6).
+
+Sponsorizzazioni/Featured: mostra contenuti sponsorizzati in zona (entro raggio) rispettando lingua e ranking hype.
+
+DB
+
+user_settings(user_id, last_known_location GEOGRAPHY, preferred_destination JSON, geo_consent BOOL, updated_at)
+
+Backend
+
+GET /api/geo/context → ritorna posizione corrente o destinazione preferita + raggio default.
+
+POST /api/geo/update → aggiorna posizione/destinazione previa user consent.
+
+QA
+
+Mappa si apre sempre centrata (posizione o destinazione).
+
+Contenuti: solo entro raggio & lingua utente.
+
+2) Fix AI Itinerary Builder (errore in creazione itinerari)
+
+Problema attuale
+
+Errore generico quando si genera un itinerario.
+
+Fix
+
+Endpoint robusto: POST /api/ai/itinerary/build
+
+Input: { origin?, destination, days, interests[], budget?, pace?, language }
+
+Validazioni obbligatorie: destination, days ≥ 1, language.
+
+Rate limit (user-level): 5/min.
+
+Observability: log strutturati (requestId, userId, latency, model).
+
+Fallback: messaggi di errore localizzati e suggerimenti (es. ridurre giorni o scegliere interessi).
+
+Se AI fallisce → genera un itinerario di base rule-based (POI popolari per Siracusa) per garantire UX.
+
+Frontend
+
+Stati UI: idle | loading | success | error + retry.
+
+language = lingua app dell’utente; output localizzato.
+
+Tests
+
+Unit (validation), Integration (happy path + fallback), e2e (UI → PDF/Save).
+
+3) Policy Recensioni: solo post-acquisto e post-utilizzo
+
+Requisiti
+
+È vietato recensire se:
+
+non esiste una booking per quel tour/service dell’utente,
+
+booking.status ≠ COMPLETED,
+
+esiste già una review per quella booking_id (una recensione per prenotazione).
+
+Il pulsante “Scrivi recensione” appare solo sui dettagli del tour/servizio se l’utente ha una booking COMPLETED con review_submitted = false.
+
+DB
+
+reviews(id, booking_id UNIQUE, user_id, target_type ENUM('tour','service'), target_id, rating, text, created_at)
+
+In bookings: aggiungere review_submitted BOOL default false, set true on review create.
+
+Backend
+
+POST /api/reviews valida: ownership + booking COMPLETED + 1:1 booking→review.
+
+UI
+
+Disabilita/occulta il CTA recensione se non ammissibile; mostra tooltip: “Disponibile dopo aver completato l’esperienza”.
+
+Tests
+
+Tentativi non ammessi → 403.
+
+Flusso ammesso → 200 + set review_submitted=true.
+
+4) Like for Hype (interesse, non recensione)
+
+Requisiti
+
+Like “leggero” per tour, servizi e guide (non sostituisce la recensione).
+
+Una sola volta per utente/target (toggle on/off senza assegnare punti multipli).
+
+Calcolo hype_score: w1*likes + w2*recentLikesDecay + w3*clickthrough + w4*saves (impostare default w1=1, w2=0.5, w3=0.2, w4=0.1). Decadimento temporale (7 giorni).
+
+Effetto ranking: Discover e Explore Map ordinano tenendo conto dell’hype (dopo raggio e lingua).
+
+WebSocket push hype_update:{target_id} per aggiornare contatori in tempo reale.
+
+DB
+
+hype_likes(id, user_id, target_type, target_id, created_at, UNIQUE(user_id, target_type, target_id))
+
+Campo hype_score in viste/materialized view o calcolo on-the-fly con caching.
+
+Backend
+
+POST /api/hype/like
+
+DELETE /api/hype/like
+
+GET /api/hype/score?target_type=&target_id=
+
+Anti-abuso
+
+Rate limit 30/min.
+
+No punti reward se un utente toggla ripetutamente (dedup).
+
+5) Nome Guida → link a profilo guida
+
+Requisiti
+
+Su ogni card/details di tour: il nome guida è un link → /guide/:id.
+
+Pagina guida:
+
+Bio, lingue parlate, badge (Verified/Trust Level).
+
+Lista tour proposti (filtrati per lingua utente — vedi §6).
+
+Pulsanti: Like (Hype) per guida, Follow (se già presente), Contatta (se policy lo consente).
+
+SEO: meta og/ twitter card per condivisione pagina guida.
+
+6) Lingue obbligatorie + auto-traduzione + visibilità per lingua
+
+Requisiti
+
+In creazione/modifica Tour e Servizio:
+
+Campo obbligatorio multiselect: lingue disponibili (IT, EN, FR, DE, ES, PT, JP, CN, RU…).
+
+Se non selezioni almeno una lingua → blocco pubblicazione.
+
+Alla pubblicazione: auto-traduzione server-side (title, shortDesc, longDesc, included/notIncluded, policy) per ogni lingua selezionata.
+
+Salvataggio in i18n_payload JSON per localizzazioni:
+{ it: {...}, en: {...}, fr: {...}, ... }
+
+Visibilità: mostrare un tour/servizio solo agli utenti la cui lingua app è contenuta nelle lingue disponibili del contenuto.
+
+Se l’utente cambia lingua in app → listing e mappe si aggiornano (query param o header Accept-Language).
+
+Backend
+
+POST /api/i18n/translate-content (internal)
+
+available_languages ARRAY su tours e services; i18n_payload JSONB con contenuti tradotti.
+
+UI
+
+Badge lingua sul contenuto (pill IT/EN/…).
+
+Filtro lingua attivo in Discover/Map.
+
+Tests
+
+Creazione tour senza lingue → 400.
+
+Auto-traduzione completata → payload per ogni lingua.
+
+Query per lingua utente → restituisce solo contenuti match.
+
+7) i18n, sicurezza, performance
+
+Aggiornare i file di localizzazione EN/IT/FR/DE/ES per nuove stringhe (map, geoconsent, hype, reviews policy, itinerary error).
+
+Rate limiting sugli endpoint hype, AI itinerary, reviews.
+
+Caching risultati map/discover per raggio+lingua (60s).
+
+Log strutturati per errori Itinerary Builder (no PII).
+
+GDPR: memorizzare consenso geolocalizzazione.
+
+8) Acceptance Criteria
+
+Explore Map si apre sempre centrata su posizione o destinazione impostata.
+
+AI Itinerary Builder non crasha: valida input, fallback se AI fallisce, risposte localizzate.
+
+Recensioni: solo post-acquisto e post-utilizzo (booking COMPLETED); una per prenotazione.
+
+Like for Hype attivo per tour/servizi/guide; ranking visibile su Discover/Map; real-time counter OK.
+
+Nome guida cliccabile → profilo guida con info + lista tour + like.
+
+Lingue: selezione obbligatoria, auto-traduzione lato server, visibilità filtrata per lingua utente.
+
+Tutte le modifiche tradotte (EN/IT/FR/DE/ES) e coperte da test (unit, integration, e2e).
+
+9) Test & Seed (Siracusa)
+
+Test end-to-end:
+
+Login turista → Explore Map centra su Siracusa.
+
+Scelta destinazione manuale → mappa aggiorna listing.
+
+AI Itinerary: input valido → itinerario generato; input invalido → messaggio localizzato + fallback.
+
+Tour non acquistato → niente recensione; tour completato → review abilitata.
+
+Like (hype) su tour/servizio/guida → conteggio real-time e ranking in Discover.
+
+Cambio lingua app → listing mostra solo contenuti tradotti in quella lingua.
+
+Seed dati Siracusa:
+
+5 guide con profili completi (lingue miste).
+
+5 tour (Ortigia, Neapolis, Plemmirio, Barca al tramonto, Food tour) con available_languages diversi e i18n_payload compilato.
+
+5 servizi (nolo bici, kayak, street food, cooking class, transfer) idem.
+
+10 turisti test per like/hype e recensioni gating.
+
+1 admin per verificare tutto.
+
+🔚 Istruzione operativa finale
+
+Applica tutte le modifiche sopra in quest’ordine:
+(1) Geo + Explore Map → (2) AI Itinerary Builder fix → (3) Reviews policy gating → (4) Like for Hype + ranking → (5) Guide profile link → (6) Lingue obbligatorie + auto-traduzione + visibilità filtrata → (7) i18n/security/perf → (8) Test & seed Siracusa.
+Consegna solo dopo che tutti gli acceptance criteria e i test passano.

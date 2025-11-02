@@ -17,7 +17,7 @@ export interface WSMessage {
 }
 
 export function useWebSocket(onMessage?: (message: WSMessage) => void) {
-  const { user } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
@@ -28,7 +28,7 @@ export function useWebSocket(onMessage?: (message: WSMessage) => void) {
   }, [onMessage]);
   
   useEffect(() => {
-    if (!user) return;
+    if (!user || isLoading || !isAuthenticated) return;
     
     const connectWebSocket = () => {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -78,7 +78,7 @@ export function useWebSocket(onMessage?: (message: WSMessage) => void) {
         wsRef.current.close();
       }
     };
-  }, [user]);
+  }, [user, isLoading, isAuthenticated]);
   
   const sendMessage = useCallback((message: WSMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
