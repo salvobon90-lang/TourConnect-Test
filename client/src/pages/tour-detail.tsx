@@ -11,7 +11,6 @@ import { Link } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { SEO } from '@/components/seo';
 import { ReviewsList } from '@/components/reviews/ReviewsList';
-import { CreateReviewForm } from '@/components/reviews/CreateReviewForm';
 import { GroupBookingCard } from '@/components/GroupBookingCard';
 import { ParticipantsList } from '@/components/ParticipantsList';
 import { SmartShareCard } from '@/components/SmartShareCard';
@@ -160,9 +159,14 @@ export default function TourDetail() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-lg">
-                        {tour.guide.firstName} {tour.guide.lastName}
-                      </p>
+                      <Link href={`/guide/${tour.guide.id}`}>
+                        <button 
+                          className="font-semibold text-lg hover:text-orange-600 hover:underline transition-colors cursor-pointer text-left"
+                          aria-label={`View ${tour.guide.firstName} ${tour.guide.lastName}'s profile`}
+                        >
+                          {tour.guide.firstName} {tour.guide.lastName}
+                        </button>
+                      </Link>
                       {tour.guide.verified && <PartnerBadge verified={true} size="sm" />}
                     </div>
                     <p className="text-muted-foreground">{t('roles.guide')}</p>
@@ -172,10 +176,6 @@ export default function TourDetail() {
 
               {/* Reviews Section */}
               <div className="space-y-6">
-                {user && user.role === 'tourist' && (
-                  <CreateReviewForm tourId={id} />
-                )}
-                
                 <ReviewsList tourId={id} />
               </div>
             </div>

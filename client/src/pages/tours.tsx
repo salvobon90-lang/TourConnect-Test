@@ -236,9 +236,16 @@ export default function Tours() {
                       </Avatar>
                       
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate" data-testid={`text-guide-${tour.id}`}>
-                          {tour.guide?.firstName} {tour.guide?.lastName}
-                        </p>
+                        <Link href={`/guide/${tour.guide?.id}`}>
+                          <button 
+                            className="text-sm font-medium truncate hover:text-orange-600 hover:underline transition-colors cursor-pointer text-left w-full"
+                            onClick={(e) => e.stopPropagation()}
+                            data-testid={`text-guide-${tour.id}`}
+                            aria-label={`View ${tour.guide?.firstName} ${tour.guide?.lastName}'s profile`}
+                          >
+                            {tour.guide?.firstName} {tour.guide?.lastName}
+                          </button>
+                        </Link>
                         <div className="flex items-center gap-2">
                           {tour.guide?.trustLevel !== undefined && tour.guide.trustLevel !== null && tour.guide.trustLevel > 0 && (
                             <TrustLevel level={tour.guide.trustLevel} variant="badge" showLabel={false} />

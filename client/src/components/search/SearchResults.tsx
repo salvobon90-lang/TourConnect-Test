@@ -41,7 +41,7 @@ export function SearchResults({ results, query, onClose }: SearchResultsProps) {
               {results.guides.slice(0, 3).map((guide) => (
                 <button
                   key={guide.id}
-                  onClick={() => handleClick('guides', guide.id)}
+                  onClick={() => handleClick('guide', guide.id)}
                   className="w-full text-left p-2 rounded hover:bg-accent transition-colors"
                 >
                   <div className="flex items-center gap-3">
@@ -50,7 +50,7 @@ export function SearchResults({ results, query, onClose }: SearchResultsProps) {
                       <AvatarFallback>{guide.name?.[0]}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{guide.name}</p>
+                      <p className="font-medium truncate hover:text-orange-600 transition-colors">{guide.name}</p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         {guide.city && (
                           <span className="flex items-center gap-1">

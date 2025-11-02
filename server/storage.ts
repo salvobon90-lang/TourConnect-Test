@@ -3029,7 +3029,7 @@ export class DatabaseStorage implements IStorage {
         tourLatitude: tours.latitude,
         tourLongitude: tours.longitude,
         // Guide details
-        guideId: users.id,
+        guideId: tours.guideId,
         guideName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
         guideImage: users.profileImageUrl,
         guideTrustLevel: users.trustLevel,

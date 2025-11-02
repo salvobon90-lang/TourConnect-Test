@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -199,9 +199,16 @@ export default function SearchPage() {
                   <h2 className="text-xl font-semibold mb-4">{t('search.guidesCount', { count: results.guides.length })}</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {results.guides.map((guide: any) => (
-                      <Card key={guide.id} className="p-4">
-                        <p className="font-medium">{guide.name}</p>
-                        <p className="text-sm text-muted-foreground">{guide.city}</p>
+                      <Card key={guide.id} className="p-4 hover:shadow-lg transition-shadow">
+                        <Link href={`/guide/${guide.id}`}>
+                          <button 
+                            className="font-medium text-foreground hover:text-orange-600 transition-colors w-full text-left"
+                            aria-label={`View ${guide.name}'s profile`}
+                          >
+                            {guide.name}
+                          </button>
+                        </Link>
+                        <p className="text-sm text-muted-foreground mt-1">{guide.city}</p>
                       </Card>
                     ))}
                   </div>

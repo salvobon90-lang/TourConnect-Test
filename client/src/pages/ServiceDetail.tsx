@@ -73,13 +73,16 @@ export default function ServiceDetail() {
               </Button>
             </div>
             
-            <Link href={`/profile/${service.provider?.id}`}>
-              <p className="text-lg text-muted-foreground hover:text-primary">
+            <Link href={`/guide/${service.provider?.id}`}>
+              <button 
+                className="text-lg text-muted-foreground hover:text-orange-600 hover:underline transition-colors cursor-pointer text-left"
+                aria-label={`View ${service.provider?.name}'s profile`}
+              >
                 {t('services.byProvider', { name: service.provider?.name })}
                 {service.provider?.isPartner && (
                   <Badge className="ml-2">{t('services.verified')}</Badge>
                 )}
-              </p>
+              </button>
             </Link>
           </div>
           

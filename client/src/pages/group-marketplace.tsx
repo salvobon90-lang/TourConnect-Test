@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'wouter';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,7 @@ interface MarketplaceGroup {
   groupCode: string;
   meetingPoint: string;
   tourLanguages: string[];
+  guideId: string;
   guideName: string;
   guideImage: string;
   guideTrustLevel: number;
@@ -315,7 +317,21 @@ function GroupCard({ group }: { group: MarketplaceGroup }) {
               <AvatarImage src={group.guideImage} />
               <AvatarFallback>{group.guideName?.[0]}</AvatarFallback>
             </Avatar>
-            <span className="text-sm text-muted-foreground">{group.guideName}</span>
+            {group.guideId ? (
+              <Link href={`/guide/${group.guideId}`}>
+                <button 
+                  className="text-sm text-muted-foreground hover:text-orange-600 hover:underline transition-colors cursor-pointer"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`View ${group.guideName}'s profile`}
+                >
+                  {group.guideName}
+                </button>
+              </Link>
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                {group.guideName}
+              </span>
+            )}
             {group.guideTrustLevel >= 3 && (
               <Badge variant="outline" className="text-xs">
                 ⭐ {t('marketplace.verified')}

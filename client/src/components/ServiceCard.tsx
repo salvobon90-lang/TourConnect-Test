@@ -62,10 +62,13 @@ export function ServiceCard({ service, onLike }: ServiceCardProps) {
           </Button>
         </div>
         
-        <Link href={`/profile/${service.provider?.id}`}>
-          <p className="text-sm text-muted-foreground hover:text-primary mb-2">
+        <Link href={`/guide/${service.provider?.id}`}>
+          <button 
+            className="text-sm text-muted-foreground hover:text-orange-600 hover:underline transition-colors cursor-pointer text-left mb-2"
+            aria-label={`View ${service.provider?.name}'s profile`}
+          >
             {t('services.byProvider', { name: service.provider?.name })}
-          </p>
+          </button>
         </Link>
         
         <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
