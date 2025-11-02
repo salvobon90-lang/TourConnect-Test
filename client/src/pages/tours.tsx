@@ -286,7 +286,8 @@ export default function Tours() {
                     </Link>
                   </div>
                 </AnimatedCard>
-              ))}
+              );
+              })}
             </div>
           )}
         </div>
