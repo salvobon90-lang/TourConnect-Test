@@ -45,6 +45,23 @@ TourConnect is a comprehensive tourism platform designed to connect tourists, to
 
 **Note**: Phase 13 production-ready and architect-approved. All localization complete with zero hard-coded strings, atomic WebSocket operations verified, end-to-end tour creation flow functional.
 
+**Admin UX Improvements (November 2025):**
+- **Streamlined Admin Login Flow**: Admin and supervisor users now bypass onboarding screens and redirect directly to their dashboard after authentication, eliminating unnecessary steps and improving workflow efficiency
+- **Supervisor Dashboard Enhancements**: Added fully functional logout button in dashboard header with proper error handling, session invalidation, success/error toast notifications, and redirect to admin login page
+- **Complete Supervisor Translation Coverage**: Added comprehensive `dashboards.supervisor` namespace to all 5 locale files (EN, IT, FR, DE, ES) including:
+  - Main interface: title, subtitle ("Benvenuto/a" in IT / "Welcome" in EN), stats labels ("Approvazioni in sospeso" in IT / "Pending Approvals" in EN)
+  - User management: approval/rejection confirmations, role promotion messages
+  - Tour/service moderation: approval workflows, status messages
+  - All toast notifications and UI elements with idiomatic, grammatically correct translations reviewed by architect
+- **Siracusa Test Data Seed**: Created `server/seed.ts` script with realistic test data for QA/demo purposes:
+  - 10 users: 1 admin (admin@test.com), 2 guides (Marco Rossi, Giulia Bianchi), 2 providers (Sicilian Adventures, Taste of Sicily), 5 tourists
+  - 5 approved tours: Ortigia Walking Tour, Siracusa in Barca, Tramonto a Plemmirio, Cibo & Storia, Neapolis Archaeological Park
+  - 5 approved services: bike rental, kayak tours, street food, cooking class, airport transfer
+  - All data geo-located around Siracusa, Sicily (37.0755°N, 15.2866°E) with rich descriptions, pricing, availability
+  - npm script: `npm run seed` to populate/reset test database
+
+**Note**: All improvements architect-reviewed and production-ready. Admin login flow optimized, supervisor dashboard fully internationalized with proper logout functionality, comprehensive test data available for end-to-end validation.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
