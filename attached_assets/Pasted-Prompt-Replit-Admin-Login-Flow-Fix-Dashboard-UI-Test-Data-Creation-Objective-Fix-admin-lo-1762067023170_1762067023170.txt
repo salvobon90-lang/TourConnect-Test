@@ -1,0 +1,160 @@
+Prompt Replit — Admin Login Flow Fix + Dashboard UI + Test Data Creation
+
+🚀 Objective: Fix admin login behavior, correct dashboard text elements, add missing logout button, apply translations, and seed realistic test data (Siracusa).
+
+🧠 Tasks to Perform
+1️⃣ Fix Admin Login Redirect Bug
+
+Issue:
+After logging in as admin, the system incorrectly redirects to a “welcome / onboarding” screen (“Benvenuto su TourConnect – Inizia la tua avventura”) instead of the dashboard.
+
+Fix Requirements:
+
+Modify authentication flow:
+
+If user.role === 'admin' or user.role === 'supervisor', skip onboarding.
+
+Redirect immediately to /admin/dashboard.
+
+Disable onboarding UI for these roles entirely.
+
+Ensure JWT/session validation logic does not trigger registration screens for admin users.
+
+✅ Expected behavior:
+Admin logs in → instantly lands on /admin/dashboard.
+
+2️⃣ Add Logout Button to Admin Dashboard
+
+Requirements:
+
+Add visible logout button (top-right corner of dashboard header or sidebar).
+
+Action:
+
+Clear authentication tokens/session.
+
+Redirect to /login.
+
+Show success message: “Disconnessione effettuata con successo.”
+
+UI Suggestion (React/Next Example):
+
+<Button
+  variant="outline"
+  onClick={() => {
+    auth.logout();
+    router.push('/login');
+  }}
+>
+  <LogOut className="mr-2 h-4 w-4" /> Esci
+</Button>
+
+3️⃣ Update Dashboard Texts
+
+Changes:
+
+Element	Current	Replace With
+Subtitle	dashboards.supervisor.subtitle	Benvenuto/a
+Pending Requests Label	dashboards.supervisor.stats.pendingApproval	Approvazioni in sospeso
+
+Additional Requirements:
+
+Update translation keys for IT / EN / FR / DE / ES.
+
+Italian default must be applied immediately.
+
+Test language switcher and confirm proper translation loading.
+
+4️⃣ Testing & QA
+
+Perform end-to-end testing after changes:
+
+✅ Admin login → lands on dashboard directly.
+
+✅ Dashboard subtitle = “Benvenuto/a”.
+
+✅ “Approvazioni in sospeso” correctly visible in stats card.
+
+✅ Logout button appears and functions properly.
+
+✅ No layout regression for other user roles.
+
+✅ Translation tested in all 5 supported languages.
+
+5️⃣ Seed Test Data (for QA & UI Testing)
+
+Create demo users, tours, and services for the Siracusa area.
+
+Users:
+
+1 Admin (admin@test.com)
+
+2 Guide users
+
+2 Service Providers
+
+5 Tourists
+
+Tours (5 total):
+
+“Ortigia Walking Tour” — storico culturale
+
+“Siracusa in Barca” — giro della costa
+
+“Tramonto a Plemmirio” — escursione fotografica
+
+“Cibo & Storia” — tour enogastronomico
+
+“Neapolis Experience” — visita al Parco Archeologico
+
+Services (5 total):
+
+Noleggio Bici Siracusa
+
+Gita in Kayak Ognina
+
+Street Food Siciliano
+
+Cooking Class Siracusana
+
+Transfer Aeroporto Catania → Siracusa
+
+🧠 All data must include:
+
+Geo-coordinates around Siracusa
+
+Images (stock placeholders ok)
+
+Proper tags, descriptions, and language availability
+
+Prices and availability set for testing
+
+6️⃣ Verification
+
+Run full QA and integration tests:
+
+✅ Login flow (admin, guide, provider, tourist)
+
+✅ Dashboard UI
+
+✅ Translations
+
+✅ Data rendering (tours/services visible)
+
+✅ Logout + session handling
+
+✅ Deliverables
+
+Fixed admin login flow
+
+Working logout button
+
+Updated translations (“Benvenuto/a”, “Approvazioni in sospeso”)
+
+Fully seeded demo environment with 5 tours + 5 services (Siracusa area)
+
+All tests passed (no console or runtime errors)
+
+📜 Prompt to copy in Replit:
+
+“Fix admin login flow to skip onboarding and redirect directly to dashboard, add logout button in admin dashboard, replace text ‘dashboards.supervisor.subtitle’ with ‘Benvenuto/a’, replace ‘dashboards.supervisor.stats.pendingApproval’ with ‘Approvazioni in sospeso’, update translations in all 5 languages, and test all changes. Then create 5 tours and 5 services for Siracusa (with test users) to verify app functionality end-to-end.”

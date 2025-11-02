@@ -120,7 +120,8 @@ function Router() {
   }
 
   // Show onboarding for new authenticated users (only once)
-  if (!localStorage.getItem('onboardingCompleted')) {
+  // Skip onboarding for admin and supervisor roles
+  if (!localStorage.getItem('onboardingCompleted') && user?.role !== 'admin' && user?.role !== 'supervisor') {
     return (
       <Suspense fallback={<PageLoader />}>
         <Onboarding />
