@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useUserLocation } from '@/hooks/use-location';
@@ -16,7 +16,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { JoinGroupModal } from '@/components/JoinGroupModal';
 import { GroupStatusBadge } from '@/components/GroupStatusBadge';
 import { GroupProgressBar } from '@/components/GroupProgressBar';
-import { MapPin, Filter, X, Users, Compass, Euro, TrendingDown, Award } from 'lucide-react';
+import { MapPin, Filter, X, Users, Compass, Euro, TrendingDown, Award, Navigation, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SEO } from '@/components/seo';
 import { useToast } from '@/hooks/use-toast';
@@ -49,6 +49,16 @@ const blueIcon = new L.Icon({
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
+});
+
+// Custom green marker icon for user location
+const greenIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [30, 49],
+  iconAnchor: [15, 49],
+  popupAnchor: [1, -42],
+  shadowSize: [45, 45]
 });
 
 interface SmartGroup {
@@ -85,6 +95,9 @@ interface CommunityTour {
   }>;
   guideId: string;
   guideName?: string;
+  distance?: number | null;
+  isSponsored?: boolean;
+  availableLanguages?: string[];
 }
 
 type ViewMode = 'groups' | 'tours';
@@ -176,34 +189,89 @@ function MapController({ center }: { center: [number, number] }) {
 }
 
 export default function CommunityMapPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { toast } = useToast();
-  const { location, requestLocation, loading: locationLoading } = useUserLocation();
+  const { location, requestLocation, loading: locationLoading, getGeoContext, geoContext } = useUserLocation();
   const [showFilters, setShowFilters] = useState(true);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('groups');
+  const [mapKey, setMapKey] = useState(0); // For forcing map re-center
   const [filters, setFilters] = useState({
     category: 'all' as 'all' | 'tours' | 'services',
     status: 'all' as 'all' | 'active' | 'almostFull',
-    radius: 50,
+    radius: 20, // Will be updated from backend
     difficulty: 'all' as 'all' | 'easy' | 'moderate' | 'challenging' | 'expert',
     minPrice: 0,
     maxPrice: 500,
     minSpots: 0,
   });
 
-  // Default to Rome if no location
-  const mapCenter: [number, number] = location
-    ? [location.latitude, location.longitude]
-    : [41.9028, 12.4964];
+  // Determine map center from geoContext or location or default
+  const mapCenter: [number, number] = 
+    geoContext?.location 
+      ? [geoContext.location.latitude, geoContext.location.longitude]
+      : location
+        ? [location.latitude, location.longitude]
+        : [41.9028, 12.4964]; // Default to Rome
+        
+  // Get current language for filtering
+  const currentLanguage = i18n.language || 'en';
+  
+  // Load geoContext on mount
+  useEffect(() => {
+    const loadGeoContext = async () => {
+      const context = await getGeoContext();
+      if (context) {
+        // Update radius from backend if available
+        if (context.radius) {
+          setFilters(prev => ({ ...prev, radius: context.radius }));
+        }
+        
+        // If no location available, prompt user
+        if (!context.location && !context.hasConsent) {
+          toast({
+            title: t('discover.locationDenied'),
+            description: t('communityMap.enableLocationPrompt'),
+            action: (
+              <Button onClick={() => requestLocation()} size="sm">
+                {t('dashboards.tourist.enableLocation')}
+              </Button>
+            ),
+            duration: 8000,
+          });
+        }
+      } else {
+        // Not authenticated or no context, try to get browser location
+        if (!location) {
+          requestLocation(false); // Don't persist to DB if not authenticated
+        }
+      }
+    };
+    
+    loadGeoContext();
+  }, []);
+  
+  // Center on user's location
+  const handleCenterOnLocation = useCallback(() => {
+    if (geoContext?.location || location) {
+      setMapKey(prev => prev + 1); // Force map re-render to center
+      toast({
+        title: t('communityMap.centered'),
+        description: t('communityMap.centeredOnLocation'),
+        duration: 2000,
+      });
+    } else {
+      requestLocation();
+    }
+  }, [geoContext, location, requestLocation, toast, t]);
 
   const { data: groups = [], isLoading: groupsLoading } = useQuery<SmartGroup[]>({
-    queryKey: ['/api/smart-groups/nearby', location?.latitude, location?.longitude, filters.radius],
+    queryKey: ['/api/smart-groups/nearby', mapCenter[0], mapCenter[1], filters.radius],
     queryFn: async () => {
       const params = new URLSearchParams({
-        lat: (location?.latitude || 41.9028).toString(),
-        lng: (location?.longitude || 12.4964).toString(),
+        lat: mapCenter[0].toString(),
+        lng: mapCenter[1].toString(),
         radius: filters.radius.toString(),
       });
       const res = await fetch(`/api/smart-groups/nearby?${params}`, {
@@ -214,16 +282,16 @@ export default function CommunityMapPage() {
       }
       return res.json();
     },
-    enabled: !!location || true,
   });
 
   const { data: tours = [], isLoading: toursLoading } = useQuery<CommunityTour[]>({
-    queryKey: ['/api/community-tours', location?.latitude, location?.longitude, filters.radius],
+    queryKey: ['/api/community-tours', mapCenter[0], mapCenter[1], filters.radius, currentLanguage],
     queryFn: async () => {
       const params = new URLSearchParams({
-        lat: (location?.latitude || 41.9028).toString(),
-        lng: (location?.longitude || 12.4964).toString(),
+        lat: mapCenter[0].toString(),
+        lng: mapCenter[1].toString(),
         radius: filters.radius.toString(),
+        language: currentLanguage,
       });
       const res = await fetch(`/api/community-tours?${params}`, {
         credentials: 'include',
@@ -233,7 +301,6 @@ export default function CommunityMapPage() {
       }
       return res.json();
     },
-    enabled: !!location || true,
   });
 
   const isLoading = viewMode === 'groups' ? groupsLoading : toursLoading;
@@ -262,8 +329,23 @@ export default function CommunityMapPage() {
     const availableSpots = tour.maxGroupSize - tour.currentParticipants;
     if (availableSpots < filters.minSpots) return false;
     
+    // Language filtering (prepare for future - currently showing all)
+    // When availableLanguages is implemented, uncomment:
+    // if (tour.availableLanguages && !tour.availableLanguages.includes(currentLanguage)) {
+    //   return false;
+    // }
+    
     return true;
   });
+  
+  // Helper function to format distance
+  const formatDistance = (distanceKm: number | null | undefined): string => {
+    if (distanceKm === null || distanceKm === undefined) return '';
+    if (distanceKm < 1) {
+      return `${Math.round(distanceKm * 1000)}m`;
+    }
+    return `${distanceKm.toFixed(1)}km`;
+  };
 
   const queryClient = useQueryClient();
   
@@ -597,6 +679,22 @@ export default function CommunityMapPage() {
               </Button>
             </motion.div>
           )}
+          
+          {/* Center on My Location Button */}
+          <motion.div
+            className="absolute bottom-24 right-4 z-[1000]"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+          >
+            <Button
+              onClick={handleCenterOnLocation}
+              className="bg-white hover:bg-gray-100 text-gray-800 shadow-lg"
+              size="icon"
+              title={t('communityMap.centerOnLocation')}
+            >
+              <Navigation className="w-5 h-5" />
+            </Button>
+          </motion.div>
 
           {/* Map */}
           {isLoading || locationLoading ? (
@@ -608,6 +706,7 @@ export default function CommunityMapPage() {
             </div>
           ) : (
             <MapContainer
+              key={mapKey}
               center={mapCenter}
               zoom={13}
               className="w-full h-full"
@@ -619,16 +718,44 @@ export default function CommunityMapPage() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
-              {/* User Location Marker */}
-              {location && (
-                <Marker position={[location.latitude, location.longitude]}>
-                  <Popup>
-                    <div className="text-center">
-                      <p className="font-semibold">{t('discover.nearYou')}</p>
-                      <p className="text-sm text-muted-foreground">{t('common.you')}</p>
-                    </div>
-                  </Popup>
-                </Marker>
+              {/* User Location Marker with Green Icon */}
+              {(geoContext?.location || location) && (
+                <>
+                  <Marker 
+                    position={[
+                      geoContext?.location?.latitude || location!.latitude, 
+                      geoContext?.location?.longitude || location!.longitude
+                    ]}
+                    icon={greenIcon}
+                  >
+                    <Popup>
+                      <div className="text-center">
+                        <p className="font-semibold text-green-600">{t('communityMap.yourLocation')}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {geoContext?.location?.type === 'destination' 
+                            ? t('communityMap.preferredDestination')
+                            : t('communityMap.currentGPS')}
+                        </p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                  
+                  {/* Radius Circle Overlay */}
+                  <Circle
+                    center={[
+                      geoContext?.location?.latitude || location!.latitude, 
+                      geoContext?.location?.longitude || location!.longitude
+                    ]}
+                    radius={filters.radius * 1000} // Convert km to meters
+                    pathOptions={{
+                      fillColor: '#FF6600',
+                      fillOpacity: 0.1,
+                      color: '#FF6600',
+                      weight: 2,
+                      opacity: 0.4,
+                    }}
+                  />
+                </>
               )}
 
               {/* Smart Group Markers */}
@@ -658,10 +785,11 @@ export default function CommunityMapPage() {
                           target={group.targetParticipants}
                         />
 
-                        {group.distance && (
-                          <p className="text-xs text-muted-foreground">
-                            {t('smartGroups.distance', { distance: group.distance.toFixed(1) })}
-                          </p>
+                        {group.distance !== undefined && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Navigation className="w-3 h-3" />
+                            <span>{formatDistance(group.distance)} {t('common.away')}</span>
+                          </div>
                         )}
 
                         <Button
@@ -701,12 +829,26 @@ export default function CommunityMapPage() {
                           <TourStatusBadge status={tour.status} />
                         </div>
 
+                        {/* Sponsored Badge */}
+                        {tour.isSponsored && (
+                          <Badge className="bg-yellow-500 text-white flex items-center gap-1 w-fit">
+                            <Star className="w-3 h-3 fill-white" />
+                            {t('badges.sponsored')}
+                          </Badge>
+                        )}
+
                         {/* Category and difficulty badges */}
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant="outline" className="text-xs">
                             {tour.category}
                           </Badge>
                           <DifficultyBadge difficulty={tour.difficulty} />
+                          {tour.distance !== undefined && tour.distance !== null && (
+                            <Badge variant="outline" className="text-xs flex items-center gap-1">
+                              <Navigation className="w-3 h-3" />
+                              {formatDistance(tour.distance)}
+                            </Badge>
+                          )}
                         </div>
 
                         {/* Description */}

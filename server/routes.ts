@@ -901,7 +901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/community-tours', async (req, res) => {
     try {
-      const { lat, lng, radius = 50 } = req.query;
+      const { lat, lng, radius = 50, language } = req.query;
       
       // Fetch all active community tours
       let communityTours = await db.select().from(tours)
@@ -914,7 +914,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         );
       
-      // If location provided, filter by distance
+      // Get active sponsored tours for highlighting
+      const sponsoredTourIds = await storage.getActiveSponsoredTours();
+      
+      // If location provided, calculate distance and filter by radius
+      let toursWithDistance: any[] = [];
       if (lat !== undefined && lng !== undefined) {
         const userLat = parseFloat(lat as string);
         const userLng = parseFloat(lng as string);
@@ -922,14 +926,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Validate parsed values
         if (!isNaN(userLat) && !isNaN(userLng) && !isNaN(maxRadius)) {
-          communityTours = communityTours.filter((tour: any) => {
-            const distance = calculateDistance(userLat, userLng, tour.latitude, tour.longitude);
-            return distance <= maxRadius;
-          });
+          toursWithDistance = communityTours
+            .map((tour: any) => {
+              const distance = calculateDistance(userLat, userLng, tour.latitude, tour.longitude);
+              return {
+                ...tour,
+                distance: Math.round(distance * 100) / 100, // Round to 2 decimals
+                isSponsored: sponsoredTourIds.includes(tour.id),
+              };
+            })
+            .filter((tour: any) => tour.distance <= maxRadius);
         }
+      } else {
+        // No location provided, just add sponsored flag
+        toursWithDistance = communityTours.map((tour: any) => ({
+          ...tour,
+          distance: null,
+          isSponsored: sponsoredTourIds.includes(tour.id),
+        }));
       }
       
-      res.json(communityTours);
+      // Sort: sponsored first, then by distance (if available)
+      toursWithDistance.sort((a: any, b: any) => {
+        // Sponsored tours first
+        if (a.isSponsored && !b.isSponsored) return -1;
+        if (!a.isSponsored && b.isSponsored) return 1;
+        
+        // Then by distance (if available)
+        if (a.distance !== null && b.distance !== null) {
+          return a.distance - b.distance;
+        }
+        
+        return 0;
+      });
+      
+      res.json(toursWithDistance);
     } catch (error) {
       console.error("Error fetching community tours:", error);
       res.status(500).json({ message: "Failed to fetch community tours" });
