@@ -4528,6 +4528,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // REMOVED: Public user rewards endpoint removed for privacy
   // Users can only view their own rewards via GET /api/rewards/me
 
+  // ===== LIKE/HYPE SYSTEM API =====
+
+  // Toggle like (create or delete)
+  app.post("/api/likes/toggle", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { targetId, targetType } = req.body;
+
+      if (!targetId || !targetType) {
+        return res.status(400).json({ message: "targetId and targetType are required" });
+      }
+
+      if (!['profile', 'tour', 'service'].includes(targetType)) {
+        return res.status(400).json({ message: "Invalid targetType. Must be 'profile', 'tour', or 'service'" });
+      }
+
+      // Check if already liked
+      const alreadyLiked = await storage.checkUserLike(userId, targetId, targetType);
+
+      if (alreadyLiked) {
+        // Unlike - atomically deletes like and updates trust level in transaction
+        await storage.deleteLike(userId, targetId, targetType);
+        res.json({ success: true, liked: false });
+      } else {
+        // Like - atomically creates like, awards points, and updates trust level in transaction
+        const like = await storage.createLike(userId, targetId, targetType);
+        
+        if (!like) {
+          // Already liked (idempotent - race condition handled)
+          return res.json({ 
+            success: true, 
+            action: 'already_liked', 
+            alreadyLiked: true,
+            liked: true
+          });
+        }
+        
+        res.json({ success: true, liked: true, like });
+      }
+    } catch (error: any) {
+      console.error("Error toggling like:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Get like count for a target
+  app.get("/api/likes/:targetType/:targetId", async (req, res) => {
+    try {
+      const { targetId, targetType } = req.params;
+
+      if (!['profile', 'tour', 'service'].includes(targetType)) {
+        return res.status(400).json({ message: "Invalid targetType" });
+      }
+
+      const count = await storage.getLikesByTarget(targetId, targetType as any);
+      res.json({ count });
+    } catch (error: any) {
+      console.error("Error getting like count:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Check if current user has liked a target
+  app.get("/api/likes/:targetType/:targetId/check", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { targetId, targetType } = req.params;
+
+      if (!['profile', 'tour', 'service'].includes(targetType)) {
+        return res.status(400).json({ message: "Invalid targetType" });
+      }
+
+      const hasLiked = await storage.checkUserLike(userId, targetId, targetType as any);
+      res.json({ hasLiked });
+    } catch (error: any) {
+      console.error("Error checking like status:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Batch check like status for multiple items
+  app.get("/api/likes/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { targetIds, targetType } = req.query;
+
+      if (!targetIds || !targetType) {
+        return res.status(400).json({ message: "targetIds and targetType are required" });
+      }
+
+      if (!['profile', 'tour', 'service'].includes(targetType)) {
+        return res.status(400).json({ message: "Invalid targetType" });
+      }
+
+      const idsArray = targetIds.split(',');
+      const statusMap = await storage.getMultipleLikesStatus(userId, idsArray, targetType as any);
+      res.json(statusMap);
+    } catch (error: any) {
+      console.error("Error getting batch like status:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ===== REFERRAL SYSTEM API (Phase 7.2) =====
 
   // Get current user's referral code

@@ -121,6 +121,8 @@ import {
   type ServiceWithProvider,
   type BookingWithDetails,
   type UserRole,
+  type LikeTargetType,
+  type TrustLevel,
   type InsertPartner,
   type Partner,
   type InsertPackage,
@@ -533,6 +535,15 @@ export interface IStorage {
   // User Settings (Geolocation) operations
   getUserSettings(userId: string): Promise<UserSettings | undefined>;
   upsertUserSettings(userId: string, settings: UpdateUserSettings): Promise<UserSettings>;
+  
+  // Like operations (Hype system)
+  createLike(userId: string, targetId: string, targetType: LikeTargetType): Promise<Like | null>;
+  deleteLike(userId: string, targetId: string, targetType: LikeTargetType): Promise<void>;
+  getLikesByTarget(targetId: string, targetType: LikeTargetType): Promise<number>;
+  getUserLikes(userId: string): Promise<Like[]>;
+  checkUserLike(userId: string, targetId: string, targetType: LikeTargetType): Promise<boolean>;
+  getMultipleLikesStatus(userId: string, targetIds: string[], targetType: LikeTargetType): Promise<Record<string, boolean>>;
+  updateTrustLevel(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -5841,6 +5852,426 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return result;
+  }
+
+  async createLike(userId: string, targetId: string, targetType: LikeTargetType): Promise<Like | null> {
+    return await db.transaction(async (tx) => {
+      try {
+        // 1. Insert like
+        const [like] = await tx.insert(likes).values({
+          userId,
+          targetId,
+          targetType,
+        }).returning();
+        
+        // 2. Get target owner ID (inline query using tx)
+        let targetOwnerId: string | undefined;
+        if (targetType === 'tour') {
+          const [tour] = await tx.select({ guideId: tours.guideId })
+            .from(tours)
+            .where(eq(tours.id, targetId));
+          targetOwnerId = tour?.guideId;
+        } else if (targetType === 'service') {
+          const [service] = await tx.select({ providerId: services.providerId })
+            .from(services)
+            .where(eq(services.id, targetId));
+          targetOwnerId = service?.providerId;
+        } else if (targetType === 'profile') {
+          targetOwnerId = targetId;
+        }
+        
+        // 3. Update trust level for target owner (inline using tx)
+        if (targetOwnerId) {
+          const [user] = await tx.select({ id: users.id, role: users.role })
+            .from(users)
+            .where(eq(users.id, targetOwnerId));
+          
+          if (user && (user.role === 'guide' || user.role === 'provider')) {
+            // Get user's tours and services
+            const userTours = user.role === 'guide' 
+              ? await tx.select({ id: tours.id }).from(tours).where(eq(tours.guideId, targetOwnerId))
+              : [];
+            const userServices = user.role === 'provider'
+              ? await tx.select({ id: services.id }).from(services).where(eq(services.providerId, targetOwnerId))
+              : [];
+            
+            const allTargetIds = [
+              targetOwnerId,
+              ...userTours.map(t => t.id),
+              ...userServices.map(s => s.id)
+            ];
+            
+            // Count likes
+            const likesCountResult = await tx
+              .select({ count: sql<number>`count(*)::int` })
+              .from(likes)
+              .where(inArray(likes.targetId, allTargetIds));
+            const likesCount = likesCountResult[0]?.count || 0;
+            
+            // Get average rating
+            let avgRating = 0;
+            if (user.role === 'guide') {
+              const avgRatingResult = await tx
+                .select({ avg: sql<number>`COALESCE(AVG(${reviews.rating}), 0)` })
+                .from(reviews)
+                .innerJoin(tours, eq(reviews.tourId, tours.id))
+                .where(eq(tours.guideId, targetOwnerId));
+              avgRating = Number(avgRatingResult[0]?.avg || 0);
+            } else {
+              const avgRatingResult = await tx
+                .select({ avg: sql<number>`COALESCE(AVG(${reviews.rating}), 0)` })
+                .from(reviews)
+                .innerJoin(services, eq(reviews.serviceId, services.id))
+                .where(eq(services.providerId, targetOwnerId));
+              avgRating = Number(avgRatingResult[0]?.avg || 0);
+            }
+            
+            // Calculate trust level
+            const score = (likesCount * 2) + (avgRating * 10);
+            let level: TrustLevel = 'explorer';
+            if (score >= 201) level = 'legend';
+            else if (score >= 101) level = 'navigator';
+            else if (score >= 51) level = 'trailblazer';
+            else if (score >= 21) level = 'pathfinder';
+            
+            // Update trust level
+            await tx
+              .insert(trustLevelsTable)
+              .values({
+                userId: targetOwnerId,
+                level,
+                score,
+                likesCount,
+                averageRating: avgRating.toString(),
+                updatedAt: new Date(),
+              })
+              .onConflictDoUpdate({
+                target: trustLevelsTable.userId,
+                set: {
+                  level,
+                  score,
+                  likesCount,
+                  averageRating: avgRating.toString(),
+                  updatedAt: new Date(),
+                },
+              });
+          }
+        }
+        
+        // 4. Award points to liker (inline using tx)
+        const [likerReward] = await tx.select().from(userRewards)
+          .where(eq(userRewards.userId, userId));
+        
+        const likerPoints = rewardPoints.like;
+        let likerOldLevel: RewardLevel = 'bronze';
+        let likerNewTotalPoints: number;
+        
+        if (likerReward) {
+          likerOldLevel = likerReward.currentLevel as RewardLevel;
+          likerNewTotalPoints = likerReward.totalPoints + likerPoints;
+          const likerNewLevel = this.calculateLevel(likerNewTotalPoints);
+          
+          await tx.update(userRewards)
+            .set({
+              totalPoints: likerNewTotalPoints,
+              currentLevel: likerNewLevel,
+              updatedAt: new Date()
+            })
+            .where(eq(userRewards.userId, userId));
+        } else {
+          likerNewTotalPoints = likerPoints;
+          const likerNewLevel = this.calculateLevel(likerNewTotalPoints);
+          
+          await tx.insert(userRewards).values({
+            userId,
+            totalPoints: likerNewTotalPoints,
+            currentLevel: likerNewLevel,
+            currentStreak: 0,
+            longestStreak: 0,
+            achievementsUnlocked: []
+          });
+        }
+        
+        // Insert reward log for liker
+        await tx.insert(rewardLogs).values({
+          userId,
+          points: likerPoints,
+          action: 'like',
+          metadata: { targetId, targetType, description: `Liked ${targetType}: ${targetId}` }
+        });
+        
+        // 5. Award points to receiver (inline using tx)
+        if (targetOwnerId && targetOwnerId !== userId) {
+          const [receiverReward] = await tx.select().from(userRewards)
+            .where(eq(userRewards.userId, targetOwnerId));
+          
+          const receiverPoints = rewardPoints.receive_like;
+          let receiverNewTotalPoints: number;
+          
+          if (receiverReward) {
+            receiverNewTotalPoints = receiverReward.totalPoints + receiverPoints;
+            const receiverNewLevel = this.calculateLevel(receiverNewTotalPoints);
+            
+            await tx.update(userRewards)
+              .set({
+                totalPoints: receiverNewTotalPoints,
+                currentLevel: receiverNewLevel,
+                updatedAt: new Date()
+              })
+              .where(eq(userRewards.userId, targetOwnerId));
+          } else {
+            receiverNewTotalPoints = receiverPoints;
+            const receiverNewLevel = this.calculateLevel(receiverNewTotalPoints);
+            
+            await tx.insert(userRewards).values({
+              userId: targetOwnerId,
+              totalPoints: receiverNewTotalPoints,
+              currentLevel: receiverNewLevel,
+              currentStreak: 0,
+              longestStreak: 0,
+              achievementsUnlocked: []
+            });
+          }
+          
+          // Insert reward log for receiver
+          await tx.insert(rewardLogs).values({
+            userId: targetOwnerId,
+            points: receiverPoints,
+            action: 'receive_like',
+            metadata: { fromUserId: userId, targetType, description: `Received like on ${targetType}` }
+          });
+        }
+        
+        return like;
+      } catch (error: any) {
+        if (error.code === '23505') {
+          return null;
+        }
+        throw error;
+      }
+    });
+  }
+
+  async deleteLike(userId: string, targetId: string, targetType: LikeTargetType): Promise<void> {
+    await db.transaction(async (tx) => {
+      // 1. Delete like
+      await tx.delete(likes).where(
+        and(
+          eq(likes.userId, userId),
+          eq(likes.targetId, targetId),
+          eq(likes.targetType, targetType)
+        )
+      );
+      
+      // 2. Get target owner ID (inline query using tx)
+      let targetOwnerId: string | undefined;
+      if (targetType === 'tour') {
+        const [tour] = await tx.select({ guideId: tours.guideId })
+          .from(tours)
+          .where(eq(tours.id, targetId));
+        targetOwnerId = tour?.guideId;
+      } else if (targetType === 'service') {
+        const [service] = await tx.select({ providerId: services.providerId })
+          .from(services)
+          .where(eq(services.id, targetId));
+        targetOwnerId = service?.providerId;
+      } else if (targetType === 'profile') {
+        targetOwnerId = targetId;
+      }
+      
+      // 3. Update trust level for target owner (inline using tx)
+      if (targetOwnerId) {
+        const [user] = await tx.select({ id: users.id, role: users.role })
+          .from(users)
+          .where(eq(users.id, targetOwnerId));
+        
+        if (user && (user.role === 'guide' || user.role === 'provider')) {
+          // Get user's tours and services
+          const userTours = user.role === 'guide' 
+            ? await tx.select({ id: tours.id }).from(tours).where(eq(tours.guideId, targetOwnerId))
+            : [];
+          const userServices = user.role === 'provider'
+            ? await tx.select({ id: services.id }).from(services).where(eq(services.providerId, targetOwnerId))
+            : [];
+          
+          const allTargetIds = [
+            targetOwnerId,
+            ...userTours.map(t => t.id),
+            ...userServices.map(s => s.id)
+          ];
+          
+          // Count likes
+          const likesCountResult = await tx
+            .select({ count: sql<number>`count(*)::int` })
+            .from(likes)
+            .where(inArray(likes.targetId, allTargetIds));
+          const likesCount = likesCountResult[0]?.count || 0;
+          
+          // Get average rating
+          let avgRating = 0;
+          if (user.role === 'guide') {
+            const avgRatingResult = await tx
+              .select({ avg: sql<number>`COALESCE(AVG(${reviews.rating}), 0)` })
+              .from(reviews)
+              .innerJoin(tours, eq(reviews.tourId, tours.id))
+              .where(eq(tours.guideId, targetOwnerId));
+            avgRating = Number(avgRatingResult[0]?.avg || 0);
+          } else {
+            const avgRatingResult = await tx
+              .select({ avg: sql<number>`COALESCE(AVG(${reviews.rating}), 0)` })
+              .from(reviews)
+              .innerJoin(services, eq(reviews.serviceId, services.id))
+              .where(eq(services.providerId, targetOwnerId));
+            avgRating = Number(avgRatingResult[0]?.avg || 0);
+          }
+          
+          // Calculate trust level
+          const score = (likesCount * 2) + (avgRating * 10);
+          let level: TrustLevel = 'explorer';
+          if (score >= 201) level = 'legend';
+          else if (score >= 101) level = 'navigator';
+          else if (score >= 51) level = 'trailblazer';
+          else if (score >= 21) level = 'pathfinder';
+          
+          // Update trust level
+          await tx
+            .insert(trustLevelsTable)
+            .values({
+              userId: targetOwnerId,
+              level,
+              score,
+              likesCount,
+              averageRating: avgRating.toString(),
+              updatedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: trustLevelsTable.userId,
+              set: {
+                level,
+                score,
+                likesCount,
+                averageRating: avgRating.toString(),
+                updatedAt: new Date(),
+              },
+            });
+        }
+      }
+    });
+  }
+
+  async getLikesByTarget(targetId: string, targetType: LikeTargetType): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(likes)
+      .where(
+        and(
+          eq(likes.targetId, targetId),
+          eq(likes.targetType, targetType)
+        )
+      );
+    return result[0]?.count || 0;
+  }
+
+  async getUserLikes(userId: string): Promise<Like[]> {
+    return await db.select().from(likes).where(eq(likes.userId, userId));
+  }
+
+  async checkUserLike(userId: string, targetId: string, targetType: LikeTargetType): Promise<boolean> {
+    const result = await db
+      .select()
+      .from(likes)
+      .where(
+        and(
+          eq(likes.userId, userId),
+          eq(likes.targetId, targetId),
+          eq(likes.targetType, targetType)
+        )
+      )
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async getMultipleLikesStatus(userId: string, targetIds: string[], targetType: LikeTargetType): Promise<Record<string, boolean>> {
+    if (targetIds.length === 0) return {};
+    
+    const userLikes = await db
+      .select()
+      .from(likes)
+      .where(
+        and(
+          eq(likes.userId, userId),
+          inArray(likes.targetId, targetIds),
+          eq(likes.targetType, targetType)
+        )
+      );
+    
+    const likeMap: Record<string, boolean> = {};
+    targetIds.forEach(id => {
+      likeMap[id] = false;
+    });
+    
+    userLikes.forEach(like => {
+      likeMap[like.targetId] = true;
+    });
+    
+    return likeMap;
+  }
+
+  async updateTrustLevel(userId: string): Promise<void> {
+    const user = await this.getUser(userId);
+    if (!user || (user.role !== 'guide' && user.role !== 'provider')) {
+      return;
+    }
+    
+    const userTours = user.role === 'guide' ? await this.getMyTours(userId) : [];
+    const userServices = user.role === 'provider' ? await this.getMyServices(userId) : [];
+    
+    const allTargetIds = [
+      userId,
+      ...userTours.map(t => t.id),
+      ...userServices.map(s => s.id)
+    ];
+    
+    const likesCountResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(likes)
+      .where(inArray(likes.targetId, allTargetIds));
+    
+    const likesCount = likesCountResult[0]?.count || 0;
+    
+    const avgRating = user.role === 'guide' 
+      ? await this.getGuideAverageRating(userId)
+      : await this.getProviderAverageRating(userId);
+    
+    const score = (likesCount * 2) + (avgRating * 10);
+    
+    let level: TrustLevel = 'explorer';
+    if (score >= 201) level = 'legend';
+    else if (score >= 101) level = 'navigator';
+    else if (score >= 51) level = 'trailblazer';
+    else if (score >= 21) level = 'pathfinder';
+    else level = 'explorer';
+    
+    await db
+      .insert(trustLevelsTable)
+      .values({
+        userId,
+        level,
+        score,
+        likesCount,
+        averageRating: avgRating.toString(),
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: trustLevelsTable.userId,
+        set: {
+          level,
+          score,
+          likesCount,
+          averageRating: avgRating.toString(),
+          updatedAt: new Date(),
+        },
+      });
   }
 }
 

@@ -192,5 +192,22 @@
     },
     "leaveReview": "Laisser un Avis",
     "viewReview": "Voir l'Avis"
+  },
+  "likes": {
+    "button": {
+      "like": "J'aime",
+      "unlike": "Je n'aime plus"
+    },
+    "count": {
+      "singular": "{{count}} j'aime",
+      "plural": "{{count}} j'aime"
+    },
+    "success": {
+      "created": "Aimé avec succès",
+      "deleted": "J'aime supprimé"
+    },
+    "errors": {
+      "generic": "Échec de la mise à jour du j'aime"
+    }
   }
 }

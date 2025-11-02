@@ -81,7 +81,7 @@ export const trustLevels = ["explorer", "pathfinder", "trailblazer", "navigator"
 export type TrustLevel = typeof trustLevels[number];
 
 // Reward action types enum (Phase 6, expanded in Phase 8, Phase 9, Phase 10, Phase 11, Phase 13, Community Tours)
-export const rewardActionTypes = ["booking", "review", "like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share", "search_like", "search_review", "subscription_complete", "partnership_confirmed", "create_public_group", "join_group", "community_interaction", "complete_tour_100", "community_leader_badge", "share_completed_tour", "partner_sale", "package_created", "affiliate_conversion", "service_booking_provider", "service_completion", "service_liked", "community_tour_create", "community_tour_join"] as const;
+export const rewardActionTypes = ["booking", "review", "like", "receive_like", "group_join", "referral", "tour_complete", "profile_complete", "first_booking", "streak_bonus", "smart_group_create", "smart_group_join", "smart_group_complete", "smart_group_invite", "ai_reminder_create", "ai_coordination", "ai_summary_share", "search_like", "search_review", "subscription_complete", "partnership_confirmed", "create_public_group", "join_group", "community_interaction", "complete_tour_100", "community_leader_badge", "share_completed_tour", "partner_sale", "package_created", "affiliate_conversion", "service_booking_provider", "service_completion", "service_liked", "community_tour_create", "community_tour_join"] as const;
 export type RewardActionType = typeof rewardActionTypes[number];
 
 // Reward level tiers enum (Phase 6)
@@ -149,6 +149,7 @@ export const rewardPoints = {
   booking: 50,
   review: 25,
   like: 5,
+  receive_like: 10,
   group_join: 30,
   referral: 100,
   tour_complete: 75,

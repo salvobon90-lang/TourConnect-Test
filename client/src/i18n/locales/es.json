@@ -192,5 +192,22 @@
     },
     "leaveReview": "Dejar una Reseña",
     "viewReview": "Ver Reseña"
+  },
+  "likes": {
+    "button": {
+      "like": "Me gusta",
+      "unlike": "Ya no me gusta"
+    },
+    "count": {
+      "singular": "{{count}} me gusta",
+      "plural": "{{count}} me gusta"
+    },
+    "success": {
+      "created": "Te ha gustado con éxito",
+      "deleted": "Me gusta eliminado"
+    },
+    "errors": {
+      "generic": "Error al actualizar me gusta"
+    }
   }
 }

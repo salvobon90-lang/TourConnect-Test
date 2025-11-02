@@ -192,5 +192,22 @@
     },
     "leaveReview": "Leave a Review",
     "viewReview": "View Review"
+  },
+  "likes": {
+    "button": {
+      "like": "Like",
+      "unlike": "Unlike"
+    },
+    "count": {
+      "singular": "{{count}} like",
+      "plural": "{{count}} likes"
+    },
+    "success": {
+      "created": "Liked successfully",
+      "deleted": "Like removed"
+    },
+    "errors": {
+      "generic": "Failed to update like"
+    }
   }
 }

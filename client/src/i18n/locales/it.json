@@ -192,5 +192,22 @@
     },
     "leaveReview": "Lascia una Recensione",
     "viewReview": "Visualizza Recensione"
+  },
+  "likes": {
+    "button": {
+      "like": "Mi piace",
+      "unlike": "Non mi piace più"
+    },
+    "count": {
+      "singular": "{{count}} mi piace",
+      "plural": "{{count}} mi piace"
+    },
+    "success": {
+      "created": "Piaciuto con successo",
+      "deleted": "Mi piace rimosso"
+    },
+    "errors": {
+      "generic": "Impossibile aggiornare il mi piace"
+    }
   }
 }

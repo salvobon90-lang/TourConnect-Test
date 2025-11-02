@@ -192,5 +192,22 @@
     },
     "leaveReview": "Bewertung Schreiben",
     "viewReview": "Bewertung Ansehen"
+  },
+  "likes": {
+    "button": {
+      "like": "Gefällt mir",
+      "unlike": "Gefällt mir nicht mehr"
+    },
+    "count": {
+      "singular": "{{count}} Gefällt mir",
+      "plural": "{{count}} Gefällt mir"
+    },
+    "success": {
+      "created": "Erfolgreich gefällt mir gegeben",
+      "deleted": "Gefällt mir entfernt"
+    },
+    "errors": {
+      "generic": "Fehler beim Aktualisieren des Gefällt mir"
+    }
   }
 }
