@@ -17,9 +17,10 @@ import { SEO } from '@/components/seo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
 import { TrustLevel } from '@/components/badges/TrustLevel';
+import { getLocalizedContent } from '@/lib/i18n-content';
 
 export default function Tours() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState<string>('');
   const [priceFilter, setPriceFilter] = useState<string>('');
@@ -34,12 +35,16 @@ export default function Tours() {
     queryParams.append('maxPrice', '100');
   }
   if (priceFilter === 'high') queryParams.append('minPrice', '100');
+  
+  // Add language parameter
+  queryParams.append('language', i18n.language);
 
   const queryString = queryParams.toString();
-  const queryUrl = queryString ? `/api/tours?${queryString}` : '/api/tours';
+  const queryUrl = `/api/tours?${queryString}`;
 
   const { data: tours, isLoading } = useQuery<TourWithGuide[]>({
-    queryKey: [queryUrl],
+    queryKey: ['tours', i18n.language, searchTerm, category, priceFilter],
+    queryFn: () => fetch(queryUrl, { credentials: 'include' }).then(r => r.json())
   });
 
   return (
@@ -200,12 +205,16 @@ export default function Tours() {
           {/* Tours Grid */}
           {!isLoading && tours && tours.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {tours.map((tour) => (
+              {tours.map((tour) => {
+                // Apply localized content
+                const localizedTour = getLocalizedContent(tour, i18n.language);
+                
+                return (
                 <AnimatedCard key={tour.id} className="overflow-hidden hover-elevate" data-testid={`tour-card-${tour.id}`} enableTilt>
                   <div className="relative h-48 overflow-hidden">
                     <img
                       src={tour.images[0] || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021'}
-                      alt={tour.title}
+                      alt={localizedTour.title}
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
@@ -222,10 +231,10 @@ export default function Tours() {
                       </Badge>
                     </div>
                     <h3 className="text-xl font-semibold mb-2 line-clamp-1" data-testid={`text-title-${tour.id}`}>
-                      {tour.title}
+                      {localizedTour.title}
                     </h3>
                     <p className="text-sm text-muted-foreground mb-3 line-clamp-2" data-testid={`text-description-${tour.id}`}>
-                      {tour.description}
+                      {localizedTour.description}
                     </p>
                     <div className="flex items-center gap-2 mb-3">
                       <Avatar className="h-8 w-8">

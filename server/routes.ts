@@ -6,7 +6,7 @@ import { isPartner } from "./middleware/auth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey, insertPartnerSchema, type InsertPartner, type Partner, insertPackageSchema, type InsertPackage, type Package, insertCouponSchema, insertAffiliateLinkSchema, type InsertCoupon, type Coupon, type InsertAffiliateLink, type AffiliateLink, insertExternalConnectorSchema, type InsertExternalConnector, type ExternalConnector, tours } from "@shared/schema";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey, insertPartnerSchema, type InsertPartner, type Partner, insertPackageSchema, type InsertPackage, type Package, insertCouponSchema, insertAffiliateLinkSchema, type InsertCoupon, type Coupon, type InsertAffiliateLink, type AffiliateLink, insertExternalConnectorSchema, type InsertExternalConnector, type ExternalConnector, tours, services } from "@shared/schema";
 import { randomUUID, createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { 
@@ -845,30 +845,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tour routes
-  app.get('/api/tours', async (req, res) => {
+  app.get('/api/tours', async (req: any, res) => {
     try {
-      const { category, search, minPrice, maxPrice } = req.query;
-      let tours = await storage.getTours();
+      const { category, search, minPrice, maxPrice, language } = req.query;
+      const userLanguage = (language as string) || 'en';
       
-      // Apply filters
+      // Check if user is authenticated and get their role
+      let userRole = null;
+      if (req.user) {
+        const user = await storage.getUser(req.user.claims.sub);
+        userRole = user?.role;
+      }
+      
+      // Skip language filter for guides and supervisors (they need to see all their content)
+      const skipLanguageFilter = userRole === 'guide' || userRole === 'supervisor' || userRole === 'admin';
+      
+      // Build WHERE conditions for SQL filtering
+      const whereConditions = [eq(tours.approvalStatus, 'approved')];
+      
+      // Add language filter at SQL level (unless user is guide/supervisor/admin)
+      if (!skipLanguageFilter && userLanguage) {
+        whereConditions.push(sql`${tours.languages} @> ARRAY[${userLanguage}]::text[]`);
+      }
+      
+      // Fetch tours with SQL language filter
+      let toursList = await db.select().from(tours).where(and(...whereConditions));
+      
+      // Apply remaining filters in memory (these are optional query params)
       if (category) {
-        tours = tours.filter(t => t.category === category);
+        toursList = toursList.filter(t => t.category === category);
       }
       if (search) {
         const searchLower = (search as string).toLowerCase();
-        tours = tours.filter(t => 
+        toursList = toursList.filter(t => 
           t.title.toLowerCase().includes(searchLower) ||
           t.description.toLowerCase().includes(searchLower)
         );
       }
       if (minPrice) {
-        tours = tours.filter(t => t.price && parseFloat(t.price.toString()) >= parseFloat(minPrice as string));
+        toursList = toursList.filter(t => t.price && parseFloat(t.price.toString()) >= parseFloat(minPrice as string));
       }
       if (maxPrice) {
-        tours = tours.filter(t => t.price && parseFloat(t.price.toString()) <= parseFloat(maxPrice as string));
+        toursList = toursList.filter(t => t.price && parseFloat(t.price.toString()) <= parseFloat(maxPrice as string));
       }
       
-      res.json(tours);
+      res.json(toursList);
     } catch (error) {
       console.error("Error fetching tours:", error);
       res.status(500).json({ message: "Failed to fetch tours" });
@@ -910,20 +931,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/community-tours', async (req, res) => {
+  app.get('/api/community-tours', async (req: any, res) => {
     try {
       const { lat, lng, radius = 50, language } = req.query;
+      const userLanguage = (language as string) || 'en';
       
-      // Fetch all active community tours
+      // Check if user is authenticated and get their role
+      let userRole = null;
+      if (req.user) {
+        const user = await storage.getUser(req.user.claims.sub);
+        userRole = user?.role;
+      }
+      
+      // Skip language filter for guides and supervisors
+      const skipLanguageFilter = userRole === 'guide' || userRole === 'supervisor' || userRole === 'admin';
+      
+      // Build where conditions
+      const whereConditions = [
+        eq(tours.communityMode, true),
+        eq(tours.isActive, true),
+        eq(tours.approvalStatus, 'approved'),
+        inArray(tours.status, ['active', 'confirmed'])
+      ];
+      
+      // Add language filter if not skipped
+      if (!skipLanguageFilter && userLanguage) {
+        whereConditions.push(sql`${tours.languages} @> ARRAY[${userLanguage}]::text[]`);
+      }
+      
+      // Fetch all active community tours with language filter
       let communityTours = await db.select().from(tours)
-        .where(
-          and(
-            eq(tours.communityMode, true),
-            eq(tours.isActive, true),
-            eq(tours.approvalStatus, 'approved'),
-            inArray(tours.status, ['active', 'confirmed'])
-          )
-        );
+        .where(and(...whereConditions));
       
       // Get active sponsored tours for highlighting
       const sponsoredTourIds = await storage.getActiveSponsoredTours();
@@ -1185,27 +1223,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Service routes
-  app.get('/api/services', async (req, res) => {
+  app.get('/api/services', async (req: any, res) => {
     try {
-      const { type, search, priceRange } = req.query;
-      let services = await storage.getServices();
+      const { type, search, priceRange, language } = req.query;
+      const userLanguage = (language as string) || 'en';
       
-      // Apply filters
+      // Check if user is authenticated and get their role
+      let userRole = null;
+      if (req.user) {
+        const user = await storage.getUser(req.user.claims.sub);
+        userRole = user?.role;
+      }
+      
+      // Skip language filter for providers and supervisors (they need to see all their content)
+      const skipLanguageFilter = userRole === 'provider' || userRole === 'supervisor' || userRole === 'admin';
+      
+      // Build WHERE conditions for SQL filtering
+      const whereConditions = [eq(services.approvalStatus, 'approved')];
+      
+      // Add language filter at SQL level (unless user is provider/supervisor/admin)
+      if (!skipLanguageFilter && userLanguage) {
+        whereConditions.push(sql`${services.languages} @> ARRAY[${userLanguage}]::text[]`);
+      }
+      
+      // Fetch services with SQL language filter
+      let servicesList = await db.select().from(services).where(and(...whereConditions));
+      
+      // Apply remaining filters in memory (these are optional query params)
       if (type) {
-        services = services.filter(s => s.type === type);
+        servicesList = servicesList.filter(s => s.type === type);
       }
       if (search) {
         const searchLower = (search as string).toLowerCase();
-        services = services.filter(s => 
+        servicesList = servicesList.filter(s => 
           s.name.toLowerCase().includes(searchLower) ||
           s.description.toLowerCase().includes(searchLower)
         );
       }
       if (priceRange) {
-        services = services.filter(s => s.priceRange === priceRange);
+        servicesList = servicesList.filter(s => s.priceRange === priceRange);
       }
       
-      res.json(services);
+      res.json(servicesList);
     } catch (error) {
       console.error("Error fetching services:", error);
       res.status(500).json({ message: "Failed to fetch services" });

@@ -15,7 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 export default function SearchPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [location, setLocation] = useLocation();
   const searchParams = new URLSearchParams(location.split('?')[1]);
   const initialQuery = searchParams.get('q') || '';
@@ -25,13 +25,18 @@ export default function SearchPage() {
   const [filters, setFilters] = useState({
     type: 'all' as any,
     city: '',
-    language: '',
+    language: i18n.language,
     priceMin: 0,
     priceMax: 500,
     rating: 0,
   });
   const [showPackagesOnly, setShowPackagesOnly] = useState(false);
   const [partnerVerifiedOnly, setPartnerVerifiedOnly] = useState(false);
+
+  // Update language filter when i18n language changes
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, language: i18n.language }));
+  }, [i18n.language]);
 
   const { data: results, isLoading } = useGlobalSearch(query, filters);
   const semanticSearch = useSemanticSearch();

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ServiceCard } from '@/components/ServiceCard';
@@ -9,13 +9,18 @@ import { Slider } from '@/components/ui/slider';
 import { Filter, MapIcon } from 'lucide-react';
 
 export default function ServiceList() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [filters, setFilters] = useState({
     category: '',
     location: '',
-    language: '',
+    language: i18n.language,
     maxPrice: 1000,
   });
+  
+  // Update language filter when i18n language changes
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, language: i18n.language }));
+  }, [i18n.language]);
   
   const { data: categories } = useQuery<any[]>({
     queryKey: ['/api/services/categories'],
@@ -27,15 +32,18 @@ export default function ServiceList() {
   });
   
   const { data: services, isLoading } = useQuery<any[]>({
-    queryKey: ['/api/services/search', filters],
+    queryKey: ['/api/services/search', filters, i18n.language],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (filters.category) params.append('category', filters.category);
       if (filters.location) params.append('location', filters.location);
-      if (filters.language) params.append('language', filters.language);
+      // Always pass current language
+      params.append('language', i18n.language);
       params.append('maxPrice', filters.maxPrice.toString());
       
-      const res = await fetch(`/api/services/search?${params}`);
+      const res = await fetch(`/api/services/search?${params}`, {
+        credentials: 'include',
+      });
       return res.json();
     },
   });
