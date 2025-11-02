@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import { translationCache, itineraryCache } from './cache';
+import { randomUUID } from "crypto";
 
 /*
 Follow these instructions when using this blueprint:
@@ -237,6 +239,14 @@ export async function generateItinerary(request: ItineraryRequest, userId?: stri
   const requestId = randomUUID();
   const startTime = Date.now();
   
+  // Check cache first (30 min TTL) - cache key from request parameters
+  const cacheKey = `${request.destination}:${request.days}:${request.budget}:${request.travelStyle}:${request.interests.join(',')}`;
+  const cached = itineraryCache.get(cacheKey);
+  if (cached) {
+    console.log(`[Itinerary] Cache hit for ${request.destination} (${request.days} days)`);
+    return cached;
+  }
+  
   // Structured logging - START
   console.log(JSON.stringify({
     timestamp: new Date().toISOString(),
@@ -305,6 +315,9 @@ Return ONLY valid JSON with this structure:
     const jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     
     const result = JSON.parse(jsonContent);
+    
+    // Cache the successful itinerary (30 min TTL)
+    itineraryCache.set(cacheKey, result);
     
     // Structured logging - SUCCESS
     const latency = Date.now() - startTime;
@@ -430,6 +443,15 @@ export async function translateContent(input: TranslationInput): Promise<{
       results[targetLang] = input.content;
       continue;
     }
+    
+    // Check cache first (1 hour TTL) - cache key includes content hash for uniqueness
+    const cacheKey = `${input.sourceLanguage}:${targetLang}:${input.contentType}:${JSON.stringify(input.content)}`;
+    const cached = translationCache.get(cacheKey);
+    if (cached) {
+      results[targetLang] = cached;
+      console.log(`[Translation] Cache hit for ${input.sourceLanguage} -> ${targetLang}`);
+      continue;
+    }
 
     try {
       // Build structured JSON prompt for batch translation
@@ -479,6 +501,9 @@ Return ONLY valid JSON with the same structure, translated to ${languageNames[ta
       try {
         const parsed = JSON.parse(translatedContent);
         results[targetLang] = parsed;
+        
+        // Cache the successful translation (1 hour TTL)
+        translationCache.set(cacheKey, parsed);
         
         console.log(`[Translation] Successfully translated ${input.contentType} to ${targetLang}`);
       } catch (parseError) {

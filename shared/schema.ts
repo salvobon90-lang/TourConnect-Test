@@ -144,6 +144,14 @@ export type ConnectorType = typeof connectorTypes[number];
 export const syncStatuses = ["synced", "pending", "error"] as const;
 export type SyncStatus = typeof syncStatuses[number];
 
+// Consent types enum (GDPR Compliance - Task 12)
+export const consentTypes = ["geolocation", "ai", "marketing"] as const;
+export type ConsentType = typeof consentTypes[number];
+
+// Consent actions enum (GDPR Compliance - Task 12)
+export const consentActions = ["granted", "revoked"] as const;
+export type ConsentAction = typeof consentActions[number];
+
 // Points awarded for each action (Phase 6, expanded in Phase 9, Phase 10, Phase 11)
 export const rewardPoints = {
   booking: 50,
@@ -289,6 +297,33 @@ export const userSettings = pgTable("user_settings", {
   defaultRadiusKm: integer("default_radius_km").notNull().default(20),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Consent Audit table - GDPR compliance audit trail (Task 12)
+export const consentAudit = pgTable("consent_audit", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  consentType: varchar("consent_type", { length: 50 }).notNull(), // 'geolocation', 'ai', 'marketing'
+  action: varchar("action", { length: 20 }).notNull(), // 'granted', 'revoked'
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  timestamp: timestamp("timestamp").defaultNow().notNull()
+}, (table) => [
+  index("idx_consent_audit_user").on(table.userId),
+  index("idx_consent_audit_type").on(table.consentType),
+  index("idx_consent_audit_timestamp").on(table.timestamp)
+]);
+
+export const consentAuditRelations = relations(consentAudit, ({ one }) => ({
+  user: one(users, {
+    fields: [consentAudit.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertConsentAuditSchema = createInsertSchema(consentAudit).omit({
+  id: true,
+  timestamp: true,
 });
 
 // Tours table - created by guides

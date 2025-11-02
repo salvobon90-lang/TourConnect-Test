@@ -6,7 +6,7 @@ import { isPartner } from "./middleware/auth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey, insertPartnerSchema, type InsertPartner, type Partner, insertPackageSchema, type InsertPackage, type Package, insertCouponSchema, insertAffiliateLinkSchema, type InsertCoupon, type Coupon, type InsertAffiliateLink, type AffiliateLink, insertExternalConnectorSchema, type InsertExternalConnector, type ExternalConnector, tours, services } from "@shared/schema";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey, insertPartnerSchema, type InsertPartner, type Partner, insertPackageSchema, type InsertPackage, type Package, insertCouponSchema, insertAffiliateLinkSchema, type InsertCoupon, type Coupon, type InsertAffiliateLink, type AffiliateLink, insertExternalConnectorSchema, type InsertExternalConnector, type ExternalConnector, tours, services, consentAudit, insertConsentAuditSchema } from "@shared/schema";
 import { randomUUID, createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { 
@@ -44,6 +44,7 @@ import { createSubscriptionCheckout, cancelSubscription, handleStripeWebhook, SU
 import { checkRateLimit as checkPostRateLimit } from './moderation';
 import { sendNotification, setWebSocketServer } from './notifications';
 import { insertContentReportSchema, insertNotificationSchema } from "@shared/schema";
+import { tourListCache, serviceListCache, guideProfileCache, invalidateTourCaches, invalidateServiceCaches } from './cache';
 
 // Global type declaration for API Key in Express Request
 declare global {
@@ -860,6 +861,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Skip language filter for guides and supervisors (they need to see all their content)
       const skipLanguageFilter = userRole === 'guide' || userRole === 'supervisor' || userRole === 'admin';
       
+      // Create cache key from query parameters
+      const cacheKey = `tours:${userLanguage}:${skipLanguageFilter}:${JSON.stringify({ category, search, minPrice, maxPrice })}`;
+      
+      // Check cache first (5 min TTL)
+      const cached = tourListCache.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
+      
       // Build WHERE conditions for SQL filtering
       const whereConditions = [eq(tours.approvalStatus, 'approved')];
       
@@ -888,6 +898,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (maxPrice) {
         toursList = toursList.filter(t => t.price && parseFloat(t.price.toString()) <= parseFloat(maxPrice as string));
       }
+      
+      // Cache the result
+      tourListCache.set(cacheKey, toursList);
       
       res.json(toursList);
     } catch (error) {
@@ -1071,6 +1084,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const tour = await storage.createTour({ ...validatedData, i18n_payload });
       
+      // Invalidate tour list cache
+      invalidateTourCaches(tour.id);
+      
       // Award reward points if community tour is created
       if (tour.communityMode) {
         await storage.awardPoints(userId, 'community_tour_create').catch((err: any) => 
@@ -1141,6 +1157,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updated = await storage.updateTour(req.params.id, { ...validatedData, i18n_payload });
+      
+      // Invalidate tour list and guide profile caches
+      invalidateTourCaches(req.params.id);
+      
       res.json(updated);
     } catch (error: any) {
       console.error("Error updating tour:", error);
@@ -1159,6 +1179,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only delete your own tours" });
       }
       await storage.deleteTour(req.params.id);
+      
+      // Invalidate tour list and guide profile caches
+      invalidateTourCaches(req.params.id);
+      
       res.json({ message: "Tour deleted successfully" });
     } catch (error) {
       console.error("Error deleting tour:", error);
@@ -1169,7 +1193,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Guide Profile - Public endpoint to view any guide's profile
   app.get('/api/guides/:id', async (req, res) => {
     try {
-      const guide = await storage.getUserById(req.params.id);
+      const guideId = req.params.id;
+      
+      // Check cache first (10 min TTL)
+      const cacheKey = `guide:${guideId}`;
+      const cached = guideProfileCache.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
+      
+      const guide = await storage.getUserById(guideId);
       
       if (!guide || guide.role !== 'guide') {
         return res.status(404).json({ message: 'Guide not found' });
@@ -1188,8 +1221,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get total completed bookings
       const stats = await storage.getGuideStats(guide.id);
       
-      // Return public profile data
-      return res.json({
+      // Build public profile data
+      const profileData = {
         id: guide.id,
         firstName: guide.firstName,
         lastName: guide.lastName,
@@ -1215,7 +1248,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           latitude: t.latitude,
           longitude: t.longitude,
         })),
-      });
+      };
+      
+      // Cache the result
+      guideProfileCache.set(cacheKey, profileData);
+      
+      return res.json(profileData);
     } catch (error) {
       console.error("Error fetching guide profile:", error);
       res.status(500).json({ message: "Failed to fetch guide profile" });
@@ -1237,6 +1275,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Skip language filter for providers and supervisors (they need to see all their content)
       const skipLanguageFilter = userRole === 'provider' || userRole === 'supervisor' || userRole === 'admin';
+      
+      // Create cache key from query parameters
+      const cacheKey = `services:${userLanguage}:${skipLanguageFilter}:${JSON.stringify({ type, search, priceRange })}`;
+      
+      // Check cache first (5 min TTL)
+      const cached = serviceListCache.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
       
       // Build WHERE conditions for SQL filtering
       const whereConditions = [eq(services.approvalStatus, 'approved')];
@@ -1263,6 +1310,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (priceRange) {
         servicesList = servicesList.filter(s => s.priceRange === priceRange);
       }
+      
+      // Cache the result
+      serviceListCache.set(cacheKey, servicesList);
       
       res.json(servicesList);
     } catch (error) {
@@ -1356,6 +1406,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const service = await storage.createService({ ...validatedData, i18n_payload });
+      
+      // Invalidate service list cache
+      invalidateServiceCaches();
+      
       res.json(service);
     } catch (error: any) {
       console.error("Error creating service:", error);
@@ -1414,6 +1468,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updated = await storage.updateService(req.params.id, { ...validatedData, i18n_payload });
+      
+      // Invalidate service list cache
+      invalidateServiceCaches();
+      
       res.json(updated);
     } catch (error: any) {
       console.error("Error updating service:", error);
@@ -1432,6 +1490,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only delete your own services" });
       }
       await storage.deleteService(req.params.id);
+      
+      // Invalidate service list cache
+      invalidateServiceCaches();
+      
       res.json({ message: "Service deleted successfully" });
     } catch (error: any) {
       console.error("Error deleting service:", error);
@@ -1664,10 +1726,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post('/api/bookings', bookingLimiter, isAuthenticated, async (req: any, res) => {
+    const startTime = Date.now();
+    const requestId = randomUUID();
+    
     try {
       const userId = req.user.claims.sub;
       const validatedData = insertBookingSchema.parse({ ...req.body, userId });
       const booking = await storage.createBooking(validatedData);
+      
+      // Structured logging - Booking creation
+      const isFirstBooking = !(await storage.hasCompletedActionBefore(userId, 'booking'));
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        requestId,
+        userId,
+        action: 'booking_create',
+        bookingId: booking.id,
+        tourId: booking.tourId,
+        participants: booking.participants,
+        totalAmount: parseFloat(booking.totalAmount.toString()),
+        firstBooking: isFirstBooking,
+        pointsAwarded: isFirstBooking ? 100 : 50,
+        latencyMs: Date.now() - startTime
+      }));
       
       // Track booking creation (fire-and-forget)
       storage.trackEvent({
@@ -1680,7 +1761,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).catch(err => console.error("Failed to track booking:", err));
       
       // Award points for booking (fire-and-forget)
-      const isFirstBooking = !(await storage.hasCompletedActionBefore(userId, 'booking'));
       storage.awardPoints(userId, isFirstBooking ? 'first_booking' : 'booking', {
         bookingId: booking.id,
         tourId: booking.tourId,
@@ -2017,6 +2097,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post('/api/reviews', reviewLimiter, isAuthenticated, async (req: any, res) => {
+    const startTime = Date.now();
+    const requestId = randomUUID();
+    
     try {
       const userId = req.user.claims.sub;
       
@@ -2097,6 +2180,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       await storage.updateUserBadges(userId);
+      
+      // Structured logging - Review submission
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        requestId,
+        userId,
+        action: 'review_submit',
+        reviewId: review.id,
+        bookingId: data.bookingId,
+        tourId: tourId || null,
+        rating: data.rating,
+        hasComment: !!data.comment,
+        hasImages: (data.images?.length || 0) > 0,
+        pointsAwarded: 25,
+        latencyMs: Date.now() - startTime
+      }));
       
       // Award review points (fire-and-forget)
       storage.awardPoints(userId, 'review', {
@@ -4797,6 +4896,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Toggle like (create or delete)
   app.post("/api/likes/toggle", isAuthenticated, async (req: any, res) => {
+    const startTime = Date.now();
+    const requestId = randomUUID();
+    
     try {
       const userId = req.user.claims.sub;
       const { targetId, targetType } = req.body;
@@ -4815,6 +4917,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (alreadyLiked) {
         // Unlike - atomically deletes like and updates trust level in transaction
         await storage.deleteLike(userId, targetId, targetType);
+        
+        // Structured logging - Unlike
+        console.log(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          requestId,
+          userId,
+          action: 'like_toggle',
+          targetId,
+          targetType,
+          result: 'unliked',
+          pointsChange: -5,
+          latencyMs: Date.now() - startTime
+        }));
+        
         res.json({ success: true, liked: false });
       } else {
         // Like - atomically creates like, awards points, and updates trust level in transaction
@@ -4829,6 +4945,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             liked: true
           });
         }
+        
+        // Structured logging - Like
+        console.log(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          requestId,
+          userId,
+          action: 'like_toggle',
+          targetId,
+          targetType,
+          result: 'liked',
+          pointsAwarded: 5,
+          latencyMs: Date.now() - startTime
+        }));
         
         res.json({ success: true, liked: true, like });
       }
@@ -7919,6 +8048,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // POST /api/geo/update - Update user's geolocation settings
   app.post('/api/geo/update', isAuthenticated, geoLimiter, async (req: any, res) => {
+    const startTime = Date.now();
+    const requestId = randomUUID();
+    
     try {
       const userId = req.user.claims.sub;
       
@@ -7937,11 +8069,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = validationResult.data;
       const updateData: any = {};
       
+      // GDPR Consent Enforcement: Check consent before allowing location updates
+      if (validatedData.lastKnownLocation || validatedData.preferredDestination) {
+        const existingSettings = await storage.getUserSettings(userId);
+        
+        // If trying to update location data but consent is not granted
+        if (!existingSettings?.geoConsent && validatedData.geoConsent !== true) {
+          return res.status(403).json({
+            error: 'GEOLOCATION_CONSENT_REQUIRED',
+            message: 'You must grant geolocation consent before using location features'
+          });
+        }
+      }
+      
+      // Track consent changes for GDPR audit trail
+      let consentChanged = false;
+      let consentAction: 'granted' | 'revoked' | null = null;
+      
       if (validatedData.geoConsent !== undefined) {
-        if (validatedData.geoConsent === true) {
-          const existingSettings = await storage.getUserSettings(userId);
-          if (!existingSettings?.consentGrantedAt && !existingSettings?.geoConsent) {
-            updateData.consentGrantedAt = new Date();
+        const existingSettings = await storage.getUserSettings(userId);
+        const previousConsent = existingSettings?.geoConsent || false;
+        
+        if (validatedData.geoConsent !== previousConsent) {
+          consentChanged = true;
+          consentAction = validatedData.geoConsent ? 'granted' : 'revoked';
+          
+          // Update consent timestamps
+          if (validatedData.geoConsent === true) {
+            if (!existingSettings?.consentGrantedAt) {
+              updateData.consentGrantedAt = new Date();
+            }
+            updateData.consentRevokedAt = null;
+          } else {
+            updateData.consentRevokedAt = new Date();
           }
         }
         updateData.geoConsent = validatedData.geoConsent;
@@ -7972,6 +8132,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const settings = await storage.upsertUserSettings(userId, updateData);
+      
+      // GDPR Audit Logging: Log consent changes with IP and user-agent
+      if (consentChanged && consentAction) {
+        try {
+          await db.insert(consentAudit).values({
+            userId,
+            consentType: 'geolocation',
+            action: consentAction,
+            ipAddress: req.ip || req.headers['x-forwarded-for'] as string || null,
+            userAgent: req.headers['user-agent'] || null
+          });
+          
+          console.log(`[GDPR Audit] Geolocation consent ${consentAction} for user ${userId}`);
+        } catch (auditError: any) {
+          console.error('[GDPR Audit] Failed to log consent change:', auditError);
+          // Don't fail the request if audit logging fails, but log the error
+        }
+      }
+      
+      // Structured logging - Geolocation update
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        requestId,
+        userId,
+        action: 'geolocation_update',
+        consentChanged,
+        consentAction,
+        hasLocation: !!validatedData.lastKnownLocation,
+        hasDestination: !!validatedData.preferredDestination,
+        latencyMs: Date.now() - startTime
+      }));
       
       res.json({
         success: true,
