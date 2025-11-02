@@ -15,7 +15,67 @@
   },
   "auth": {
     "logoutSuccess": "Erfolgreich abgemeldet",
-    "logoutSuccessDesc": "Sie wurden von Ihrem Konto abgemeldet"
+    "logoutSuccessDesc": "Sie wurden von Ihrem Konto abgemeldet",
+    "logoutError": "Abmeldung fehlgeschlagen. Bitte versuchen Sie es erneut."
+  },
+  "dashboards": {
+    "supervisor": {
+      "title": "Supervisor-Dashboard",
+      "subtitle": "Willkommen",
+      "accessDeniedDesc": "Sie haben keine Berechtigung, auf das Supervisor-Dashboard zuzugreifen.",
+      "userApproved": "Benutzer Genehmigt",
+      "userApprovedDesc": "Der Benutzer wurde erfolgreich genehmigt.",
+      "approveUserError": "Genehmigung des Benutzers fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "userRejected": "Benutzer Abgelehnt",
+      "userRejectedDesc": "Der Benutzer wurde abgelehnt.",
+      "rejectUserError": "Ablehnung des Benutzers fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "userPromoted": "Benutzer Befördert",
+      "userPromotedDesc": "Der Benutzer wurde zum Supervisor befördert.",
+      "promoteUserError": "Beförderung des Benutzers zum Supervisor fehlgeschlagen.",
+      "tourApproved": "Tour Genehmigt",
+      "tourApprovedDesc": "Die Tour wurde genehmigt und ist jetzt für Benutzer sichtbar.",
+      "approveTourError": "Genehmigung der Tour fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "tourRejected": "Tour Abgelehnt",
+      "tourRejectedDesc": "Die Tour wurde abgelehnt.",
+      "rejectTourError": "Ablehnung der Tour fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "serviceApproved": "Service Genehmigt",
+      "serviceApprovedDesc": "Der Service wurde genehmigt und ist jetzt für Benutzer sichtbar.",
+      "approveServiceError": "Genehmigung des Services fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "serviceRejected": "Service Abgelehnt",
+      "serviceRejectedDesc": "Der Service wurde abgelehnt.",
+      "rejectServiceError": "Ablehnung des Services fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "tabs": {
+        "pendingApprovals": "Ausstehende Genehmigungen",
+        "userManagement": "Benutzerverwaltung",
+        "tourModeration": "Tour-Moderation",
+        "serviceModeration": "Service-Moderation"
+      },
+      "stats": {
+        "pendingApproval": "Ausstehende Genehmigungen",
+        "totalUsers": "Gesamtbenutzer",
+        "approvedToday": "Heute Genehmigt"
+      },
+      "loadingUsers": "Benutzer werden geladen...",
+      "loadingTours": "Touren werden geladen...",
+      "loadingServices": "Services werden geladen...",
+      "registered": "Registriert",
+      "by": "von",
+      "created": "Erstellt",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "promoteToSupervisor": "Zum Supervisor Befördern",
+      "noPending": "Keine Ausstehenden Genehmigungen",
+      "noPendingDesc": "Alle Benutzer wurden überprüft.",
+      "noRole": "Keine Rolle",
+      "noUsers": "Keine Benutzer Gefunden",
+      "noUsersDesc": "Es gibt keine Benutzer im System.",
+      "noToursMatch": "Keine Touren Entsprechen Ihren Filtern",
+      "noPendingTours": "Keine Ausstehenden Touren",
+      "noPendingToursDesc": "Alle Touren wurden überprüft.",
+      "adjustFilters": "Versuchen Sie, Ihre Filter anzupassen, um mehr Touren zu sehen.",
+      "noServicesTitle": "Keine Ausstehenden Services",
+      "noServicesDesc": "Alle Services wurden überprüft."
+    }
   },
   "createTour": {
     "success": "Tour erfolgreich erstellt!",

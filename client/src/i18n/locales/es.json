@@ -15,7 +15,67 @@
   },
   "auth": {
     "logoutSuccess": "Sesión cerrada correctamente",
-    "logoutSuccessDesc": "Has cerrado sesión en tu cuenta"
+    "logoutSuccessDesc": "Has cerrado sesión en tu cuenta",
+    "logoutError": "Error al cerrar sesión. Por favor, inténtelo de nuevo."
+  },
+  "dashboards": {
+    "supervisor": {
+      "title": "Panel de Supervisor",
+      "subtitle": "Bienvenido/a",
+      "accessDeniedDesc": "No tienes permiso para acceder al panel de supervisor.",
+      "userApproved": "Usuario Aprobado",
+      "userApprovedDesc": "El usuario ha sido aprobado exitosamente.",
+      "approveUserError": "Error al aprobar al usuario. Por favor, inténtelo de nuevo.",
+      "userRejected": "Usuario Rechazado",
+      "userRejectedDesc": "El usuario ha sido rechazado.",
+      "rejectUserError": "Error al rechazar al usuario. Por favor, inténtelo de nuevo.",
+      "userPromoted": "Usuario Promovido",
+      "userPromotedDesc": "El usuario ha sido promovido a supervisor.",
+      "promoteUserError": "Error al promover al usuario a supervisor.",
+      "tourApproved": "Tour Aprobado",
+      "tourApprovedDesc": "El tour ha sido aprobado y ahora es visible para los usuarios.",
+      "approveTourError": "Error al aprobar el tour. Por favor, inténtelo de nuevo.",
+      "tourRejected": "Tour Rechazado",
+      "tourRejectedDesc": "El tour ha sido rechazado.",
+      "rejectTourError": "Error al rechazar el tour. Por favor, inténtelo de nuevo.",
+      "serviceApproved": "Servicio Aprobado",
+      "serviceApprovedDesc": "El servicio ha sido aprobado y ahora es visible para los usuarios.",
+      "approveServiceError": "Error al aprobar el servicio. Por favor, inténtelo de nuevo.",
+      "serviceRejected": "Servicio Rechazado",
+      "serviceRejectedDesc": "El servicio ha sido rechazado.",
+      "rejectServiceError": "Error al rechazar el servicio. Por favor, inténtelo de nuevo.",
+      "tabs": {
+        "pendingApprovals": "Aprobaciones Pendientes",
+        "userManagement": "Gestión de Usuarios",
+        "tourModeration": "Moderación de Tours",
+        "serviceModeration": "Moderación de Servicios"
+      },
+      "stats": {
+        "pendingApproval": "Aprobaciones pendientes",
+        "totalUsers": "Usuarios Totales",
+        "approvedToday": "Aprobados Hoy"
+      },
+      "loadingUsers": "Cargando usuarios...",
+      "loadingTours": "Cargando tours...",
+      "loadingServices": "Cargando servicios...",
+      "registered": "Registrado",
+      "by": "por",
+      "created": "Creado",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "promoteToSupervisor": "Promover a Supervisor",
+      "noPending": "No Hay Aprobaciones Pendientes",
+      "noPendingDesc": "Todos los usuarios han sido revisados.",
+      "noRole": "Sin Rol",
+      "noUsers": "No se Encontraron Usuarios",
+      "noUsersDesc": "No hay usuarios en el sistema.",
+      "noToursMatch": "Ningún Tour Coincide con tus Filtros",
+      "noPendingTours": "No Hay Tours Pendientes",
+      "noPendingToursDesc": "Todos los tours han sido revisados.",
+      "adjustFilters": "Intenta ajustar tus filtros para ver más tours.",
+      "noServicesTitle": "No Hay Servicios Pendientes",
+      "noServicesDesc": "Todos los servicios han sido revisados."
+    }
   },
   "createTour": {
     "success": "¡Tour creado con éxito!",

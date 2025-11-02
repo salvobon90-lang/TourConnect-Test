@@ -15,7 +15,67 @@
   },
   "auth": {
     "logoutSuccess": "Disconnessione riuscita",
-    "logoutSuccessDesc": "Sei stato disconnesso dal tuo account"
+    "logoutSuccessDesc": "Sei stato disconnesso dal tuo account",
+    "logoutError": "Logout fallito. Riprova."
+  },
+  "dashboards": {
+    "supervisor": {
+      "title": "Dashboard Supervisore",
+      "subtitle": "Benvenuto/a",
+      "accessDeniedDesc": "Non hai i permessi per accedere alla dashboard del supervisore.",
+      "userApproved": "Utente Approvato",
+      "userApprovedDesc": "L'utente è stato approvato con successo.",
+      "approveUserError": "Impossibile approvare l'utente. Riprova.",
+      "userRejected": "Utente Rifiutato",
+      "userRejectedDesc": "L'utente è stato rifiutato.",
+      "rejectUserError": "Impossibile rifiutare l'utente. Riprova.",
+      "userPromoted": "Utente Promosso",
+      "userPromotedDesc": "L'utente è stato promosso a supervisore.",
+      "promoteUserError": "Impossibile promuovere l'utente a supervisore.",
+      "tourApproved": "Tour Approvato",
+      "tourApprovedDesc": "Il tour è stato approvato ed è ora visibile agli utenti.",
+      "approveTourError": "Impossibile approvare il tour. Riprova.",
+      "tourRejected": "Tour Rifiutato",
+      "tourRejectedDesc": "Il tour è stato rifiutato.",
+      "rejectTourError": "Impossibile rifiutare il tour. Riprova.",
+      "serviceApproved": "Servizio Approvato",
+      "serviceApprovedDesc": "Il servizio è stato approvato ed è ora visibile agli utenti.",
+      "approveServiceError": "Impossibile approvare il servizio. Riprova.",
+      "serviceRejected": "Servizio Rifiutato",
+      "serviceRejectedDesc": "Il servizio è stato rifiutato.",
+      "rejectServiceError": "Impossibile rifiutare il servizio. Riprova.",
+      "tabs": {
+        "pendingApprovals": "Approvazioni in Sospeso",
+        "userManagement": "Gestione Utenti",
+        "tourModeration": "Moderazione Tour",
+        "serviceModeration": "Moderazione Servizi"
+      },
+      "stats": {
+        "pendingApproval": "Approvazioni in sospeso",
+        "totalUsers": "Utenti Totali",
+        "approvedToday": "Approvati Oggi"
+      },
+      "loadingUsers": "Caricamento utenti...",
+      "loadingTours": "Caricamento tour...",
+      "loadingServices": "Caricamento servizi...",
+      "registered": "Registrato",
+      "by": "da",
+      "created": "Creato",
+      "approve": "Approva",
+      "reject": "Rifiuta",
+      "promoteToSupervisor": "Promuovi a Supervisore",
+      "noPending": "Nessuna Approvazione in Sospeso",
+      "noPendingDesc": "Tutti gli utenti sono stati esaminati.",
+      "noRole": "Nessun Ruolo",
+      "noUsers": "Nessun Utente Trovato",
+      "noUsersDesc": "Non ci sono utenti nel sistema.",
+      "noToursMatch": "Nessun Tour Corrisponde ai Filtri",
+      "noPendingTours": "Nessun Tour in Sospeso",
+      "noPendingToursDesc": "Tutti i tour sono stati esaminati.",
+      "adjustFilters": "Prova a modificare i filtri per visualizzare più tour.",
+      "noServicesTitle": "Nessun Servizio in Sospeso",
+      "noServicesDesc": "Tutti i servizi sono stati esaminati."
+    }
   },
   "createTour": {
     "success": "Tour creato con successo!",

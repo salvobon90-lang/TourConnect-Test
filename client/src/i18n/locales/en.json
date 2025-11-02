@@ -15,7 +15,67 @@
   },
   "auth": {
     "logoutSuccess": "Logged out successfully",
-    "logoutSuccessDesc": "You have been logged out of your account"
+    "logoutSuccessDesc": "You have been logged out of your account",
+    "logoutError": "Logout failed. Please try again."
+  },
+  "dashboards": {
+    "supervisor": {
+      "title": "Supervisor Dashboard",
+      "subtitle": "Welcome",
+      "accessDeniedDesc": "You do not have permission to access the supervisor dashboard.",
+      "userApproved": "User Approved",
+      "userApprovedDesc": "The user has been approved successfully.",
+      "approveUserError": "Failed to approve user. Please try again.",
+      "userRejected": "User Rejected",
+      "userRejectedDesc": "The user has been rejected.",
+      "rejectUserError": "Failed to reject user. Please try again.",
+      "userPromoted": "User Promoted",
+      "userPromotedDesc": "The user has been promoted to supervisor.",
+      "promoteUserError": "Failed to promote user to supervisor.",
+      "tourApproved": "Tour Approved",
+      "tourApprovedDesc": "The tour has been approved and is now visible to users.",
+      "approveTourError": "Failed to approve tour. Please try again.",
+      "tourRejected": "Tour Rejected",
+      "tourRejectedDesc": "The tour has been rejected.",
+      "rejectTourError": "Failed to reject tour. Please try again.",
+      "serviceApproved": "Service Approved",
+      "serviceApprovedDesc": "The service has been approved and is now visible to users.",
+      "approveServiceError": "Failed to approve service. Please try again.",
+      "serviceRejected": "Service Rejected",
+      "serviceRejectedDesc": "The service has been rejected.",
+      "rejectServiceError": "Failed to reject service. Please try again.",
+      "tabs": {
+        "pendingApprovals": "Pending Approvals",
+        "userManagement": "User Management",
+        "tourModeration": "Tour Moderation",
+        "serviceModeration": "Service Moderation"
+      },
+      "stats": {
+        "pendingApproval": "Pending Approvals",
+        "totalUsers": "Total Users",
+        "approvedToday": "Approved Today"
+      },
+      "loadingUsers": "Loading users...",
+      "loadingTours": "Loading tours...",
+      "loadingServices": "Loading services...",
+      "registered": "Registered",
+      "by": "by",
+      "created": "Created",
+      "approve": "Approve",
+      "reject": "Reject",
+      "promoteToSupervisor": "Promote to Supervisor",
+      "noPending": "No Pending Approvals",
+      "noPendingDesc": "All users have been reviewed.",
+      "noRole": "No Role",
+      "noUsers": "No Users Found",
+      "noUsersDesc": "There are no users in the system.",
+      "noToursMatch": "No Tours Match Your Filters",
+      "noPendingTours": "No Pending Tours",
+      "noPendingToursDesc": "All tours have been reviewed.",
+      "adjustFilters": "Try adjusting your filters to see more tours.",
+      "noServicesTitle": "No Pending Services",
+      "noServicesDesc": "All services have been reviewed."
+    }
   },
   "createTour": {
     "success": "Tour created successfully!",

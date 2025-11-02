@@ -15,7 +15,67 @@
   },
   "auth": {
     "logoutSuccess": "Déconnexion réussie",
-    "logoutSuccessDesc": "Vous avez été déconnecté de votre compte"
+    "logoutSuccessDesc": "Vous avez été déconnecté de votre compte",
+    "logoutError": "Échec de la déconnexion. Veuillez réessayer."
+  },
+  "dashboards": {
+    "supervisor": {
+      "title": "Tableau de Bord Superviseur",
+      "subtitle": "Bienvenue",
+      "accessDeniedDesc": "Vous n'avez pas la permission d'accéder au tableau de bord du superviseur.",
+      "userApproved": "Utilisateur Approuvé",
+      "userApprovedDesc": "L'utilisateur a été approuvé avec succès.",
+      "approveUserError": "Échec de l'approbation de l'utilisateur. Veuillez réessayer.",
+      "userRejected": "Utilisateur Rejeté",
+      "userRejectedDesc": "L'utilisateur a été rejeté.",
+      "rejectUserError": "Échec du rejet de l'utilisateur. Veuillez réessayer.",
+      "userPromoted": "Utilisateur Promu",
+      "userPromotedDesc": "L'utilisateur a été promu superviseur.",
+      "promoteUserError": "Échec de la promotion de l'utilisateur en superviseur.",
+      "tourApproved": "Tour Approuvé",
+      "tourApprovedDesc": "Le tour a été approuvé et est maintenant visible pour les utilisateurs.",
+      "approveTourError": "Échec de l'approbation du tour. Veuillez réessayer.",
+      "tourRejected": "Tour Rejeté",
+      "tourRejectedDesc": "Le tour a été rejeté.",
+      "rejectTourError": "Échec du rejet du tour. Veuillez réessayer.",
+      "serviceApproved": "Service Approuvé",
+      "serviceApprovedDesc": "Le service a été approuvé et est maintenant visible pour les utilisateurs.",
+      "approveServiceError": "Échec de l'approbation du service. Veuillez réessayer.",
+      "serviceRejected": "Service Rejeté",
+      "serviceRejectedDesc": "Le service a été rejeté.",
+      "rejectServiceError": "Échec du rejet du service. Veuillez réessayer.",
+      "tabs": {
+        "pendingApprovals": "Approbations en Attente",
+        "userManagement": "Gestion des Utilisateurs",
+        "tourModeration": "Modération des Tours",
+        "serviceModeration": "Modération des Services"
+      },
+      "stats": {
+        "pendingApproval": "Approbations en attente",
+        "totalUsers": "Utilisateurs Totaux",
+        "approvedToday": "Approuvés Aujourd'hui"
+      },
+      "loadingUsers": "Chargement des utilisateurs...",
+      "loadingTours": "Chargement des tours...",
+      "loadingServices": "Chargement des services...",
+      "registered": "Inscrit",
+      "by": "par",
+      "created": "Créé",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "promoteToSupervisor": "Promouvoir en superviseur",
+      "noPending": "Aucune Approbation en Attente",
+      "noPendingDesc": "Tous les utilisateurs ont été examinés.",
+      "noRole": "Aucun Rôle",
+      "noUsers": "Aucun Utilisateur Trouvé",
+      "noUsersDesc": "Il n'y a pas d'utilisateurs dans le système.",
+      "noToursMatch": "Aucun Tour ne Correspond à Vos Filtres",
+      "noPendingTours": "Aucun Tour en Attente",
+      "noPendingToursDesc": "Tous les tours ont été examinés.",
+      "adjustFilters": "Essayez d'ajuster vos filtres pour voir plus de tours.",
+      "noServicesTitle": "Aucun Service en Attente",
+      "noServicesDesc": "Tous les services ont été examinés."
+    }
   },
   "createTour": {
     "success": "Tour créé avec succès!",
