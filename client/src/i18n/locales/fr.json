@@ -8,6 +8,15 @@
     "all": "Tous",
     "you": "Vous"
   },
+  "navigation": {
+    "dashboard": "Tableau de bord",
+    "profile": "Profil",
+    "logout": "Déconnexion"
+  },
+  "auth": {
+    "logoutSuccess": "Déconnexion réussie",
+    "logoutSuccessDesc": "Vous avez été déconnecté de votre compte"
+  },
   "createTour": {
     "success": "Tour créé avec succès!",
     "error": "Échec de la création du tour. Veuillez réessayer."

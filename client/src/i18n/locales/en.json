@@ -8,6 +8,15 @@
     "all": "All",
     "you": "You"
   },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "profile": "Profile",
+    "logout": "Logout"
+  },
+  "auth": {
+    "logoutSuccess": "Logged out successfully",
+    "logoutSuccessDesc": "You have been logged out of your account"
+  },
   "createTour": {
     "success": "Tour created successfully!",
     "error": "Failed to create tour. Please try again."

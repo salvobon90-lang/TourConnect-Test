@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, XCircle, Clock, Users, UserCheck, UserX, Shield, Map, Check, X, FileQuestion, MapPin, List, Euro, Compass, Award, TrendingDown, Filter } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Users, UserCheck, UserX, Shield, Map, Check, X, FileQuestion, MapPin, List, Euro, Compass, Award, TrendingDown, Filter, LogOut } from "lucide-react";
 import type { User, TourWithGuide, ServiceWithProvider } from "@shared/schema";
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -267,6 +267,31 @@ export default function SupervisorDashboard() {
     };
   };
 
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/logout', { method: 'POST' });
+      
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+      
+      toast({
+        title: t('auth.logoutSuccess'),
+        description: t('auth.logoutSuccessDesc'),
+      });
+      
+      setTimeout(() => {
+        window.location.href = '/admin/login';
+      }, 1000);
+    } catch (error) {
+      toast({
+        title: t('common.error'),
+        description: t('auth.logoutError'),
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (user?.role !== 'supervisor') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -304,6 +329,16 @@ export default function SupervisorDashboard() {
               {user?.firstName || user?.email}
             </span>
             <LanguageSwitcher />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="flex items-center gap-2"
+              aria-label={t('navigation.logout')}
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden md:inline">{t('navigation.logout')}</span>
+            </Button>
           </div>
         </div>
       </header>

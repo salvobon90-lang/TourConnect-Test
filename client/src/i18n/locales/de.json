@@ -8,6 +8,15 @@
     "all": "Alle",
     "you": "Sie"
   },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "profile": "Profil",
+    "logout": "Abmelden"
+  },
+  "auth": {
+    "logoutSuccess": "Erfolgreich abgemeldet",
+    "logoutSuccessDesc": "Sie wurden von Ihrem Konto abgemeldet"
+  },
   "createTour": {
     "success": "Tour erfolgreich erstellt!",
     "error": "Fehler beim Erstellen der Tour. Bitte versuchen Sie es erneut."

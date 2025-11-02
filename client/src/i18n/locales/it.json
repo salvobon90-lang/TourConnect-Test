@@ -8,6 +8,15 @@
     "all": "Tutti",
     "you": "Tu"
   },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "profile": "Profilo",
+    "logout": "Esci"
+  },
+  "auth": {
+    "logoutSuccess": "Disconnessione riuscita",
+    "logoutSuccessDesc": "Sei stato disconnesso dal tuo account"
+  },
   "createTour": {
     "success": "Tour creato con successo!",
     "error": "Impossibile creare il tour. Riprova."

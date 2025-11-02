@@ -8,6 +8,15 @@
     "all": "Todos",
     "you": "Tú"
   },
+  "navigation": {
+    "dashboard": "Panel",
+    "profile": "Perfil",
+    "logout": "Cerrar sesión"
+  },
+  "auth": {
+    "logoutSuccess": "Sesión cerrada correctamente",
+    "logoutSuccessDesc": "Has cerrado sesión en tu cuenta"
+  },
   "createTour": {
     "success": "¡Tour creado con éxito!",
     "error": "Error al crear el tour. Por favor, inténtelo de nuevo."
