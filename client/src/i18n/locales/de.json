@@ -6,7 +6,9 @@
     "previous": "Zurück",
     "next": "Weiter",
     "all": "Alle",
-    "you": "Sie"
+    "you": "Sie",
+    "welcomeBack": "Willkommen Zurück {{name}}",
+    "search": "Suchen"
   },
   "navigation": {
     "dashboard": "Dashboard",

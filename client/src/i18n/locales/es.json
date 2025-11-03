@@ -6,7 +6,9 @@
     "previous": "Anterior",
     "next": "Siguiente",
     "all": "Todos",
-    "you": "Tú"
+    "you": "Tú",
+    "welcomeBack": "Bienvenido de Nuevo {{name}}",
+    "search": "Buscar"
   },
   "navigation": {
     "dashboard": "Panel",

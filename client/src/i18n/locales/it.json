@@ -6,7 +6,9 @@
     "previous": "Precedente",
     "next": "Successivo",
     "all": "Tutti",
-    "you": "Tu"
+    "you": "Tu",
+    "welcomeBack": "Bentornato {{name}}",
+    "search": "Cerca"
   },
   "navigation": {
     "dashboard": "Dashboard",
