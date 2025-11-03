@@ -1,18 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { MapPin, Search, Star, Users, Calendar, Globe2, Shield, Compass } from 'lucide-react';
+import { MapPin, Search, Star, Users, Calendar, Globe2, Shield, Compass, Check } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { Logo } from '@/components/logo';
 import { SEO } from '@/components/seo';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useQuery } from '@tanstack/react-query';
 
 export default function Landing() {
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [searchLocation, setSearchLocation] = useState('');
   const [searchDate, setSearchDate] = useState('');
+  const [open, setOpen] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
+
+  // Fetch cities from API with debouncing
+  const { data: cities = [] } = useQuery<string[]>({
+    queryKey: ['cities', citySearch],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (citySearch) params.append('search', citySearch);
+      const response = await fetch(`/api/cities?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch cities');
+      return response.json();
+    },
+    enabled: open,
+  });
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -71,16 +89,56 @@ export default function Landing() {
           {/* Search Bar */}
           <Card className="p-4 bg-white/95 backdrop-blur-md max-w-3xl mx-auto">
             <div className="flex flex-col md:flex-row gap-3">
-              <div className="flex-1 relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  placeholder={t('landing.searchPlaceholderLocation')}
-                  className="pl-10"
-                  value={searchLocation}
-                  onChange={(e) => setSearchLocation(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  data-testid="input-search-location"
-                />
+              <div className="flex-1">
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
+                      <Input
+                        placeholder={t('landing.searchPlaceholderLocation')}
+                        className="pl-10"
+                        value={searchLocation}
+                        onChange={(e) => {
+                          setSearchLocation(e.target.value);
+                          setCitySearch(e.target.value);
+                          setOpen(true);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSearch();
+                            setOpen(false);
+                          }
+                        }}
+                        onFocus={() => setOpen(true)}
+                        data-testid="input-search-location"
+                      />
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <Command>
+                      <CommandList>
+                        <CommandEmpty>
+                          {citySearch ? t('landing.noCitiesFound') || 'Nessuna città trovata' : t('landing.typeCityName') || 'Digita il nome di una città'}
+                        </CommandEmpty>
+                        <CommandGroup heading={t('landing.availableCities') || 'Città disponibili'}>
+                          {cities.map((city) => (
+                            <CommandItem
+                              key={city}
+                              value={city}
+                              onSelect={(value) => {
+                                setSearchLocation(value);
+                                setOpen(false);
+                              }}
+                            >
+                              <MapPin className="mr-2 h-4 w-4" />
+                              {city}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="flex-1 relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -100,24 +158,18 @@ export default function Landing() {
           </Card>
 
           <div className="mt-8 flex flex-col items-center gap-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/tours">
-                <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20" data-testid="button-browse-tours">
-                  <Compass className="w-5 h-5 mr-2" />
-                  {t('landing.exploreTours')}
-                </Button>
-              </Link>
-              <a href="/api/login">
-                <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20" data-testid="button-login">
-                  <Globe2 className="w-5 h-5 mr-2" />
-                  {t('navigation.login')}
-                </Button>
-              </a>
-            </div>
+            <Link href="/tours">
+              <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20" data-testid="button-browse-tours">
+                <Compass className="w-5 h-5 mr-2" />
+                {t('landing.exploreTours')}
+              </Button>
+            </Link>
             
-            <a href="/admin/login" className="text-white/70 hover:text-white text-sm flex items-center gap-2 transition-colors" data-testid="link-supervisor-login">
-              <Shield className="w-4 h-4" />
-              Admin Login
+            <a href="/api/login">
+              <Button size="lg" className="bg-primary text-white hover:bg-primary/90 px-12 py-6 text-lg font-semibold" data-testid="button-login">
+                <Globe2 className="w-6 h-6 mr-3" />
+                {t('landing.loginRegister') || 'Accedi o Registrati'}
+              </Button>
             </a>
           </div>
         </div>
@@ -185,6 +237,16 @@ export default function Landing() {
           </a>
         </div>
       </section>
+
+      {/* Footer with Admin Login */}
+      <footer className="py-6 px-4 border-t bg-card">
+        <div className="max-w-7xl mx-auto flex justify-end">
+          <a href="/admin/login" className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-2 transition-colors" data-testid="link-supervisor-login">
+            <Shield className="w-4 h-4" />
+            Admin Login
+          </a>
+        </div>
+      </footer>
     </div>
     </>
   );
