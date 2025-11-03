@@ -309,5 +309,24 @@
     "confirmed": "Confermato",
     "closed": "Chiuso",
     "cancelled": "Annullato"
+  },
+  "landing": {
+    "heroTitle": "Scopri Esperienze Autentiche",
+    "heroSubtitle": "Scopri esperienze autentiche con guide locali, esplora destinazioni incredibili e connettiti con fornitori di servizi verificati",
+    "searchPlaceholderLocation": "Dove vuoi andare?",
+    "searchButton": "Cerca Tour",
+    "exploreTours": "Esplora tutti i Tour",
+    "loginRegister": "Accedi o Registrati",
+    "noCitiesFound": "Nessuna città trovata",
+    "typeCityName": "Digita il nome di una città",
+    "availableCities": "Città disponibili",
+    "whyChooseUs": "Perché Sceglierci",
+    "secureBooking": "Prenotazione Sicura",
+    "secureBookingDesc": "Pagamenti sicuri e protezione per ogni prenotazione",
+    "localGuides": "Guide Locali",
+    "localGuidesDesc": "Esperienze autentiche con guide locali esperte",
+    "verifiedServices": "Servizi Verificati",
+    "verifiedServicesDesc": "Tutti i servizi sono verificati e approvati",
+    "noToursAvailable": "Nessun tour disponibile al momento per la città indicata per la data indicata"
   }
 }
