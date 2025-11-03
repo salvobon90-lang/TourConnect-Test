@@ -328,5 +328,128 @@
     "verifiedServices": "Verifizierte Dienste",
     "verifiedServicesDesc": "Alle Dienste sind verifiziert und genehmigt",
     "noToursAvailable": "Keine Touren verfügbar für die angegebene Stadt zum angegebenen Datum"
+  },
+  "onboarding": {
+    "skip": "Überspringen",
+    "progress": "Schritt {current} von {total}",
+    "welcome": {
+      "title": "Willkommen bei TourConnect",
+      "subtitle": "Ihr Zugang zu authentischen Reiseerlebnissen",
+      "heroText": "Entdecken Sie die Welt, eine Destination zur Zeit",
+      "cta": "Jetzt Starten"
+    },
+    "chooseRole": {
+      "title": "Wählen Sie Ihre Rolle",
+      "subtitle": "Wählen Sie, wie Sie TourConnect nutzen möchten",
+      "tourist": {
+        "title": "Tourist",
+        "desc": "Entdecken und buchen Sie fantastische Touren",
+        "feature1": "Entdecken Sie einzigartige lokale Erlebnisse",
+        "feature2": "Buchen Sie Touren und Services einfach",
+        "feature3": "Nehmen Sie an Community-Touren teil"
+      },
+      "guide": {
+        "title": "Guide",
+        "desc": "Teilen Sie Ihr lokales Wissen",
+        "feature1": "Erstellen und verwalten Sie Ihre Touren",
+        "feature2": "Organisieren Sie Community-Touren",
+        "feature3": "Verdienen Sie mit Ihrer Leidenschaft"
+      },
+      "provider": {
+        "title": "Anbieter",
+        "desc": "Bieten Sie Reisenden Services an",
+        "feature1": "Bewerben Sie Ihre Services",
+        "feature2": "Erstellen Sie individuelle Pakete",
+        "feature3": "Verwalten Sie Buchungen und Einnahmen"
+      },
+      "selected": "Ausgewählt",
+      "cta": "Weiter"
+    },
+    "howItWorks": {
+      "title": "Alles was Sie brauchen in einer App",
+      "subtitle": "Entdecken Sie, was TourConnect besonders macht",
+      "cta": "Registrierung Abschließen",
+      "tourist": {
+        "search": {
+          "title": "Lokale Touren Finden",
+          "desc": "Entdecken Sie erstaunliche Erlebnisse von lokalen Guides"
+        },
+        "community": {
+          "title": "Community-Touren Beitreten",
+          "desc": "Nehmen Sie an Gruppentouren mit dynamischer Preisgestaltung und Rabatten teil"
+        },
+        "booking": {
+          "title": "Einfach Buchen",
+          "desc": "Buchen Sie Touren und Services mit nur wenigen Klicks"
+        },
+        "maps": {
+          "title": "Interaktive Karten",
+          "desc": "Erkunden Sie Destinationen mit detaillierten Karten und Navigation"
+        },
+        "reviews": {
+          "title": "Verifizierte Bewertungen",
+          "desc": "Lesen und schreiben Sie authentische Bewertungen von echten Reisenden"
+        },
+        "payment": {
+          "title": "Sichere Zahlungen",
+          "desc": "Sichere Zahlungen powered by Stripe-Technologie"
+        }
+      },
+      "guide": {
+        "create": {
+          "title": "Erstellen Sie Ihre Touren",
+          "desc": "Teilen Sie Ihr Wissen und schaffen Sie einzigartige Erlebnisse"
+        },
+        "community": {
+          "title": "Verwalten Sie Community-Touren",
+          "desc": "Organisieren Sie Gruppentouren mit dynamischer Preisgestaltung und automatischen Rabatten"
+        },
+        "manage": {
+          "title": "Verwalten Sie Buchungen",
+          "desc": "Intuitiver Kalender zur Verwaltung aller Ihrer Touren"
+        },
+        "reviews": {
+          "title": "Bewertungen & Feedback",
+          "desc": "Erhalten Sie Feedback von Touristen und verbessern Sie Ihre Erlebnisse"
+        },
+        "analytics": {
+          "title": "Analysen & Statistiken",
+          "desc": "Verfolgen Sie die Performance Ihrer Touren und Einnahmen"
+        },
+        "earnings": {
+          "title": "Einnahmen & Zahlungen",
+          "desc": "Erhalten Sie sichere Zahlungen für Ihre Services"
+        }
+      },
+      "provider": {
+        "promote": {
+          "title": "Services Bewerben",
+          "desc": "Erreichen Sie Touristen auf der Suche nach authentischen lokalen Services"
+        },
+        "packages": {
+          "title": "Pakete Erstellen",
+          "desc": "Kombinieren Sie Touren und Services in individuellen Paketen"
+        },
+        "bookings": {
+          "title": "Buchungen Verwalten",
+          "desc": "Komplettes System zur Verwaltung all Ihrer Buchungen"
+        },
+        "analytics": {
+          "title": "Verkaufsanalysen",
+          "desc": "Verfolgen Sie Verkäufe, Conversions und Performance"
+        },
+        "coupons": {
+          "title": "Rabattcodes",
+          "desc": "Erstellen Sie Coupons und Promotions, um Kunden anzuziehen"
+        },
+        "payments": {
+          "title": "Zahlungen & Gebühren",
+          "desc": "Erhalten Sie automatische Zahlungen mit transparenten Provisionen"
+        }
+      }
+    },
+    "errors": {
+      "roleSetError": "Rolle konnte nicht gesetzt werden. Bitte versuchen Sie es erneut."
+    }
   }
 }

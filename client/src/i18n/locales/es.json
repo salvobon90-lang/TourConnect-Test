@@ -328,5 +328,128 @@
     "verifiedServices": "Servicios Verificados",
     "verifiedServicesDesc": "Todos los servicios están verificados y aprobados",
     "noToursAvailable": "No hay tours disponibles en este momento para la ciudad indicada para la fecha indicada"
+  },
+  "onboarding": {
+    "skip": "Saltar",
+    "progress": "Paso {current} de {total}",
+    "welcome": {
+      "title": "Bienvenido a TourConnect",
+      "subtitle": "Tu puerta de entrada a experiencias de viaje auténticas",
+      "heroText": "Descubre el mundo, un destino a la vez",
+      "cta": "Comenzar"
+    },
+    "chooseRole": {
+      "title": "Elige Tu Rol",
+      "subtitle": "Selecciona cómo deseas usar TourConnect",
+      "tourist": {
+        "title": "Turista",
+        "desc": "Explora y reserva tours increíbles",
+        "feature1": "Descubre experiencias locales únicas",
+        "feature2": "Reserva tours y servicios fácilmente",
+        "feature3": "Únete a tours comunitarios"
+      },
+      "guide": {
+        "title": "Guía",
+        "desc": "Comparte tu conocimiento local",
+        "feature1": "Crea y gestiona tus tours",
+        "feature2": "Organiza tours comunitarios",
+        "feature3": "Gana compartiendo tu pasión"
+      },
+      "provider": {
+        "title": "Proveedor",
+        "desc": "Ofrece servicios a los viajeros",
+        "feature1": "Promociona tus servicios",
+        "feature2": "Crea paquetes personalizados",
+        "feature3": "Gestiona reservas e ingresos"
+      },
+      "selected": "Seleccionado",
+      "cta": "Continuar"
+    },
+    "howItWorks": {
+      "title": "Todo lo que necesitas en una app",
+      "subtitle": "Descubre qué hace especial a TourConnect",
+      "cta": "Completar Registro",
+      "tourist": {
+        "search": {
+          "title": "Encuentra Tours Locales",
+          "desc": "Descubre experiencias increíbles organizadas por guías locales"
+        },
+        "community": {
+          "title": "Únete a Tours Comunitarios",
+          "desc": "Participa en tours grupales con precios dinámicos y descuentos"
+        },
+        "booking": {
+          "title": "Reserva Fácilmente",
+          "desc": "Reserva tours y servicios en solo unos clics"
+        },
+        "maps": {
+          "title": "Mapas Interactivos",
+          "desc": "Explora destinos con mapas detallados y navegación"
+        },
+        "reviews": {
+          "title": "Reseñas Verificadas",
+          "desc": "Lee y escribe reseñas auténticas de viajeros reales"
+        },
+        "payment": {
+          "title": "Pagos Seguros",
+          "desc": "Pagos seguros con tecnología Stripe"
+        }
+      },
+      "guide": {
+        "create": {
+          "title": "Crea Tus Tours",
+          "desc": "Comparte tu conocimiento y crea experiencias únicas"
+        },
+        "community": {
+          "title": "Gestiona Tours Comunitarios",
+          "desc": "Organiza tours grupales con precios dinámicos y descuentos automáticos"
+        },
+        "manage": {
+          "title": "Gestiona Reservas",
+          "desc": "Calendario intuitivo para gestionar todos tus tours"
+        },
+        "reviews": {
+          "title": "Reseñas y Comentarios",
+          "desc": "Recibe comentarios de turistas y mejora tus experiencias"
+        },
+        "analytics": {
+          "title": "Análisis y Estadísticas",
+          "desc": "Rastrea el rendimiento de tus tours e ingresos"
+        },
+        "earnings": {
+          "title": "Ingresos y Pagos",
+          "desc": "Recibe pagos seguros por tus servicios"
+        }
+      },
+      "provider": {
+        "promote": {
+          "title": "Promociona Servicios",
+          "desc": "Alcanza a turistas que buscan servicios locales auténticos"
+        },
+        "packages": {
+          "title": "Crea Paquetes",
+          "desc": "Combina tours y servicios en paquetes personalizados"
+        },
+        "bookings": {
+          "title": "Gestiona Reservas",
+          "desc": "Sistema completo para gestionar todas tus reservas"
+        },
+        "analytics": {
+          "title": "Análisis de Ventas",
+          "desc": "Rastrea ventas, conversiones y rendimiento"
+        },
+        "coupons": {
+          "title": "Códigos de Descuento",
+          "desc": "Crea cupones y promociones para atraer clientes"
+        },
+        "payments": {
+          "title": "Pagos y Comisiones",
+          "desc": "Recibe pagos automáticos con comisiones transparentes"
+        }
+      }
+    },
+    "errors": {
+      "roleSetError": "No se pudo establecer el rol. Por favor, inténtalo de nuevo."
+    }
   }
 }

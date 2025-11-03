@@ -16,7 +16,13 @@ import {
   CreditCard, 
   Star, 
   MapPin,
-  Check
+  Check,
+  Users,
+  Calendar,
+  BarChart,
+  Package,
+  TrendingUp,
+  Tag
 } from 'lucide-react';
 import type { UserRole } from '@shared/schema';
 
@@ -99,38 +105,110 @@ export default function Onboarding() {
     },
   ];
 
-  const features = [
+  const touristFeatures = [
     {
       icon: Search,
-      titleKey: 'onboarding.howItWorks.features.search.title',
-      descKey: 'onboarding.howItWorks.features.search.desc',
+      titleKey: 'onboarding.howItWorks.tourist.search.title',
+      descKey: 'onboarding.howItWorks.tourist.search.desc',
     },
     {
-      icon: PlusCircle,
-      titleKey: 'onboarding.howItWorks.features.create.title',
-      descKey: 'onboarding.howItWorks.features.create.desc',
+      icon: Users,
+      titleKey: 'onboarding.howItWorks.tourist.community.title',
+      descKey: 'onboarding.howItWorks.tourist.community.desc',
     },
     {
-      icon: Megaphone,
-      titleKey: 'onboarding.howItWorks.features.promote.title',
-      descKey: 'onboarding.howItWorks.features.promote.desc',
-    },
-    {
-      icon: CreditCard,
-      titleKey: 'onboarding.howItWorks.features.payment.title',
-      descKey: 'onboarding.howItWorks.features.payment.desc',
-    },
-    {
-      icon: Star,
-      titleKey: 'onboarding.howItWorks.features.reviews.title',
-      descKey: 'onboarding.howItWorks.features.reviews.desc',
+      icon: Calendar,
+      titleKey: 'onboarding.howItWorks.tourist.booking.title',
+      descKey: 'onboarding.howItWorks.tourist.booking.desc',
     },
     {
       icon: MapPin,
-      titleKey: 'onboarding.howItWorks.features.maps.title',
-      descKey: 'onboarding.howItWorks.features.maps.desc',
+      titleKey: 'onboarding.howItWorks.tourist.maps.title',
+      descKey: 'onboarding.howItWorks.tourist.maps.desc',
+    },
+    {
+      icon: Star,
+      titleKey: 'onboarding.howItWorks.tourist.reviews.title',
+      descKey: 'onboarding.howItWorks.tourist.reviews.desc',
+    },
+    {
+      icon: CreditCard,
+      titleKey: 'onboarding.howItWorks.tourist.payment.title',
+      descKey: 'onboarding.howItWorks.tourist.payment.desc',
     },
   ];
+
+  const guideFeatures = [
+    {
+      icon: PlusCircle,
+      titleKey: 'onboarding.howItWorks.guide.create.title',
+      descKey: 'onboarding.howItWorks.guide.create.desc',
+    },
+    {
+      icon: Users,
+      titleKey: 'onboarding.howItWorks.guide.community.title',
+      descKey: 'onboarding.howItWorks.guide.community.desc',
+    },
+    {
+      icon: Calendar,
+      titleKey: 'onboarding.howItWorks.guide.manage.title',
+      descKey: 'onboarding.howItWorks.guide.manage.desc',
+    },
+    {
+      icon: Star,
+      titleKey: 'onboarding.howItWorks.guide.reviews.title',
+      descKey: 'onboarding.howItWorks.guide.reviews.desc',
+    },
+    {
+      icon: BarChart,
+      titleKey: 'onboarding.howItWorks.guide.analytics.title',
+      descKey: 'onboarding.howItWorks.guide.analytics.desc',
+    },
+    {
+      icon: CreditCard,
+      titleKey: 'onboarding.howItWorks.guide.earnings.title',
+      descKey: 'onboarding.howItWorks.guide.earnings.desc',
+    },
+  ];
+
+  const providerFeatures = [
+    {
+      icon: Megaphone,
+      titleKey: 'onboarding.howItWorks.provider.promote.title',
+      descKey: 'onboarding.howItWorks.provider.promote.desc',
+    },
+    {
+      icon: Package,
+      titleKey: 'onboarding.howItWorks.provider.packages.title',
+      descKey: 'onboarding.howItWorks.provider.packages.desc',
+    },
+    {
+      icon: Calendar,
+      titleKey: 'onboarding.howItWorks.provider.bookings.title',
+      descKey: 'onboarding.howItWorks.provider.bookings.desc',
+    },
+    {
+      icon: TrendingUp,
+      titleKey: 'onboarding.howItWorks.provider.analytics.title',
+      descKey: 'onboarding.howItWorks.provider.analytics.desc',
+    },
+    {
+      icon: Tag,
+      titleKey: 'onboarding.howItWorks.provider.coupons.title',
+      descKey: 'onboarding.howItWorks.provider.coupons.desc',
+    },
+    {
+      icon: CreditCard,
+      titleKey: 'onboarding.howItWorks.provider.payments.title',
+      descKey: 'onboarding.howItWorks.provider.payments.desc',
+    },
+  ];
+
+  const features = selectedRole === 'tourist' 
+    ? touristFeatures 
+    : selectedRole === 'guide' 
+    ? guideFeatures 
+    : providerFeatures;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10 flex flex-col">

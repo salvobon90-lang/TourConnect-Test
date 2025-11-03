@@ -328,5 +328,128 @@
     "verifiedServices": "Verified Services",
     "verifiedServicesDesc": "All services are verified and approved",
     "noToursAvailable": "No tours available at the moment for the indicated city for the indicated date"
+  },
+  "onboarding": {
+    "skip": "Skip",
+    "progress": "Step {current} of {total}",
+    "welcome": {
+      "title": "Welcome to TourConnect",
+      "subtitle": "Your gateway to authentic travel experiences",
+      "heroText": "Discover the world, one destination at a time",
+      "cta": "Get Started"
+    },
+    "chooseRole": {
+      "title": "Choose Your Role",
+      "subtitle": "Select how you want to use TourConnect",
+      "tourist": {
+        "title": "Tourist",
+        "desc": "Explore and book amazing tours",
+        "feature1": "Discover unique local experiences",
+        "feature2": "Book tours and services easily",
+        "feature3": "Join community tours"
+      },
+      "guide": {
+        "title": "Guide",
+        "desc": "Share your local knowledge",
+        "feature1": "Create and manage your tours",
+        "feature2": "Organize community tours",
+        "feature3": "Earn by sharing your passion"
+      },
+      "provider": {
+        "title": "Provider",
+        "desc": "Offer services to travelers",
+        "feature1": "Promote your services",
+        "feature2": "Create custom packages",
+        "feature3": "Manage bookings and earnings"
+      },
+      "selected": "Selected",
+      "cta": "Continue"
+    },
+    "howItWorks": {
+      "title": "Everything you need in one app",
+      "subtitle": "Discover what makes TourConnect special",
+      "cta": "Complete Registration",
+      "tourist": {
+        "search": {
+          "title": "Find Local Tours",
+          "desc": "Discover amazing experiences curated by local guides"
+        },
+        "community": {
+          "title": "Join Community Tours",
+          "desc": "Participate in group tours with dynamic pricing and discounts"
+        },
+        "booking": {
+          "title": "Book Easily",
+          "desc": "Reserve tours and services in just a few clicks"
+        },
+        "maps": {
+          "title": "Interactive Maps",
+          "desc": "Explore destinations with detailed maps and navigation"
+        },
+        "reviews": {
+          "title": "Verified Reviews",
+          "desc": "Read and write authentic reviews from real travelers"
+        },
+        "payment": {
+          "title": "Secure Payments",
+          "desc": "Safe payments powered by Stripe technology"
+        }
+      },
+      "guide": {
+        "create": {
+          "title": "Create Your Tours",
+          "desc": "Share your knowledge and create unique experiences"
+        },
+        "community": {
+          "title": "Manage Community Tours",
+          "desc": "Organize group tours with dynamic pricing and automatic discounts"
+        },
+        "manage": {
+          "title": "Manage Bookings",
+          "desc": "Intuitive calendar to manage all your tours"
+        },
+        "reviews": {
+          "title": "Reviews & Feedback",
+          "desc": "Receive feedback from tourists and improve your experiences"
+        },
+        "analytics": {
+          "title": "Analytics & Stats",
+          "desc": "Track your tour performance and earnings"
+        },
+        "earnings": {
+          "title": "Earnings & Payments",
+          "desc": "Receive secure payments for your services"
+        }
+      },
+      "provider": {
+        "promote": {
+          "title": "Promote Services",
+          "desc": "Reach tourists looking for authentic local services"
+        },
+        "packages": {
+          "title": "Create Packages",
+          "desc": "Combine tours and services in custom packages"
+        },
+        "bookings": {
+          "title": "Manage Bookings",
+          "desc": "Complete system to manage all your reservations"
+        },
+        "analytics": {
+          "title": "Sales Analytics",
+          "desc": "Track sales, conversions and performance"
+        },
+        "coupons": {
+          "title": "Discount Codes",
+          "desc": "Create coupons and promotions to attract customers"
+        },
+        "payments": {
+          "title": "Payments & Fees",
+          "desc": "Receive automatic payments with transparent commissions"
+        }
+      }
+    },
+    "errors": {
+      "roleSetError": "Unable to set role. Please try again."
+    }
   }
 }

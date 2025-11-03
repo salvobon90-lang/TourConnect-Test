@@ -328,5 +328,128 @@
     "verifiedServices": "Services Vérifiés",
     "verifiedServicesDesc": "Tous les services sont vérifiés et approuvés",
     "noToursAvailable": "Aucun tour disponible pour le moment pour la ville indiquée pour la date indiquée"
+  },
+  "onboarding": {
+    "skip": "Passer",
+    "progress": "Étape {current} sur {total}",
+    "welcome": {
+      "title": "Bienvenue sur TourConnect",
+      "subtitle": "Votre passerelle vers des expériences de voyage authentiques",
+      "heroText": "Découvrez le monde, une destination à la fois",
+      "cta": "Commencer"
+    },
+    "chooseRole": {
+      "title": "Choisissez Votre Rôle",
+      "subtitle": "Sélectionnez comment vous souhaitez utiliser TourConnect",
+      "tourist": {
+        "title": "Touriste",
+        "desc": "Explorez et réservez des tours incroyables",
+        "feature1": "Découvrez des expériences locales uniques",
+        "feature2": "Réservez des tours et des services facilement",
+        "feature3": "Rejoignez des tours communautaires"
+      },
+      "guide": {
+        "title": "Guide",
+        "desc": "Partagez vos connaissances locales",
+        "feature1": "Créez et gérez vos tours",
+        "feature2": "Organisez des tours communautaires",
+        "feature3": "Gagnez en partageant votre passion"
+      },
+      "provider": {
+        "title": "Fournisseur",
+        "desc": "Offrez des services aux voyageurs",
+        "feature1": "Promouvez vos services",
+        "feature2": "Créez des forfaits personnalisés",
+        "feature3": "Gérez les réservations et les revenus"
+      },
+      "selected": "Sélectionné",
+      "cta": "Continuer"
+    },
+    "howItWorks": {
+      "title": "Tout ce dont vous avez besoin dans une seule app",
+      "subtitle": "Découvrez ce qui rend TourConnect spécial",
+      "cta": "Terminer l'Inscription",
+      "tourist": {
+        "search": {
+          "title": "Trouvez des Tours Locaux",
+          "desc": "Découvrez des expériences extraordinaires organisées par des guides locaux"
+        },
+        "community": {
+          "title": "Rejoignez des Tours Communautaires",
+          "desc": "Participez à des tours de groupe avec tarification dynamique et réductions"
+        },
+        "booking": {
+          "title": "Réservez Facilement",
+          "desc": "Réservez des tours et des services en quelques clics"
+        },
+        "maps": {
+          "title": "Cartes Interactives",
+          "desc": "Explorez les destinations avec des cartes détaillées et la navigation"
+        },
+        "reviews": {
+          "title": "Avis Vérifiés",
+          "desc": "Lisez et écrivez des avis authentiques de vrais voyageurs"
+        },
+        "payment": {
+          "title": "Paiements Sécurisés",
+          "desc": "Paiements sûrs alimentés par la technologie Stripe"
+        }
+      },
+      "guide": {
+        "create": {
+          "title": "Créez Vos Tours",
+          "desc": "Partagez vos connaissances et créez des expériences uniques"
+        },
+        "community": {
+          "title": "Gérez des Tours Communautaires",
+          "desc": "Organisez des tours de groupe avec tarification dynamique et réductions automatiques"
+        },
+        "manage": {
+          "title": "Gérez les Réservations",
+          "desc": "Calendrier intuitif pour gérer tous vos tours"
+        },
+        "reviews": {
+          "title": "Avis et Commentaires",
+          "desc": "Recevez des commentaires des touristes et améliorez vos expériences"
+        },
+        "analytics": {
+          "title": "Analyses et Statistiques",
+          "desc": "Suivez les performances de vos tours et vos revenus"
+        },
+        "earnings": {
+          "title": "Revenus et Paiements",
+          "desc": "Recevez des paiements sécurisés pour vos services"
+        }
+      },
+      "provider": {
+        "promote": {
+          "title": "Promouvez les Services",
+          "desc": "Atteignez les touristes à la recherche de services locaux authentiques"
+        },
+        "packages": {
+          "title": "Créez des Forfaits",
+          "desc": "Combinez tours et services en forfaits personnalisés"
+        },
+        "bookings": {
+          "title": "Gérez les Réservations",
+          "desc": "Système complet pour gérer toutes vos réservations"
+        },
+        "analytics": {
+          "title": "Analyses des Ventes",
+          "desc": "Suivez les ventes, les conversions et les performances"
+        },
+        "coupons": {
+          "title": "Codes de Réduction",
+          "desc": "Créez des coupons et des promotions pour attirer des clients"
+        },
+        "payments": {
+          "title": "Paiements et Frais",
+          "desc": "Recevez des paiements automatiques avec des commissions transparentes"
+        }
+      }
+    },
+    "errors": {
+      "roleSetError": "Impossible de définir le rôle. Veuillez réessayer."
+    }
   }
 }
