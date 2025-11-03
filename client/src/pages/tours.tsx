@@ -33,8 +33,32 @@ export default function Tours() {
     const params = new URLSearchParams(searchQuery);
     const city = params.get('city');
     const date = params.get('date');
-    if (city) setCityFilter(city);
-    if (date) setDateFilter(date);
+    const search = params.get('search');
+    const categoryParam = params.get('category');
+    const minPrice = params.get('minPrice');
+    const maxPrice = params.get('maxPrice');
+    const proximity = params.get('proximity');
+    
+    setCityFilter(city || '');
+    setDateFilter(date || '');
+    setSearchTerm(search || '');
+    setCategory(categoryParam || '');
+    
+    // Derive priceFilter from minPrice and maxPrice
+    if (maxPrice === '50' && !minPrice) {
+      setPriceFilter('low');
+    } else if (minPrice === '50' && maxPrice === '100') {
+      setPriceFilter('medium');
+    } else if (minPrice === '100' && !maxPrice) {
+      setPriceFilter('high');
+    } else {
+      setPriceFilter('');
+    }
+    
+    // proximity parameter is read but not yet used (for future proximity filtering)
+    if (proximity) {
+      // Future: handle proximity filtering
+    }
   }, [searchQuery]);
 
   // Build query parameters for filtering

@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, MapPin, Star, Clock, Users, Heart, Calendar, Map as MapIcon, Navigation, Sparkles, MessageSquare } from 'lucide-react';
 import type { TourWithGuide } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { useUserLocation } from '@/hooks/use-location';
 import { calculateDistance, formatDistance } from '@/lib/geolocation';
 import { Header } from '@/components/layout/Header';
@@ -26,6 +26,7 @@ export default function TouristDashboard() {
   const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState<string>('');
   const [priceFilter, setPriceFilter] = useState<string>('');
@@ -137,6 +138,22 @@ export default function TouristDashboard() {
       .slice(0, 6);
   }, [toursWithDistance, sponsoredIdsSet, isSponsoredTour]);
 
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (searchTerm) params.append('search', searchTerm);
+    if (category) params.append('category', category);
+    if (priceFilter === 'low') params.append('maxPrice', '50');
+    if (priceFilter === 'medium') {
+      params.append('minPrice', '50');
+      params.append('maxPrice', '100');
+    }
+    if (priceFilter === 'high') params.append('minPrice', '100');
+    if (proximityFilter) params.append('proximity', proximityFilter);
+    
+    const queryString = params.toString();
+    navigate(`/tours${queryString ? `?${queryString}` : ''}`);
+  };
+
   if (authLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -179,7 +196,7 @@ export default function TouristDashboard() {
                     data-testid="input-search"
                   />
                 </div>
-                <Button onClick={() => {}} data-testid="button-search-submit">
+                <Button onClick={handleSearch} data-testid="button-search-submit">
                   <Search className="w-4 h-4 mr-2" />
                   {t('common.search')}
                 </Button>
@@ -233,7 +250,7 @@ export default function TouristDashboard() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={requestLocation}
+                    onClick={() => requestLocation()}
                     disabled={locationLoading}
                     data-testid="button-enable-location"
                   >
