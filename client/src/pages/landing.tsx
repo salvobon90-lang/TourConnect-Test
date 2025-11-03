@@ -1,14 +1,27 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { MapPin, Search, Star, Users, Calendar, Globe2, Shield, Compass } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Logo } from '@/components/logo';
 import { SEO } from '@/components/seo';
 
 export default function Landing() {
   const { t } = useTranslation();
+  const [, setLocation] = useLocation();
+  const [searchLocation, setSearchLocation] = useState('');
+  const [searchDate, setSearchDate] = useState('');
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (searchLocation.trim()) {
+      params.append('search', searchLocation.trim());
+    }
+    const queryString = params.toString();
+    setLocation(queryString ? `/tours?${queryString}` : '/tours');
+  };
 
   return (
     <>
@@ -63,6 +76,9 @@ export default function Landing() {
                 <Input
                   placeholder={t('landing.searchPlaceholderLocation')}
                   className="pl-10"
+                  value={searchLocation}
+                  onChange={(e) => setSearchLocation(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   data-testid="input-search-location"
                 />
               </div>
@@ -71,10 +87,12 @@ export default function Landing() {
                 <Input
                   type="date"
                   className="pl-10"
+                  value={searchDate}
+                  onChange={(e) => setSearchDate(e.target.value)}
                   data-testid="input-search-date"
                 />
               </div>
-              <Button size="lg" className="md:w-auto" data-testid="button-search">
+              <Button size="lg" className="md:w-auto" onClick={handleSearch} data-testid="button-search">
                 <Search className="w-5 h-5 mr-2" />
                 {t('landing.searchButton')}
               </Button>
