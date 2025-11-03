@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Clock, Users, Star, MapPin, BadgeCheck } from 'lucide-react';
 import type { TourWithGuide } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Link } from 'wouter';
+import { Link, useSearch } from 'wouter';
 import { Logo } from '@/components/logo';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SEO } from '@/components/seo';
@@ -21,13 +21,26 @@ import { getLocalizedContent } from '@/lib/i18n-content';
 
 export default function Tours() {
   const { t, i18n } = useTranslation();
+  const searchQuery = useSearch();
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState<string>('');
   const [priceFilter, setPriceFilter] = useState<string>('');
+  const [cityFilter, setCityFilter] = useState<string>('');
+  const [dateFilter, setDateFilter] = useState<string>('');
+
+  // Read URL parameters on mount
+  useEffect(() => {
+    const params = new URLSearchParams(searchQuery);
+    const city = params.get('city');
+    const date = params.get('date');
+    if (city) setCityFilter(city);
+    if (date) setDateFilter(date);
+  }, [searchQuery]);
 
   // Build query parameters for filtering
   const queryParams = new URLSearchParams();
   if (searchTerm) queryParams.append('search', searchTerm);
+  if (cityFilter) queryParams.append('city', cityFilter);
   if (category) queryParams.append('category', category);
   if (priceFilter === 'low') queryParams.append('maxPrice', '50');
   if (priceFilter === 'medium') {
@@ -43,7 +56,7 @@ export default function Tours() {
   const queryUrl = `/api/tours?${queryString}`;
 
   const { data: tours, isLoading } = useQuery<TourWithGuide[]>({
-    queryKey: ['tours', i18n.language, searchTerm, category, priceFilter],
+    queryKey: ['tours', i18n.language, searchTerm, cityFilter, category, priceFilter],
     queryFn: () => fetch(queryUrl, { credentials: 'include' }).then(r => r.json())
   });
 
@@ -132,7 +145,7 @@ export default function Tours() {
                   </SelectContent>
                 </Select>
                 
-                {(searchTerm || category || priceFilter) && (
+                {(searchTerm || category || priceFilter || cityFilter || dateFilter) && (
                   <Button 
                     variant="outline" 
                     size="sm"
@@ -140,6 +153,8 @@ export default function Tours() {
                       setSearchTerm('');
                       setCategory('');
                       setPriceFilter('');
+                      setCityFilter('');
+                      setDateFilter('');
                     }}
                     data-testid="button-clear-filters"
                   >
@@ -187,13 +202,17 @@ export default function Tours() {
               <MapPin className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-2xl font-semibold mb-2">{t('dashboards.tourist.noToursFound')}</h3>
               <p className="text-muted-foreground mb-6">
-                {t('dashboards.tourist.tryDifferentFilters')}
+                {cityFilter || dateFilter 
+                  ? t('landing.noToursAvailable')
+                  : t('dashboards.tourist.tryDifferentFilters')}
               </p>
               <Button 
                 onClick={() => {
                   setSearchTerm('');
                   setCategory('');
                   setPriceFilter('');
+                  setCityFilter('');
+                  setDateFilter('');
                 }}
                 data-testid="button-clear-all"
               >

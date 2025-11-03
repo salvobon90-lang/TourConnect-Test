@@ -35,7 +35,10 @@ export default function Landing() {
   const handleSearch = () => {
     const params = new URLSearchParams();
     if (searchLocation.trim()) {
-      params.append('search', searchLocation.trim());
+      params.append('city', searchLocation.trim());
+    }
+    if (searchDate) {
+      params.append('date', searchDate);
     }
     const queryString = params.toString();
     setLocation(queryString ? `/tours?${queryString}` : '/tours');

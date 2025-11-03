@@ -891,7 +891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/tours', async (req: any, res) => {
     try {
-      const { category, search, minPrice, maxPrice, language } = req.query;
+      const { category, search, minPrice, maxPrice, language, city } = req.query;
       const userLanguage = (language as string) || 'en';
       
       // Check if user is authenticated and get their role
@@ -905,7 +905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const skipLanguageFilter = userRole === 'guide' || userRole === 'supervisor' || userRole === 'admin';
       
       // Create cache key from query parameters
-      const cacheKey = `tours:${userLanguage}:${skipLanguageFilter}:${JSON.stringify({ category, search, minPrice, maxPrice })}`;
+      const cacheKey = `tours:${userLanguage}:${skipLanguageFilter}:${JSON.stringify({ category, search, city, minPrice, maxPrice })}`;
       
       // Check cache first (5 min TTL)
       const cached = tourListCache.get(cacheKey);
@@ -934,6 +934,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           t.title.toLowerCase().includes(searchLower) ||
           t.description.toLowerCase().includes(searchLower)
         );
+      }
+      if (city) {
+        const cityLower = (city as string).toLowerCase();
+        toursList = toursList.filter(t => {
+          if (t.meetingPoint) {
+            // Extract city from meeting point (last part after comma)
+            const parts = t.meetingPoint.split(',');
+            if (parts.length > 0) {
+              const tourCity = parts[parts.length - 1].trim().toLowerCase();
+              return tourCity.includes(cityLower);
+            }
+          }
+          return false;
+        });
       }
       if (minPrice) {
         toursList = toursList.filter(t => t.price && parseFloat(t.price.toString()) >= parseFloat(minPrice as string));
