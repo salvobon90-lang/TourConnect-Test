@@ -846,6 +846,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tour routes
+  // Endpoint to get unique cities with active tours
+  app.get('/api/cities', async (req: any, res) => {
+    try {
+      const { search } = req.query;
+      
+      // Get all approved tours
+      const toursList = await db.select({
+        meetingPoint: tours.meetingPoint
+      }).from(tours).where(eq(tours.approvalStatus, 'approved'));
+      
+      // Extract unique cities from meeting points
+      const cities = new Set<string>();
+      toursList.forEach(tour => {
+        if (tour.meetingPoint) {
+          // Extract city (last part after comma, trimmed)
+          const parts = tour.meetingPoint.split(',');
+          if (parts.length > 0) {
+            const city = parts[parts.length - 1].trim();
+            if (city) {
+              cities.add(city);
+            }
+          }
+        }
+      });
+      
+      // Convert to array and sort
+      let citiesArray = Array.from(cities).sort();
+      
+      // Filter by search term if provided
+      if (search) {
+        const searchLower = (search as string).toLowerCase();
+        citiesArray = citiesArray.filter(city => 
+          city.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      res.json(citiesArray);
+    } catch (error) {
+      console.error("Error fetching cities:", error);
+      res.status(500).json({ message: "Failed to fetch cities" });
+    }
+  });
+
   app.get('/api/tours', async (req: any, res) => {
     try {
       const { category, search, minPrice, maxPrice, language } = req.query;
