@@ -1,10 +1,13 @@
-const CACHE_NAME = 'tourconnect-v1';
+const CACHE_NAME = 'tourconnect-v2';
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
   '/logo.png',
   '/favicon.png',
+  '/apple-touch-icon.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
 ];
 
 // Install event - cache assets
