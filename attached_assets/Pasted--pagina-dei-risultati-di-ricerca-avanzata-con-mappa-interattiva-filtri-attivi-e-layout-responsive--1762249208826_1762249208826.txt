@@ -1,0 +1,214 @@
+: pagina dei risultati di ricerca avanzata con mappa interattiva, filtri attivi e layout responsive.
+Puoi copiarlo e incollarlo direttamente in Replit: farà tutto in automatico (frontend + backend + traduzioni + test).
+
+🧠 PROMPT COMPLETO — Ricerca Avanzata + Pagina Risultati + Mappa Interattiva
+
+Goal:
+Finalizzare il sistema di ricerca dell’app TourConnect introducendo una pagina risultati dedicata, una mappa dinamica con marker e filtri avanzati persistenti per Tour, Servizi e Guide.
+
+🎯 FASE 1 — Migliorie generali (nome utente + ricerca + geolocalizzazione)
+
+(Include già tutto quanto implementato nel prompt precedente: nome utente dinamico, collegamento ricerca→database, pulsante “Cosa ho intorno”, filtri e i18n).
+
+🗺️ FASE 2 — Pagina Risultati di Ricerca (SearchResultsPage)
+🧩 1. Nuovo componente
+
+Creare file:
+
+/src/pages/search/index.tsx
+
+📜 Contenuto del componente:
+import { useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+import { Card, Badge } from '@/components/ui';
+import { MapPin, Star, Users } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { t } from 'i18next';
+
+const DynamicMap = dynamic(() => import('@/components/Map/SearchResultMap'), { ssr: false });
+
+export default function SearchResultsPage() {
+  const params = useSearchParams();
+  const query = params.get('query') || '';
+  const category = params.get('category') || '';
+  const price = params.get('price') || '';
+  const lang = params.get('lang') || '';
+  const distance = params.get('distance') || '';
+
+  const [mapView, setMapView] = useState(true);
+
+  const { data, isLoading } = useQuery(['searchResults', query, category, price, lang, distance], async () => {
+    const { data } = await axios.get('/api/search', {
+      params: { query, category, price, lang, distance }
+    });
+    return data;
+  });
+
+  if (isLoading) return <p>{t('search.loading')}</p>;
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">
+          {t('search.resultsFor')} "{query}"
+        </h2>
+        <button
+          onClick={() => setMapView(!mapView)}
+          className="px-3 py-1 bg-orange-600 text-white rounded-md"
+        >
+          {mapView ? t('search.listView') : t('search.mapView')}
+        </button>
+      </div>
+
+      {mapView ? (
+        <DynamicMap results={data || []} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {data?.map((item: any) => (
+            <Card key={`${item.type}-${item.id}`} className="p-4 bg-gray-800 rounded-xl">
+              <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
+              <p className="text-sm text-gray-300 mb-2">{item.description?.slice(0, 100)}...</p>
+              <div className="flex items-center gap-3">
+                {item.price && (
+                  <Badge variant="outline" className="text-orange-400 border-orange-500">
+                    € {item.price}
+                  </Badge>
+                )}
+                {item.language && <Badge>{item.language.toUpperCase()}</Badge>}
+                {item.category && <Badge>{item.category}</Badge>}
+              </div>
+              <div className="flex justify-between items-center mt-3 text-sm text-gray-400">
+                <span className="flex items-center gap-1"><MapPin size={14}/> {item.city || 'N/D'}</span>
+                <span className="flex items-center gap-1"><Star size={14}/> {item.rating || '-'}</span>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+🗺️ FASE 3 — Mappa interattiva risultati ricerca
+
+Creare nuovo componente:
+
+/src/components/Map/SearchResultMap.tsx
+
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+const markerIcon = new L.Icon({
+  iconUrl: '/icons/map-marker-orange.png',
+  iconSize: [30, 40],
+  iconAnchor: [15, 40],
+  popupAnchor: [0, -35],
+});
+
+export default function SearchResultMap({ results }) {
+  const defaultCenter = [37.0755, 15.2866]; // Siracusa
+  const positions = results.map(r => [r.lat || 37.0755, r.lng || 15.2866]);
+
+  return (
+    <MapContainer center={defaultCenter} zoom={12} className="h-[75vh] rounded-xl z-0">
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      {positions.map((pos, i) => (
+        <Marker key={i} position={pos} icon={markerIcon}>
+          <Popup>
+            <strong>{results[i].title}</strong><br />
+            {results[i].category || ''}<br />
+            {results[i].price ? `€ ${results[i].price}` : ''}
+          </Popup>
+        </Marker>
+      ))}
+    </MapContainer>
+  );
+}
+
+🌍 FASE 4 — Backend Endpoint Ottimizzato /api/search
+
+Aggiornare endpoint /api/search:
+
+import { db } from '@/lib/db';
+import { sql } from 'drizzle-orm';
+import type { NextApiRequest, NextApiResponse } from 'next';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const { query, category, price, lang, distance } = req.query;
+  const q = `%${query?.toString().toLowerCase() || ''}%`;
+
+  try {
+    let results = await db.execute(sql`
+      SELECT 'tour' AS type, id, title, description, city, language, price, lat, lng FROM tours
+      WHERE LOWER(title) LIKE ${q} OR LOWER(description) LIKE ${q}
+      UNION
+      SELECT 'service' AS type, id, name AS title, description, category, NULL AS language, price, lat, lng FROM services
+      WHERE LOWER(name) LIKE ${q} OR LOWER(description) LIKE ${q}
+      UNION
+      SELECT 'guide' AS type, id, full_name AS title, bio AS description, city, NULL AS language, NULL AS price, NULL AS lat, NULL AS lng FROM users
+      WHERE role = 'guide' AND LOWER(full_name) LIKE ${q};
+    `);
+
+    if (lang) results = results.filter(r => r.language === lang);
+    if (category) results = results.filter(r => r.type === category);
+    if (price === 'low') results = results.filter(r => r.price <= 50);
+    if (price === 'medium') results = results.filter(r => r.price > 50 && r.price <= 100);
+    if (price === 'high') results = results.filter(r => r.price > 100);
+
+    res.status(200).json(results);
+  } catch (err) {
+    res.status(500).json({ error: 'Errore durante la ricerca', details: err });
+  }
+}
+
+🌐 FASE 5 — Traduzioni Multilingua (i18n)
+
+Aggiornare /locales/it/search.json:
+
+{
+  "placeholder": "Cerca tour, luoghi o attività...",
+  "button": "Cerca",
+  "nearby": "Cosa ho intorno",
+  "loading": "Caricamento risultati...",
+  "resultsFor": "Risultati per",
+  "mapView": "Vista mappa",
+  "listView": "Vista elenco"
+}
+
+
+(Replicare per EN, FR, DE, ES con traduzioni corrispondenti.)
+
+🧪 FASE 6 — Test funzionali
+Feature	Expected Result
+Nome dinamico utente	Mostra nome reale o username
+Barra ricerca	Collegata a DB con risultati multipli
+Pulsante “Cerca”	Carica la pagina risultati senza errore
+“Cosa ho intorno”	Geolocalizza e mostra tour vicini
+Filtri	Tutti funzionanti (categoria, prezzo, lingua, distanza)
+Vista Mappa	Marker dinamici e popup informativi
+Vista Lista	Card con titolo, descrizione, badge e prezzo
+Traduzioni	5 lingue pienamente operative
+Mobile	Responsive design, interazioni fluide
+🧩 UI Extra (optional se vuoi perfezionarla)
+
+Aggiungere un piccolo pulsante “Reset Filtri”
+
+Implementare scroll infinito nei risultati
+
+Aggiungere pulsante “Apri sulla mappa” da ogni card
+
+💬 Risultato finale:
+Dopo questa implementazione, l’utente potrà:
+
+Cercare per nome, parola chiave o categoria
+
+Filtrare per prezzo, lingua e distanza
+
+Geolocalizzarsi con un clic
+
+Visualizzare i risultati su mappa interattiva o in lista dettagliata
+
+Passare in tempo reale da una vista all’altra con animazioni fluide
