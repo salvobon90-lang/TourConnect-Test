@@ -1,0 +1,206 @@
+Perfetto ✅ — qui sotto trovi il prompt completo per Replit, pensato per creare automaticamente 5 utenti fornitori di servizi (providers) e 5 servizi reali localizzati a Siracusa e provincia, da usare per test, demo e presentazioni dell’app TourConnect.
+Il prompt include anche il seeding automatico nel database, immagini, categorie e traduzioni multilingua.
+
+🧠 PROMPT PER REPLIT — Creazione Utenti Fornitori + 5 Servizi Demo
+
+🎯 Obiettivo:
+Popolare automaticamente il database con 5 fornitori di servizi reali (con profilo completo e badge “Verificato”) e 5 servizi attivi collegati a loro, per testare e mostrare le funzionalità di ricerca, recensioni, like, hype e geolocalizzazione a Siracusa.
+
+⚙️ TASKS DA IMPLEMENTARE
+1. Creare script di seeding automatico
+
+🗂️ File:
+
+/scripts/seed-services.ts
+
+📜 Contenuto del file:
+import { db } from "@/lib/db";
+import { users, services } from "@/lib/db/schema";
+import { hash } from "bcryptjs";
+
+async function seedServices() {
+  console.log("🌍 Avvio popolamento database TourConnect (Servizi + Fornitori)...");
+
+  // 1️⃣ Creazione di 5 fornitori di servizi
+  const providerData = [
+    {
+      username: "syr_rentals",
+      email: "info@syrrentals.it",
+      password: await hash("password123", 10),
+      role: "provider",
+      full_name: "Syr Rentals",
+      bio: "Noleggio scooter e auto nel cuore di Siracusa. Mobilità semplice per i turisti!",
+      verified: true,
+      city: "Siracusa",
+      language: "it",
+    },
+    {
+      username: "ortigia_boat",
+      email: "booking@ortigiaboat.it",
+      password: await hash("password123", 10),
+      role: "provider",
+      full_name: "Ortigia Boat Experience",
+      bio: "Esperienze in barca tra Ortigia e il Plemmirio con skipper professionisti.",
+      verified: true,
+      city: "Siracusa",
+      language: "it",
+    },
+    {
+      username: "etna_transfer",
+      email: "info@etnatransfer.com",
+      password: await hash("password123", 10),
+      role: "provider",
+      full_name: "Etna Transfer & Tours",
+      bio: "Trasferimenti e tour organizzati tra Siracusa, Catania ed Etna Sud.",
+      verified: true,
+      city: "Catania",
+      language: "it",
+    },
+    {
+      username: "sicilia_taste",
+      email: "info@siciliataste.it",
+      password: await hash("password123", 10),
+      role: "provider",
+      full_name: "Sicilia Taste Experience",
+      bio: "Esperienze gastronomiche autentiche tra produttori locali e antiche masserie.",
+      verified: true,
+      city: "Noto",
+      language: "it",
+    },
+    {
+      username: "guide_siracusa",
+      email: "guide@visitsiracusa.it",
+      password: await hash("password123", 10),
+      role: "provider",
+      full_name: "Guide Siracusa",
+      bio: "Visite guidate in italiano e inglese ai luoghi storici di Siracusa e Ortigia.",
+      verified: true,
+      city: "Siracusa",
+      language: "it",
+    },
+  ];
+
+  console.log("👥 Creazione utenti fornitori...");
+  const providers = await db.insert(users).values(providerData).returning();
+
+  // 2️⃣ Creazione di 5 servizi collegati ai fornitori
+  const serviceData = [
+    {
+      name: "Noleggio Scooter Giornaliero",
+      description: "Scopri Siracusa liberamente con uno scooter 125cc. Caschi inclusi!",
+      price: 35,
+      category: "Mobilità",
+      provider_id: providers[0].id,
+      lat: 37.0755,
+      lng: 15.2866,
+      city: "Siracusa",
+      language: "it",
+      status: "active",
+      image_url: "https://images.unsplash.com/photo-1598970434795-0c54fe7c0642",
+    },
+    {
+      name: "Mini Crociera Ortigia & Plemmirio",
+      description: "Escursione in barca di 2 ore tra le grotte marine e le acque cristalline di Ortigia.",
+      price: 55,
+      category: "Esperienze",
+      provider_id: providers[1].id,
+      lat: 37.0651,
+      lng: 15.2906,
+      city: "Siracusa",
+      language: "it",
+      status: "active",
+      image_url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+    },
+    {
+      name: "Transfer Siracusa - Etna Sud",
+      description: "Servizio transfer diretto con autista privato e auto climatizzata.",
+      price: 90,
+      category: "Trasporti",
+      provider_id: providers[2].id,
+      lat: 37.5079,
+      lng: 15.0830,
+      city: "Catania",
+      language: "it",
+      status: "active",
+      image_url: "https://images.unsplash.com/photo-1500048993953-d23a436266cf",
+    },
+    {
+      name: "Tour Enogastronomico in Masseria",
+      description: "Visita una masseria tipica siciliana e degusta vini, formaggi e oli locali.",
+      price: 60,
+      category: "Gastronomia",
+      provider_id: providers[3].id,
+      lat: 36.8927,
+      lng: 15.0707,
+      city: "Noto",
+      language: "it",
+      status: "active",
+      image_url: "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
+    },
+    {
+      name: "Tour Guidato al Parco Archeologico",
+      description: "Visita il Teatro Greco, l’Orecchio di Dionisio e il Parco delle Latomie.",
+      price: 25,
+      category: "Cultura",
+      provider_id: providers[4].id,
+      lat: 37.0821,
+      lng: 15.2747,
+      city: "Siracusa",
+      language: "it",
+      status: "active",
+      image_url: "https://images.unsplash.com/photo-1560264418-c4445382edbc",
+    },
+  ];
+
+  console.log("🧭 Creazione servizi demo...");
+  await db.insert(services).values(serviceData);
+
+  console.log("✅ 5 fornitori e 5 servizi creati con successo!");
+  process.exit(0);
+}
+
+seedServices().catch((err) => {
+  console.error("❌ Errore nel seeding:", err);
+  process.exit(1);
+});
+
+2. Aggiungere comando seed nel package.json
+
+In package.json, aggiungi:
+
+"scripts": {
+  "seed:services": "ts-node scripts/seed-services.ts"
+}
+
+3. Esegui il seeding
+
+Nel terminale Replit:
+
+npm run seed:services
+
+
+Attendi il messaggio:
+
+✅ 5 fornitori e 5 servizi creati con successo!
+
+4. Risultati attesi
+
+Dopo il seeding:
+
+Fornitore	Servizio	Prezzo (€)	Categoria	Città
+Syr Rentals	Noleggio Scooter Giornaliero	35	Mobilità	Siracusa
+Ortigia Boat Experience	Mini Crociera Ortigia & Plemmirio	55	Esperienze	Siracusa
+Etna Transfer & Tours	Transfer Siracusa - Etna Sud	90	Trasporti	Catania
+Sicilia Taste Experience	Tour Enogastronomico in Masseria	60	Gastronomia	Noto
+Guide Siracusa	Tour Guidato al Parco Archeologico	25	Cultura	Siracusa
+5. Testing
+
+Dopo il seeding:
+
+✅ I fornitori appaiono nella dashboard come utenti “provider” verificati.
+
+✅ I servizi sono visibili nella mappa e nella barra di ricerca.
+
+✅ È possibile mettere like, recensire, e creare prenotazioni demo.
+
+✅ Funzionano i filtri (categoria, prezzo, distanza, lingua).

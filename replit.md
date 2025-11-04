@@ -46,3 +46,23 @@ The platform includes a dedicated group marketplace with advanced filters, AI-po
 **Database Provider:** Neon serverless PostgreSQL with Drizzle ORM.
 **AI Features:** OpenAI (content moderation).
 **3D/VR Integration:** WebXR, Three.js, Mapbox GL JS.
+
+## Recent Updates (November 2025)
+
+### Advanced Search System
+- **Dedicated Search Page**: `/search` route with URL parameter parsing (search, category, minPrice, maxPrice, proximity)
+- **Map/List Toggle View**: Interactive Leaflet map with markers and popups alongside responsive card grid (1/2/3 columns)
+- **Multi-Entity Search**: UNION queries across tours, services, guides with approval filtering and rating calculations
+- **Search Result Map**: OpenStreetMap with dynamic markers, popup tooltips (title/category/price), auto-filtered coordinates, Siracusa default center
+- **Complete i18n**: All search UI strings translated (EN/IT/FR/DE/ES): resultsFor, loading, mapView, listView, noResults, enterQuery
+- **Tourist Dashboard Fix**: Search bar correctly navigates to `/search` with all filter parameters (was broken `/tours` route)
+
+### Service Provider Test Data
+Automated seed script (`npm run seed:services`) creates 5 verified providers with 5 geo-located services for testing/demo:
+- **Syr Rentals** (Siracusa, info@syrrentals.it): Noleggio Scooter 125cc - €35 - Transport - 37.0755°N, 15.2866°E
+- **Ortigia Boat Experience** (Siracusa, booking@ortigiaboat.it): Mini Crociera Ortigia & Plemmirio - €55 - Experiences - 37.0651°N, 15.2906°E
+- **Etna Transfer & Tours** (Catania, info@etnatransfer.com): Transfer Siracusa-Etna Sud - €90 - Transport - 37.5079°N, 15.0830°E
+- **Sicilia Taste Experience** (Noto, info@siciliataste.it): Tour Enogastronomico Masseria - €60 - Restaurant - 36.8927°N, 15.0707°E
+- **Guide Siracusa Official** (Siracusa, guide@visitsiracusa.it): Tour Parco Archeologico Neapolis - €25 - Culture - 37.0603°N, 15.2933°E
+
+All providers: approved status, complete business profiles, contact info, websites, operating hours. All services: approved, geo-located, rich descriptions, high-quality Unsplash images, special offers included.
