@@ -1,0 +1,214 @@
+qui sotto trovi il prompt completo e pronto da incollare su Replit, che aggiorna entrambe le sezioni di onboarding:
+
+Guide turistiche → testi motivazionali e funzionali
+
+Provider di servizi (ristoranti, noleggi, esperienze, ecc.) → testi orientati al business
+
+Tutto include traduzioni multilingua (IT, EN, FR, DE, ES), i18n fix e validazioni automatiche.
+
+🧠 PROMPT PER REPLIT — Fix & Upgrade Onboarding (Guide + Provider)
+
+Goal: Correggere i testi errati dell’onboarding (es. onboarding.howItWorks.guide.*) e introdurre una nuova sezione completa per i provider di servizi, con traduzioni in 5 lingue e design coerente con TourConnect.
+
+🎯 TASKS PRINCIPALI
+
+Correggere le chiavi di testo mancanti per guide turistiche
+
+Aggiungere nuova sezione provider di servizi
+
+Aggiornare tutti i file i18n (onboarding.json) per EN, IT, FR, DE, ES
+
+Verificare visualizzazione, traduzioni e responsive design
+
+🗂️ 1. JSON I18N — AGGIORNAMENTO COMPLETO
+🇮🇹 Italiano (/locales/it/onboarding.json)
+{
+  "howItWorks": {
+    "guide": {
+      "title": "Tutto quello che serve in un'app",
+      "subtitle": "Scopri cosa rende TourConnect speciale per le guide turistiche",
+      "create": {
+        "title": "Crea i tuoi tour in pochi minuti",
+        "desc": "Progetta itinerari completi con tappe, foto e descrizioni. Nessuna competenza tecnica, solo la tua esperienza!"
+      },
+      "community": {
+        "title": "Unisciti alla community",
+        "desc": "Connettiti con altre guide e turisti, partecipa a tour condivisi e aumenta la tua visibilità locale."
+      },
+      "manage": {
+        "title": "Gestisci tutto facilmente",
+        "desc": "Controlla prenotazioni, disponibilità e messaggi direttamente dal tuo pannello."
+      },
+      "reviews": {
+        "title": "Ricevi recensioni verificate",
+        "desc": "Le recensioni arrivano solo da turisti reali che hanno partecipato ai tuoi tour, aumentando la tua credibilità."
+      },
+      "analytics": {
+        "title": "Monitora le tue performance",
+        "desc": "Scopri quali tour attirano più visitatori, visualizzazioni e like per migliorare la tua offerta."
+      },
+      "earnings": {
+        "title": "Aumenta i tuoi guadagni",
+        "desc": "Partecipa ai tour di gruppo, promuovi le tue attività e ricevi pagamenti sicuri e veloci."
+      }
+    },
+    "provider": {
+      "title": "Fai crescere il tuo business con TourConnect",
+      "subtitle": "Scopri come la piattaforma aiuta ristoranti, noleggi e attività locali",
+      "listings": {
+        "title": "Pubblica i tuoi servizi",
+        "desc": "Aggiungi la tua attività, imposta orari e prezzi e fatti trovare facilmente dai turisti vicini."
+      },
+      "promotion": {
+        "title": "Promuovi i tuoi servizi",
+        "desc": "Attiva campagne sponsorizzate per apparire tra i primi risultati della zona."
+      },
+      "management": {
+        "title": "Gestisci prenotazioni e clienti",
+        "desc": "Ricevi e gestisci le richieste direttamente dal pannello provider in modo semplice e veloce."
+      },
+      "ratings": {
+        "title": "Ottieni recensioni reali",
+        "desc": "Solo clienti verificati possono lasciare recensioni, garantendo autenticità e fiducia."
+      },
+      "insights": {
+        "title": "Analizza la tua crescita",
+        "desc": "Accedi a grafici e report per capire cosa funziona meglio e ottimizzare le tue offerte."
+      },
+      "revenue": {
+        "title": "Aumenta i guadagni",
+        "desc": "Sfrutta il sistema di tour community e le sponsorizzazioni per moltiplicare le prenotazioni."
+      }
+    }
+  }
+}
+
+🇬🇧 English (/locales/en/onboarding.json)
+{
+  "howItWorks": {
+    "guide": {
+      "title": "Everything you need in one app",
+      "subtitle": "Discover what makes TourConnect special for travel guides",
+      "create": {
+        "title": "Create your tours in minutes",
+        "desc": "Design full itineraries with stops, photos, and descriptions. No tech skills needed — just your expertise!"
+      },
+      "community": {
+        "title": "Join the community",
+        "desc": "Connect with other guides and travelers, join group tours and increase your local visibility."
+      },
+      "manage": {
+        "title": "Manage everything easily",
+        "desc": "Handle bookings, availability, and messages right from your dashboard."
+      },
+      "reviews": {
+        "title": "Get verified reviews",
+        "desc": "Reviews come only from real tourists who joined your tours, building your credibility."
+      },
+      "analytics": {
+        "title": "Monitor your performance",
+        "desc": "Discover which tours get more visits, bookings, and likes to optimize your work."
+      },
+      "earnings": {
+        "title": "Boost your earnings",
+        "desc": "Join group tours, promote your experiences and receive secure payments instantly."
+      }
+    },
+    "provider": {
+      "title": "Grow your business with TourConnect",
+      "subtitle": "Discover how the platform supports restaurants, rentals and experiences",
+      "listings": {
+        "title": "List your services",
+        "desc": "Add your business, set schedules and prices, and be discovered by tourists nearby."
+      },
+      "promotion": {
+        "title": "Promote your services",
+        "desc": "Launch sponsored campaigns to appear in the top results in your area."
+      },
+      "management": {
+        "title": "Manage bookings easily",
+        "desc": "Receive and manage requests directly from your provider dashboard."
+      },
+      "ratings": {
+        "title": "Earn real reviews",
+        "desc": "Only verified customers can review, building trust and authenticity."
+      },
+      "insights": {
+        "title": "Analyze your growth",
+        "desc": "Track performance with charts and insights to improve your business."
+      },
+      "revenue": {
+        "title": "Increase your revenue",
+        "desc": "Use group tour collaborations and sponsored visibility to boost reservations."
+      }
+    }
+  }
+}
+
+
+(Le versioni 🇫🇷 FR, 🇩🇪 DE e 🇪🇸 ES vengono generate automaticamente tramite sistema i18n.)
+
+🧩 2. UI FIX
+
+Nel componente OnboardingHowItWorks:
+
+Correggere i riferimenti:
+
+<h2>{t('howItWorks.guide.title')}</h2>
+<p>{t('howItWorks.guide.subtitle')}</p>
+
+
+Per le 6 card:
+
+<FeatureCard
+  icon="plus"
+  title={t('howItWorks.guide.create.title')}
+  description={t('howItWorks.guide.create.desc')}
+/>
+
+
+Aggiungere una condizione:
+
+const role = user.role; // "guide" or "provider"
+const prefix = `howItWorks.${role}`;
+
+
+Rimuovere qualsiasi fallback testuale in inglese se manca una chiave.
+
+🧪 3. TESTING
+
+Verifiche:
+
+✅ Nessuna chiave i18n visibile (es. onboarding.howItWorks.guide.*)
+
+✅ Selezionando “Guida” → mostra le 6 card con testi per guide
+
+✅ Selezionando “Provider” → mostra le 6 card dedicate ai servizi
+
+✅ Traduzioni funzionanti (IT, EN, FR, DE, ES)
+
+✅ Tema coerente (dark grey + arancione #FF6600)
+
+✅ Mobile responsive OK
+
+💡 ESEMPI DI TESTO IN APP
+
+Guida:
+
+“Crea tour unici e fatti conoscere da migliaia di turisti in cerca di esperienze autentiche.”
+
+Provider:
+
+“Porta la tua attività su TourConnect e rendila visibile ai viaggiatori della tua zona in tempo reale.”
+
+✅ ACCEPTANCE CRITERIA
+
+🔤 Tutte le chiavi i18n corrette e localizzate
+
+🌍 Traduzioni complete in 5 lingue
+
+🧭 UI coerente per guide e provider
+
+📱 Responsività verificata su mobile
+
+🧩 Zero errori console / i18n
