@@ -176,7 +176,7 @@ export default function TouristDashboard() {
         />
         <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
           <h2 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4">
-            {t('common.welcomeBack', { name: user?.firstName || t('roles.tourist') })}
+            {t('common.welcomeBack', { name: user?.firstName || user?.username || t('roles.tourist') })}
           </h2>
           <p className="text-xl text-white/90 mb-8">
             {t('dashboards.tourist.title')}
