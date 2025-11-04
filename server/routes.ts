@@ -6,7 +6,7 @@ import { isPartner } from "./middleware/auth";
 import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import Stripe from "stripe";
-import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey, insertPartnerSchema, type InsertPartner, type Partner, insertPackageSchema, type InsertPackage, type Package, insertCouponSchema, insertAffiliateLinkSchema, type InsertCoupon, type Coupon, type InsertAffiliateLink, type AffiliateLink, insertExternalConnectorSchema, type InsertExternalConnector, type ExternalConnector, tours, services, consentAudit, insertConsentAuditSchema } from "@shared/schema";
+import { insertTourSchema, insertServiceSchema, insertBookingSchema, insertReviewSchema, updateProfileSchema, insertSponsorshipSchema, insertMessageSchema, insertConversationSchema, insertEventSchema, insertPostSchema, insertPostCommentSchema, insertGroupBookingSchema, joinGroupBookingSchema, leaveGroupBookingSchema, updateGroupStatusSchema, events, eventParticipants, type InsertEventParticipant, type ApiKey, insertPartnerSchema, type InsertPartner, type Partner, insertPackageSchema, type InsertPackage, type Package, insertCouponSchema, insertAffiliateLinkSchema, type InsertCoupon, type Coupon, type InsertAffiliateLink, type AffiliateLink, insertExternalConnectorSchema, type InsertExternalConnector, type ExternalConnector, tours, services, users, consentAudit, insertConsentAuditSchema } from "@shared/schema";
 import { randomUUID, createHash, randomBytes } from "crypto";
 import { z } from "zod";
 import { 
@@ -6857,46 +6857,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========== GLOBAL SEARCH API (Phase 10) ==========
 
-  // Basic global search
+  // Basic global search (Optimized with UNION queries)
   app.get("/api/search", async (req: any, res) => {
     try {
-      const { q, type, city, language, priceMin, priceMax, rating, availability } = req.query;
+      const { q, type, city, language, priceMin, priceMax, rating } = req.query;
       
       if (!q || typeof q !== 'string') {
         return res.status(400).json({ message: "Query parameter 'q' is required" });
       }
 
-      // Rate limiting
-      const userId = req.user?.claims?.sub;
-      if (!checkRateLimit(userId)) {
-        return res.status(429).json({ message: "Too many requests. Please wait before searching again." });
+      const searchQuery = `%${q.toLowerCase()}%`;
+      let results: any[] = [];
+
+      // Search tours
+      if (!type || type === 'tour') {
+        const tourResults = await db
+          .select({
+            id: tours.id,
+            type: sql<string>`'tour'`,
+            title: tours.title,
+            description: tours.description,
+            city: tours.city,
+            latitude: tours.latitude,
+            longitude: tours.longitude,
+            price: tours.price,
+            category: tours.category,
+            language: tours.language,
+            rating: sql<number>`COALESCE((SELECT AVG(rating) FROM reviews WHERE tour_id = ${tours.id}), 0)`,
+          })
+          .from(tours)
+          .where(
+            sql`(LOWER(${tours.title}) LIKE ${searchQuery} OR LOWER(${tours.description}) LIKE ${searchQuery})
+                AND ${tours.approvalStatus} = 'approved'`
+          )
+          .limit(50);
+        
+        results.push(...tourResults);
       }
 
-      const filters = {
-        type: type as any,
-        city: city as string,
-        language: language as string,
-        priceMin: priceMin ? parseFloat(priceMin as string) : undefined,
-        priceMax: priceMax ? parseFloat(priceMax as string) : undefined,
-        rating: rating ? parseFloat(rating as string) : undefined,
-        availability: availability === 'true',
-      };
+      // Search services
+      if (!type || type === 'service') {
+        const serviceResults = await db
+          .select({
+            id: services.id,
+            type: sql<string>`'service'`,
+            title: services.name,
+            description: services.description,
+            city: sql<string>`NULL`,
+            latitude: services.latitude,
+            longitude: services.longitude,
+            price: services.price,
+            category: services.type,
+            language: sql<string>`NULL`,
+            rating: sql<number>`0`,
+          })
+          .from(services)
+          .where(
+            sql`(LOWER(${services.name}) LIKE ${searchQuery} OR LOWER(${services.description}) LIKE ${searchQuery})
+                AND ${services.approvalStatus} = 'approved'`
+          )
+          .limit(50);
+        
+        results.push(...serviceResults);
+      }
 
-      const results = await searchGlobal(storage, q, filters);
+      // Search guides
+      if (!type || type === 'guide') {
+        const guideResults = await db
+          .select({
+            id: users.id,
+            type: sql<string>`'guide'`,
+            title: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+            description: users.bio,
+            city: users.city,
+            latitude: users.latitude,
+            longitude: users.longitude,
+            price: sql<number>`NULL`,
+            category: sql<string>`NULL`,
+            language: sql<string>`NULL`,
+            rating: sql<number>`COALESCE(${users.trustLevel}, 0)`,
+          })
+          .from(users)
+          .where(
+            sql`${users.role} = 'guide'
+                AND ${users.approvalStatus} = 'approved'
+                AND (LOWER(${users.firstName}) LIKE ${searchQuery} 
+                     OR LOWER(${users.lastName}) LIKE ${searchQuery}
+                     OR LOWER(${users.bio}) LIKE ${searchQuery})`
+          )
+          .limit(50);
+        
+        results.push(...guideResults);
+      }
+
+      // Apply additional filters
+      if (city) {
+        results = results.filter(r => r.city?.toLowerCase().includes(city.toLowerCase()));
+      }
       
-      // Log search
-      await storage.logSearch({
-        userId,
-        query: q,
-        searchType: type as string,
-        resultsCount: results.totalCount,
-        filters,
-      });
+      if (priceMin) {
+        const min = parseFloat(priceMin);
+        results = results.filter(r => !r.price || r.price >= min);
+      }
       
+      if (priceMax) {
+        const max = parseFloat(priceMax);
+        results = results.filter(r => !r.price || r.price <= max);
+      }
+
       res.json(results);
-    } catch (error) {
-      console.error("[Search] Error:", error);
-      res.status(500).json({ message: "Search failed" });
+    } catch (error: any) {
+      console.error('[API Search Error]', error);
+      res.status(500).json({ message: 'Search failed', error: error.message });
     }
   });
 
