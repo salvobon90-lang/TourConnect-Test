@@ -1110,6 +1110,84 @@ const resources = {
               desc: "Explore destinations with detailed maps and navigation",
             },
           },
+          tourist: {
+            search: {
+              title: "Search for local tours",
+              desc: "Browse curated experiences created by verified local guides in your area",
+            },
+            community: {
+              title: "Join the community",
+              desc: "Connect with travelers and guides, share experiences and discover group tours",
+            },
+            booking: {
+              title: "Easy and secure booking",
+              desc: "Book your tours with confidence through our secure payment system",
+            },
+            maps: {
+              title: "Interactive maps",
+              desc: "Explore destinations with detailed maps, GPS navigation and offline support",
+            },
+            reviews: {
+              title: "Read verified reviews",
+              desc: "Check authentic reviews from real travelers who experienced the tours",
+            },
+            payment: {
+              title: "Safe payments",
+              desc: "Protected payments through Stripe with instant confirmation and refund protection",
+            },
+          },
+          guide: {
+            create: {
+              title: "Create your tours in minutes",
+              desc: "Design full itineraries with stops, photos, and descriptions. No tech skills needed — just your expertise!",
+            },
+            community: {
+              title: "Join the community",
+              desc: "Connect with other guides and travelers, join group tours and increase your local visibility.",
+            },
+            manage: {
+              title: "Manage everything easily",
+              desc: "Handle bookings, availability, and messages right from your dashboard.",
+            },
+            reviews: {
+              title: "Get verified reviews",
+              desc: "Reviews come only from real tourists who joined your tours, building your credibility.",
+            },
+            analytics: {
+              title: "Monitor your performance",
+              desc: "Discover which tours get more visits, bookings, and likes to optimize your work.",
+            },
+            earnings: {
+              title: "Boost your earnings",
+              desc: "Join group tours, promote your experiences and receive secure payments instantly.",
+            },
+          },
+          provider: {
+            promote: {
+              title: "Promote your services",
+              desc: "Launch sponsored campaigns to appear in the top results in your area.",
+            },
+            packages: {
+              title: "List your services",
+              desc: "Add your business, set schedules and prices, and be discovered by tourists nearby.",
+            },
+            bookings: {
+              title: "Manage bookings easily",
+              desc: "Receive and manage requests directly from your provider dashboard.",
+            },
+            analytics: {
+              title: "Analyze your growth",
+              desc: "Track performance with charts and insights to improve your business.",
+            },
+            coupons: {
+              title: "Earn real reviews",
+              desc: "Only verified customers can review, building trust and authenticity.",
+            },
+            payments: {
+              title: "Increase your revenue",
+              desc: "Use group tour collaborations and sponsored visibility to boost reservations.",
+            },
+          },
         },
         errors: {
           roleSetError: "Failed to set role. Please try again.",
@@ -2833,6 +2911,84 @@ const resources = {
             maps: {
               title: "Mappe Interattive",
               desc: "Esplora destinazioni con mappe dettagliate e navigazione",
+            },
+          },
+          tourist: {
+            search: {
+              title: "Cerca tour locali",
+              desc: "Sfoglia esperienze curate create da guide locali verificate nella tua zona",
+            },
+            community: {
+              title: "Unisciti alla community",
+              desc: "Connettiti con viaggiatori e guide, condividi esperienze e scopri tour di gruppo",
+            },
+            booking: {
+              title: "Prenotazioni facili e sicure",
+              desc: "Prenota i tuoi tour con fiducia attraverso il nostro sistema di pagamento sicuro",
+            },
+            maps: {
+              title: "Mappe interattive",
+              desc: "Esplora le destinazioni con mappe dettagliate, navigazione GPS e supporto offline",
+            },
+            reviews: {
+              title: "Leggi recensioni verificate",
+              desc: "Controlla recensioni autentiche di veri viaggiatori che hanno vissuto i tour",
+            },
+            payment: {
+              title: "Pagamenti sicuri",
+              desc: "Pagamenti protetti tramite Stripe con conferma istantanea e protezione rimborsi",
+            },
+          },
+          guide: {
+            create: {
+              title: "Crea i tuoi tour in pochi minuti",
+              desc: "Progetta itinerari completi con tappe, foto e descrizioni. Nessuna competenza tecnica, solo la tua esperienza!",
+            },
+            community: {
+              title: "Unisciti alla community",
+              desc: "Connettiti con altre guide e turisti, partecipa a tour condivisi e aumenta la tua visibilità locale.",
+            },
+            manage: {
+              title: "Gestisci tutto facilmente",
+              desc: "Controlla prenotazioni, disponibilità e messaggi direttamente dal tuo pannello.",
+            },
+            reviews: {
+              title: "Ricevi recensioni verificate",
+              desc: "Le recensioni arrivano solo da turisti reali che hanno partecipato ai tuoi tour, aumentando la tua credibilità.",
+            },
+            analytics: {
+              title: "Monitora le tue performance",
+              desc: "Scopri quali tour attirano più visitatori, visualizzazioni e like per migliorare la tua offerta.",
+            },
+            earnings: {
+              title: "Aumenta i tuoi guadagni",
+              desc: "Partecipa ai tour di gruppo, promuovi le tue attività e ricevi pagamenti sicuri e veloci.",
+            },
+          },
+          provider: {
+            promote: {
+              title: "Promuovi i tuoi servizi",
+              desc: "Attiva campagne sponsorizzate per apparire tra i primi risultati della zona.",
+            },
+            packages: {
+              title: "Pubblica i tuoi servizi",
+              desc: "Aggiungi la tua attività, imposta orari e prezzi e fatti trovare facilmente dai turisti vicini.",
+            },
+            bookings: {
+              title: "Gestisci prenotazioni e clienti",
+              desc: "Ricevi e gestisci le richieste direttamente dal pannello provider in modo semplice e veloce.",
+            },
+            analytics: {
+              title: "Analizza la tua crescita",
+              desc: "Accedi a grafici e report per capire cosa funziona meglio e ottimizzare le tue offerte.",
+            },
+            coupons: {
+              title: "Ottieni recensioni reali",
+              desc: "Solo clienti verificati possono lasciare recensioni, garantendo autenticità e fiducia.",
+            },
+            payments: {
+              title: "Aumenta i guadagni",
+              desc: "Sfrutta il sistema di tour community e le sponsorizzazioni per moltiplicare le prenotazioni.",
             },
           },
         },
@@ -4560,6 +4716,84 @@ const resources = {
               desc: "Erkunden Sie Reiseziele mit detaillierten Karten und Navigation",
             },
           },
+          tourist: {
+            search: {
+              title: "Lokale Touren suchen",
+              desc: "Durchsuchen Sie kuratierte Erlebnisse von verifizierten lokalen Guides in Ihrer Nähe",
+            },
+            community: {
+              title: "Der Community beitreten",
+              desc: "Vernetzen Sie sich mit Reisenden und Guides, teilen Sie Erfahrungen und entdecken Sie Gruppentouren",
+            },
+            booking: {
+              title: "Einfache und sichere Buchung",
+              desc: "Buchen Sie Ihre Touren mit Vertrauen über unser sicheres Zahlungssystem",
+            },
+            maps: {
+              title: "Interaktive Karten",
+              desc: "Erkunden Sie Reiseziele mit detaillierten Karten, GPS-Navigation und Offline-Unterstützung",
+            },
+            reviews: {
+              title: "Verifizierte Bewertungen lesen",
+              desc: "Lesen Sie authentische Bewertungen von echten Reisenden, die die Touren erlebt haben",
+            },
+            payment: {
+              title: "Sichere Zahlungen",
+              desc: "Geschützte Zahlungen über Stripe mit sofortiger Bestätigung und Rückerstattungsschutz",
+            },
+          },
+          guide: {
+            create: {
+              title: "Erstellen Sie Ihre Touren in Minuten",
+              desc: "Gestalten Sie vollständige Reiserouten mit Stopps, Fotos und Beschreibungen. Keine technischen Kenntnisse erforderlich — nur Ihr Fachwissen!",
+            },
+            community: {
+              title: "Der Community beitreten",
+              desc: "Vernetzen Sie sich mit anderen Guides und Reisenden, nehmen Sie an Gruppentouren teil und erhöhen Sie Ihre lokale Sichtbarkeit.",
+            },
+            manage: {
+              title: "Verwalten Sie alles einfach",
+              desc: "Verwalten Sie Buchungen, Verfügbarkeit und Nachrichten direkt von Ihrem Dashboard aus.",
+            },
+            reviews: {
+              title: "Verifizierte Bewertungen erhalten",
+              desc: "Bewertungen stammen nur von echten Touristen, die an Ihren Touren teilgenommen haben und stärken Ihre Glaubwürdigkeit.",
+            },
+            analytics: {
+              title: "Überwachen Sie Ihre Leistung",
+              desc: "Entdecken Sie, welche Touren mehr Besucher, Buchungen und Likes erhalten, um Ihre Arbeit zu optimieren.",
+            },
+            earnings: {
+              title: "Steigern Sie Ihre Einnahmen",
+              desc: "Nehmen Sie an Gruppentouren teil, bewerben Sie Ihre Erlebnisse und erhalten Sie sofort sichere Zahlungen.",
+            },
+          },
+          provider: {
+            promote: {
+              title: "Bewerben Sie Ihre Dienstleistungen",
+              desc: "Starten Sie gesponserte Kampagnen, um in den Top-Ergebnissen Ihrer Region zu erscheinen.",
+            },
+            packages: {
+              title: "Listen Sie Ihre Dienstleistungen auf",
+              desc: "Fügen Sie Ihr Unternehmen hinzu, legen Sie Zeitpläne und Preise fest und werden Sie von Touristen in der Nähe entdeckt.",
+            },
+            bookings: {
+              title: "Verwalten Sie Buchungen einfach",
+              desc: "Empfangen und verwalten Sie Anfragen direkt von Ihrem Anbieter-Dashboard aus.",
+            },
+            analytics: {
+              title: "Analysieren Sie Ihr Wachstum",
+              desc: "Verfolgen Sie die Leistung mit Diagrammen und Einblicken, um Ihr Geschäft zu verbessern.",
+            },
+            coupons: {
+              title: "Echte Bewertungen erhalten",
+              desc: "Nur verifizierte Kunden können bewerten und schaffen Vertrauen und Authentizität.",
+            },
+            payments: {
+              title: "Steigern Sie Ihren Umsatz",
+              desc: "Nutzen Sie Gruppentouren-Kooperationen und gesponserte Sichtbarkeit, um Buchungen zu steigern.",
+            },
+          },
         },
         errors: {
           roleSetError: "Rolle konnte nicht festgelegt werden. Bitte versuchen Sie es erneut.",
@@ -6285,6 +6519,84 @@ const resources = {
               desc: "Explorez les destinations avec des cartes détaillées et la navigation",
             },
           },
+          tourist: {
+            search: {
+              title: "Rechercher des visites locales",
+              desc: "Parcourez des expériences organisées par des guides locaux vérifiés dans votre région",
+            },
+            community: {
+              title: "Rejoindre la communauté",
+              desc: "Connectez-vous avec des voyageurs et des guides, partagez vos expériences et découvrez des visites en groupe",
+            },
+            booking: {
+              title: "Réservation facile et sécurisée",
+              desc: "Réservez vos visites en toute confiance grâce à notre système de paiement sécurisé",
+            },
+            maps: {
+              title: "Cartes interactives",
+              desc: "Explorez les destinations avec des cartes détaillées, navigation GPS et support hors ligne",
+            },
+            reviews: {
+              title: "Lire les avis vérifiés",
+              desc: "Consultez les avis authentiques de vrais voyageurs ayant vécu les visites",
+            },
+            payment: {
+              title: "Paiements sécurisés",
+              desc: "Paiements protégés via Stripe avec confirmation instantanée et protection des remboursements",
+            },
+          },
+          guide: {
+            create: {
+              title: "Créez vos visites en quelques minutes",
+              desc: "Concevez des itinéraires complets avec étapes, photos et descriptions. Aucune compétence technique requise, juste votre expertise!",
+            },
+            community: {
+              title: "Rejoindre la communauté",
+              desc: "Connectez-vous avec d'autres guides et voyageurs, participez aux visites de groupe et augmentez votre visibilité locale.",
+            },
+            manage: {
+              title: "Gérez tout facilement",
+              desc: "Gérez les réservations, la disponibilité et les messages directement depuis votre tableau de bord.",
+            },
+            reviews: {
+              title: "Recevez des avis vérifiés",
+              desc: "Les avis proviennent uniquement de vrais touristes ayant participé à vos visites, renforçant votre crédibilité.",
+            },
+            analytics: {
+              title: "Surveillez vos performances",
+              desc: "Découvrez quelles visites attirent le plus de visiteurs, réservations et mentions j'aime pour optimiser votre offre.",
+            },
+            earnings: {
+              title: "Augmentez vos revenus",
+              desc: "Participez aux visites de groupe, promouvez vos expériences et recevez des paiements sécurisés instantanément.",
+            },
+          },
+          provider: {
+            promote: {
+              title: "Promouvoir vos services",
+              desc: "Lancez des campagnes sponsorisées pour apparaître dans les premiers résultats de votre région.",
+            },
+            packages: {
+              title: "Publier vos services",
+              desc: "Ajoutez votre entreprise, définissez les horaires et les prix, et soyez découvert par les touristes à proximité.",
+            },
+            bookings: {
+              title: "Gérez les réservations facilement",
+              desc: "Recevez et gérez les demandes directement depuis votre tableau de bord fournisseur.",
+            },
+            analytics: {
+              title: "Analysez votre croissance",
+              desc: "Suivez les performances avec des graphiques et des insights pour améliorer votre entreprise.",
+            },
+            coupons: {
+              title: "Obtenez de vrais avis",
+              desc: "Seuls les clients vérifiés peuvent laisser des avis, garantissant confiance et authenticité.",
+            },
+            payments: {
+              title: "Augmentez vos revenus",
+              desc: "Utilisez les collaborations de visites de groupe et la visibilité sponsorisée pour augmenter les réservations.",
+            },
+          },
         },
         errors: {
           roleSetError: "Impossible de définir le rôle. Veuillez réessayer.",
@@ -8008,6 +8320,84 @@ const resources = {
             maps: {
               title: "Mapas Interactivos",
               desc: "Explora destinos con mapas detallados y navegación",
+            },
+          },
+          tourist: {
+            search: {
+              title: "Buscar tours locales",
+              desc: "Explora experiencias seleccionadas creadas por guías locales verificados en tu área",
+            },
+            community: {
+              title: "Únete a la comunidad",
+              desc: "Conéctate con viajeros y guías, comparte experiencias y descubre tours en grupo",
+            },
+            booking: {
+              title: "Reserva fácil y segura",
+              desc: "Reserva tus tours con confianza a través de nuestro sistema de pago seguro",
+            },
+            maps: {
+              title: "Mapas interactivos",
+              desc: "Explora destinos con mapas detallados, navegación GPS y soporte sin conexión",
+            },
+            reviews: {
+              title: "Lee reseñas verificadas",
+              desc: "Consulta reseñas auténticas de viajeros reales que experimentaron los tours",
+            },
+            payment: {
+              title: "Pagos seguros",
+              desc: "Pagos protegidos a través de Stripe con confirmación instantánea y protección de reembolsos",
+            },
+          },
+          guide: {
+            create: {
+              title: "Crea tus tours en minutos",
+              desc: "Diseña itinerarios completos con paradas, fotos y descripciones. ¡No se necesitan habilidades técnicas, solo tu experiencia!",
+            },
+            community: {
+              title: "Únete a la comunidad",
+              desc: "Conéctate con otros guías y viajeros, participa en tours grupales y aumenta tu visibilidad local.",
+            },
+            manage: {
+              title: "Gestiona todo fácilmente",
+              desc: "Administra reservas, disponibilidad y mensajes directamente desde tu panel.",
+            },
+            reviews: {
+              title: "Recibe reseñas verificadas",
+              desc: "Las reseñas provienen solo de turistas reales que participaron en tus tours, construyendo tu credibilidad.",
+            },
+            analytics: {
+              title: "Monitorea tu rendimiento",
+              desc: "Descubre qué tours obtienen más visitas, reservas y me gusta para optimizar tu trabajo.",
+            },
+            earnings: {
+              title: "Aumenta tus ganancias",
+              desc: "Participa en tours grupales, promociona tus experiencias y recibe pagos seguros al instante.",
+            },
+          },
+          provider: {
+            promote: {
+              title: "Promociona tus servicios",
+              desc: "Lanza campañas patrocinadas para aparecer en los primeros resultados de tu área.",
+            },
+            packages: {
+              title: "Publica tus servicios",
+              desc: "Agrega tu negocio, establece horarios y precios, y sé descubierto por turistas cercanos.",
+            },
+            bookings: {
+              title: "Gestiona reservas fácilmente",
+              desc: "Recibe y gestiona solicitudes directamente desde tu panel de proveedor.",
+            },
+            analytics: {
+              title: "Analiza tu crecimiento",
+              desc: "Realiza un seguimiento del rendimiento con gráficos e información para mejorar tu negocio.",
+            },
+            coupons: {
+              title: "Obtén reseñas reales",
+              desc: "Solo los clientes verificados pueden opinar, generando confianza y autenticidad.",
+            },
+            payments: {
+              title: "Aumenta tus ingresos",
+              desc: "Utiliza colaboraciones de tours grupales y visibilidad patrocinada para impulsar las reservas.",
             },
           },
         },
