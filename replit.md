@@ -2,65 +2,7 @@
 
 ## Overview
 
-TourConnect is a comprehensive tourism platform designed to connect tourists, tour guides, service providers, and supervisors. It offers role-based dashboards, a supervisor approval workflow for guides and providers, interactive mapping with geolocation, booking management with Stripe payments, a sponsorship system for promoting tours and services, and multi-language support. Recent significant additions include a secure gamified travel rewards system, a smart tour completion system with dynamic group pricing, and social engagement features like a "like" system and trust levels. The platform also features immersive experiences with 3D/VR tours, an interactive 3D globe, AI-powered tools, and robust community engagement features, all built on a foundation of professional branding and performance optimization.
-
-**Phase 11 (October 2025) - Community Layer & Group Marketplace:**
-- **Group Marketplace**: Dedicated marketplace page for discovering and joining open group bookings with advanced filters (destination, date, price, participants, language), AI-powered hot deals suggestions, real-time countdown timers, and dynamic pricing display with discount badges
-- **AI Content Moderation**: OpenAI-powered content filtering, user report system with supervisor review dashboard, anti-spam rate limiting (10 posts/min), automatic language detection
-- **Community Reward Points System**: Extended reward system with 6 new action types (create public group +30pts, join group +15pts, community interaction +10pts, complete tour as guide 100% +200pts, community leader badge +150pts, share completed tour +25pts), automatic badge awards for community leaders (5+ completed groups)
-- **Push Notifications**: Real-time WebSocket notifications for comments, group invites, group status updates (almost full, confirmed), with persistent notification storage and read/unread management
-- **Payment Automation**: Stripe Checkout integration for group bookings, automatic refund system for expired or incomplete groups, payment status tracking
-- **Enhanced UI**: Animated progress bars with Framer Motion, dynamic pricing displays, discount percentage badges, threshold markers, countdown timers with urgency indicators
-- **GDPR Compliance**: User data deletion endpoint (right to erasure), user data export endpoint (right to data portability), automatic anonymization for business-critical records
-- **Full Internationalization**: All features support 5 languages (EN, IT, DE, FR, ES) including SEO metadata, marketplace filters, notifications, moderation interfaces
-
-**Phase 12 (October 2025) - Business Integration & Travel Partner Ecosystem:**
-- **Partner Onboarding**: KYC verification workflow, partner profile management (business name, type, contact info, description, verification status), supervisor approval system with audit logging
-- **Dynamic Package Bundling**: Multi-tour/service package creation with custom pricing, group discount rules (min participants, discount percentage), maximum participant limits, flexible cancellation policies
-- **Stripe Connect Integration**: Destination charges with automatic 15% platform fee, split payouts to partner accounts, account onboarding flow, webhook handlers for payment events with signature verification (no unsafe JSON.parse fallback)
-- **Coupon System**: Partner-created discount codes (percentage/fixed amount), validation rules (min purchase, max uses, expiry dates), real-time coupon application in pricing calculator
-- **Affiliate Program**: Unique referral codes, commission tracking (10% default rate), conversion monitoring, partner analytics for affiliate performance
-- **Partner Analytics Dashboard**: Revenue overview, top-performing products, conversion trends, CSV export for reporting, parallel query optimization
-- **OTA/DMO Connectors**: External inventory synchronization, webhook support for booking events, API credentials management, inventory mapping system
-- **Partner Portal UI**: 9-tab comprehensive dashboard (overview, packages, coupons, affiliates, analytics, payouts, billing, connectors, profile), rewards integration showing points/trust level/badges, Stripe billing management
-- **Package Discovery UI**: Search/filter interface (partner verified only, packages only), detail pages with pricing calculator, real-time discount display, coupon validation, group booking integration
-- **Partner Badges**: Visual trust indicators (verified partner, sponsored), prominent display in search results and discovery pages
-- **Security & Compliance**: isPartner RBAC middleware (18 protected endpoints), rate limiting (100 req/15min), comprehensive audit logging (8 critical operations), GDPR partner data handling (export/delete), webhook signature verification
-- **Full Internationalization**: Complete i18n support for EN/IT/DE/FR/ES (~700 translations) covering partner portal, packages, coupons, affiliates, analytics, badges
-
-**Note**: Phase 12 authenticated end-to-end testing deferred to pre-deployment QA phase. All code implemented and verified, database operations proven functional, security measures confirmed.
-
-**Phase 13 (October 2025) - Community Tour Creation Flow Redesign:**
-- **7-Step Tour Creation Wizard**: Comprehensive multi-step wizard (Basic Info → Details → Media → Location → Pricing → Availability → Review & Publish) with dynamic step titles, form validation, and progress tracking
-- **Interactive Map Selection**: Leaflet integration with draggable markers and radius slider for tour location/coverage area selection, replacing manual lat/long entry
-- **Multi-Language Support**: Complete internationalization with 9-language multi-select (IT, EN, FR, DE, ES, PT, JP, CN, RU) with flag icons, all UI strings fully localized across 5 languages
-- **Dynamic Pricing System**: Community mode toggle with participant-based group discounts (threshold rules), add-ons management, min/max participant limits
-- **Real-Time Participant Tracking**: WebSocket broadcasting with atomic SQL increment (`db.update().returning()`) to prevent race conditions under concurrent booking load, real-time price updates based on participant thresholds
-- **Community Map Enhancement**: Dual-view toggle (Smart Groups / Community Tours), real-time participant count display, dynamic discount badges, tour-specific filters (difficulty, price range, available spots)
-- **Admin Moderation Dashboard**: Map view + List view toggle for pending tours, community tour filters (community only, has participants, price range, difficulty), approve/reject functionality from both views, enhanced tour details display (participant counts, discount rules, add-ons)
-- **Reward Points Integration**: +75 points for guides creating community tours, +30 points for tourists joining community tours, automatic point awards on tour creation and booking
-- **Translation Coverage**: Complete i18n for all Tour Creation Wizard steps, Community Map UI, WebSocket notifications, admin dashboard filters across EN/IT/FR/DE/ES with proper fallback handling (anonymousUser, userJoinedFallback)
-- **Critical Bug Fixes**: Atomic participant increment eliminates race conditions, location filtering for zero-valued coordinates (equator/prime meridian), React Query cache invalidation for instant UI updates, request abort prevention for missing tour price
-- **Database Schema**: Extended tours table with `communityMode`, `currentParticipants`, `discountRules` (JSONB), `addOns` (JSONB), `minParticipants`, `maxParticipants`, `status` fields
-
-**Note**: Phase 13 production-ready and architect-approved. All localization complete with zero hard-coded strings, atomic WebSocket operations verified, end-to-end tour creation flow functional.
-
-**Admin UX Improvements (November 2025):**
-- **Streamlined Admin Login Flow**: Admin and supervisor users now bypass onboarding screens and redirect directly to their dashboard after authentication, eliminating unnecessary steps and improving workflow efficiency
-- **Supervisor Dashboard Enhancements**: Added fully functional logout button in dashboard header with proper error handling, session invalidation, success/error toast notifications, and redirect to admin login page
-- **Complete Supervisor Translation Coverage**: Added comprehensive `dashboards.supervisor` namespace to all 5 locale files (EN, IT, FR, DE, ES) including:
-  - Main interface: title, subtitle ("Benvenuto/a" in IT / "Welcome" in EN), stats labels ("Approvazioni in sospeso" in IT / "Pending Approvals" in EN)
-  - User management: approval/rejection confirmations, role promotion messages
-  - Tour/service moderation: approval workflows, status messages
-  - All toast notifications and UI elements with idiomatic, grammatically correct translations reviewed by architect
-- **Siracusa Test Data Seed**: Created `server/seed.ts` script with realistic test data for QA/demo purposes:
-  - 10 users: 1 admin (admin@test.com), 2 guides (Marco Rossi, Giulia Bianchi), 2 providers (Sicilian Adventures, Taste of Sicily), 5 tourists
-  - 5 approved tours: Ortigia Walking Tour, Siracusa in Barca, Tramonto a Plemmirio, Cibo & Storia, Neapolis Archaeological Park
-  - 5 approved services: bike rental, kayak tours, street food, cooking class, airport transfer
-  - All data geo-located around Siracusa, Sicily (37.0755°N, 15.2866°E) with rich descriptions, pricing, availability
-  - npm script: `npm run seed` to populate/reset test database
-
-**Note**: All improvements architect-reviewed and production-ready. Admin login flow optimized, supervisor dashboard fully internationalized with proper logout functionality, comprehensive test data available for end-to-end validation.
+TourConnect is a comprehensive tourism platform connecting tourists, tour guides, service providers, and supervisors. It features role-based dashboards, a supervisor approval workflow, interactive mapping with geolocation, booking management with Stripe payments, and a sponsorship system. Key capabilities include a gamified travel rewards system, smart tour completion with dynamic group pricing, and social engagement features. The platform offers immersive 3D/VR tours, an interactive 3D globe, and AI-powered tools, focusing on professional branding, performance, and community engagement through a group marketplace, content moderation, and partner integration.
 
 ## User Preferences
 
@@ -70,31 +12,37 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 
-The frontend is built with React and TypeScript, using Vite for development and Wouter for routing. TanStack Query manages server state, and React Hook Form with Zod handles form validation. Styling is achieved with Tailwind CSS and shadcn/ui, featuring a "new-york" style. i18next provides multi-language support for 5 languages. UI/UX is visual-first, discovery-driven, inspired by Airbnb and Booking.com, using a dark grey and orange (#FF6600) color scheme with consistent typography and theming for light/dark modes, adhering to WCAG AA accessibility standards. State management leverages React Query for server state and React hooks for local UI state, avoiding global state libraries.
+The frontend is built with React and TypeScript, utilizing Vite, Wouter for routing, TanStack Query for server state, and React Hook Form with Zod for validation. Styling is achieved using Tailwind CSS and shadcn/ui, featuring a "new-york" style. i18next provides multi-language support (5 languages). The UI/UX is visual-first, discovery-driven, inspired by Airbnb and Booking.com, using a dark grey and orange (#FF6600) color scheme with consistent typography and light/dark modes, adhering to WCAG AA accessibility standards. State management uses React Query for server state and React hooks for local UI state.
 
 ### Backend Architecture
 
-The backend utilizes Express.js on Node.js with Drizzle ORM for type-safe PostgreSQL operations (Neon serverless PostgreSQL). It supports WebSockets for real-time features. Authentication is handled by Passport.js with OpenID Connect for Replit-based authentication and PostgreSQL-backed session management. The API is RESTful, enforcing role-based access control and supervisor approval workflows. Key features include atomic transactions for critical operations (e.g., group bookings, reward points), Zod schemas for input validation, and secure server-side logic for all sensitive actions like awarding reward points.
+The backend uses Express.js on Node.js with Drizzle ORM for type-safe PostgreSQL operations (Neon serverless PostgreSQL). It supports WebSockets for real-time features. Authentication is handled by Passport.js with OpenID Connect for Replit and PostgreSQL-backed session management. The API is RESTful, enforcing role-based access control and supervisor approval workflows. It includes atomic transactions, Zod schemas for input validation, and secure server-side logic for sensitive actions like awarding reward points.
 
 ### Database Schema Design
 
-Core tables include `users` (with roles, approval status, and extended profiles), `tours`, `services`, `bookings`, `reviews`, `sponsorships`, `likes`, `user_rewards`, `reward_logs`, `group_bookings`, `notifications`, and `contentReports`. Relationships link tours to guides, services to providers, bookings to users and tours, and reviews to users and tours. The schema uses UUID primary keys, timestamp tracking, JSONB columns for flexible data storage (e.g., social links, images), decimal types for monetary values, and geolocation coordinates. Approval statuses, roles, and reward system details are carefully structured to support the platform's features and security.
+Core tables include `users` (with roles, approval, and profiles), `tours`, `services`, `bookings`, `reviews`, `sponsorships`, `likes`, `user_rewards`, `reward_logs`, `group_bookings`, `notifications`, and `contentReports`. Relationships link entities such as tours to guides, bookings to users and tours. The schema uses UUID primary keys, timestamp tracking, JSONB columns for flexible data, decimal types for monetary values, and geolocation coordinates. Approval statuses, roles, and reward system details are structured to support platform features and security, including fields for community mode, participant tracking, and discount rules.
 
-**Phase 11 Schema Additions:**
-- `notifications`: userId, type, title, message, link, isRead, createdAt (indexes on userId + isRead for performance)
-- `contentReports`: contentType, contentId, reporterId, reason, status, reviewedBy, reviewedAt, moderationAction
-- `groupBookings`: Added expiresAt, stripeCheckoutSessionId, stripePaymentStatus for payment automation
-- `reward_action_type`: Extended enum with 6 new community actions (create_public_group, join_group, community_interaction, complete_tour_100, community_leader_badge, share_completed_tour)
+### UI/UX Decisions
+
+The platform employs a visual-first, discovery-driven design, inspired by Airbnb and Booking.com. It utilizes a dark grey and orange (#FF6600) color scheme with consistent typography and theming for both light and dark modes, adhering to WCAG AA accessibility standards. Specific features include interactive Leaflet maps with draggable markers, dynamic pricing displays with discount badges, real-time countdown timers, and animated progress bars with Framer Motion. Dashboards are role-based and feature enhanced layouts for supervisors and partners, including multi-tab portals and integrated reward displays.
+
+### Technical Implementations
+
+The system features real-time WebSocket notifications, atomic SQL increments for concurrent booking loads, and dynamic content rendering. Form validation is robust with React Hook Form and Zod. Internationalization is comprehensive across all features and UI elements, supporting 5 languages (EN, IT, DE, FR, ES) with proper fallback handling and SEO metadata. Security measures include RBAC middleware, rate limiting, comprehensive audit logging, GDPR compliance (data export/deletion), and webhook signature verification for payment events. A 7-step tour creation wizard with interactive map selection streamlines content input. The search system supports multi-entity searches across tours, services, and guides with map/list toggle views.
+
+### Feature Specifications
+
+The platform includes a dedicated group marketplace with advanced filters, AI-powered hot deal suggestions, and dynamic pricing. An extended reward points system tracks various user actions. Payment automation is integrated with Stripe Checkout, supporting automatic refunds and split payouts to partner accounts via Stripe Connect, including a coupon system and an affiliate program. Partner onboarding includes KYC verification and profile management. Dynamic package bundling allows for multi-tour/service creation with custom pricing and cancellation policies. AI content moderation uses OpenAI for filtering and anti-spam measures.
 
 ## External Dependencies
 
-**Payment Processing:** Stripe for secure payments, Stripe Checkout Sessions, and webhook support.
-**Object Storage:** Google Cloud Storage for file uploads.
-**Geolocation Services:** Browser Geolocation API, Leaflet with OpenStreetMap tiles, Haversine formula for distance calculations.
-**Authentication Provider:** Replit OpenID Connect (OIDC) provider.
+**Payment Processing:** Stripe (Checkout Sessions, webhooks, Connect for split payouts).
+**Object Storage:** Google Cloud Storage.
+**Geolocation Services:** Browser Geolocation API, Leaflet with OpenStreetMap, Haversine formula.
+**Authentication Provider:** Replit OpenID Connect (OIDC).
 **Development Tools:** Replit-specific Vite plugins.
-**Progressive Web App (PWA):** Web app manifest, service worker with network-first caching, custom icons, and standalone display mode.
-**SEO Optimization:** `react-helmet-async` for dynamic meta tags, Open Graph tags, Twitter Card support, Schema.org structured data, and multi-language SEO.
-**Database Provider:** Neon serverless PostgreSQL with Drizzle ORM for migrations.
-**AI Features:** OpenAI (for itinerary builder, language translation, review summaries, content moderation).
-**3D/VR Integration:** WebXR for VR tours, Three.js for 360° panoramas, Mapbox GL JS for 3D maps.
+**PWA:** Web app manifest, service worker.
+**SEO Optimization:** `react-helmet-async`.
+**Database Provider:** Neon serverless PostgreSQL with Drizzle ORM.
+**AI Features:** OpenAI (content moderation).
+**3D/VR Integration:** WebXR, Three.js, Mapbox GL JS.

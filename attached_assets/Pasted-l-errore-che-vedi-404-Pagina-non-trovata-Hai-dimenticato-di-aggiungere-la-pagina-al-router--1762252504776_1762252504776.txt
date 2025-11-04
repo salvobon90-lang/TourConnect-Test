@@ -1,0 +1,101 @@
+l’errore che vedi (“❌ 404 Pagina non trovata – Hai dimenticato di aggiungere la pagina al router?”) è chiaro:
+la ricerca funziona (il sistema tenta di aprire la pagina), ma manca la route corretta nel router.
+Replit/Next.js non trova /tours?search=... perché noi abbiamo creato la pagina risultati in /search, non in /tours.
+
+Serve quindi un prompt per Replit che:
+
+reindirizzi correttamente la barra di ricerca alla pagina /search,
+
+crei la route mancante, se necessaria,
+
+e assicuri che i parametri di ricerca vengano gestiti correttamente.
+
+🧠 PROMPT PER REPLIT — Fix “404 Pagina Non Trovata” nella Ricerca
+
+Correggi il bug che causa l’errore 404 quando si effettua una ricerca (es: /tours?search=catania).
+La ricerca deve aprire la pagina /search già implementata, non /tours.
+Inoltre, verifica che tutti i parametri vengano passati correttamente al componente SearchResultsPage.
+
+🔧 TASKS DA ESEGUIRE
+
+Correggere l’URL di destinazione della ricerca
+Nella funzione handleSearch della barra di ricerca (nel file della home turista o nel componente SearchBar.tsx), sostituire:
+
+router.push(`/tours?search=${query}`);
+
+
+con:
+
+router.push(`/search?query=${encodeURIComponent(query)}`);
+
+
+In questo modo, la ricerca aprirà la pagina corretta /search.
+
+Aggiungere una route di fallback per compatibilità
+Se altri componenti chiamano ancora /tours?search=..., crea una redirect interna:
+
+In Next.js 13+:
+
+// /src/pages/tours/index.tsx
+import { useRouter } from 'next/router';
+import { useEffect } from 'react';
+
+export default function RedirectToursToSearch() {
+  const router = useRouter();
+  const search = router.query.search || '';
+  useEffect(() => {
+    if (search) {
+      router.replace(`/search?query=${encodeURIComponent(search)}`);
+    } else {
+      router.replace('/search');
+    }
+  }, [search]);
+  return null;
+}
+
+
+Questo evita l’errore 404 anche se qualche vecchio link punta ancora a /tours?search=....
+
+Verificare che il router sia registrato
+
+Assicurarsi che nel file next.config.js o nella cartella src/pages/ esista il percorso /search/index.tsx (come indicato nel prompt precedente).
+
+Se si utilizza un router custom (es. React Router in ambiente non Next.js), aggiungere la route:
+
+<Route path="/search" element={<SearchResultsPage />} />
+
+
+Validare i parametri della ricerca
+Nel componente SearchResultsPage, assicurarsi che la query venga letta correttamente:
+
+const params = useSearchParams();
+const query = params.get('query') || '';
+
+
+(Non search, che era il nome del vecchio parametro.)
+
+Aggiornare la barra di ricerca globale
+Se il progetto ha una TopSearchBar (es. visibile anche in header), controllare che usi lo stesso schema:
+
+router.push(`/search?query=${encodeURIComponent(query)}&category=${category}&price=${price}&lang=${language}&distance=${distance}`);
+
+
+Traduzioni e messaggi di errore
+Aggiornare i file locales/it/search.json per includere:
+
+{
+  "notFound": "Nessun risultato trovato per la tua ricerca",
+  "loading": "Caricamento risultati...",
+  "error": "Si è verificato un errore durante la ricerca"
+}
+
+✅ TEST FINALI
+Azione	Risultato atteso
+Digito “Catania” nella barra e clicco “Cerca”	✅ Apre /search?query=catania
+Vecchi link a /tours?search=...	✅ Reindirizzati automaticamente a /search?query=...
+Parametri multipli (categoria, lingua, distanza)	✅ Tutti passati e filtrati correttamente
+Nessun risultato	✅ Mostra messaggio “Nessun risultato trovato”
+Test mobile e desktop	✅ Nessun errore 404 o redirect loop
+
+👉 In sintesi:
+Questo prompt corregge definitivamente il 404 collegando la barra di ricerca alla pagina corretta /search, aggiungendo un redirect per compatibilità e validando i parametri.

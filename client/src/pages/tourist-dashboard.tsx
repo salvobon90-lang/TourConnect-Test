@@ -151,7 +151,7 @@ export default function TouristDashboard() {
     if (proximityFilter) params.append('proximity', proximityFilter);
     
     const queryString = params.toString();
-    navigate(`/tours${queryString ? `?${queryString}` : ''}`);
+    navigate(`/search${queryString ? `?${queryString}` : ''}`);
   };
 
   if (authLoading || !isAuthenticated) {
